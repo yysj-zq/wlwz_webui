@@ -1,7 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Box, Fade } from "@mui/material";
-import { useTheme } from "../contexts/ThemeContext";
 import {
   CircleContainer,
   CenterAvatar,
@@ -14,7 +13,7 @@ import {
   CurrentAvatarContainer,
   CurrentAvatar,
   SelectorContainer,
-} from "./styles/HeaderStyles";
+} from "./styles/RoleSelectorStyles";
 
 // 角色数据配置
 export const assistantRoles = [
@@ -31,7 +30,6 @@ export const assistantRoles = [
 
 // 圆形角色选择器组件
 export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }) => {
-  const { theme, mode } = useTheme();
   const [hoveredRole, setHoveredRole] = useState(null);
   const containerRef = useRef(null);
 

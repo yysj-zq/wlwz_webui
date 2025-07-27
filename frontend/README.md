@@ -23,7 +23,7 @@
 ### 安装依赖
 
 ```bash
-cd project/wlwz/webui_2
+cd frontend
 npm install
 ```
 
@@ -35,94 +35,51 @@ npm start
 
 应用将在 [http://localhost:3000](http://localhost:3000) 启动。
 
-### 构建生产版本
-
-```bash
-npm run build
-```
-
-生成的文件将位于 `build` 目录，可以部署到任何静态网站托管服务。
 
 ## 如何配置
 
 ### 后端API配置
 
-在 `.env` 文件中设置API地址（如果文件不存在，请创建）：
+创建 `.env` 文件，设置API地址：
 
 ```
 REACT_APP_API_URL=http://your-backend-api-url
 ```
+## 向后端发送的消息格式
 
-默认API地址为 `http://localhost:8000`。
-
-### 后端API要求
-
-后端API需要提供以下端点：
-
-1. `/api/chat` - 用于普通对话请求
-   - 请求方法: POST
-   - 请求体: 
-     ```json
-     {
-       "messages": [消息历史数组],
-       "userRole": "用户角色",
-       "assistantRole": "AI角色"
-     }
-     ```
-
-2. `/api/chat/stream` - 用于流式对话请求
-   - 请求方法: POST
-   - 请求体: 与普通请求相同
-   - 响应: 以流的形式返回文本块
-
-3. `/api/roles` (可选) - 获取可用角色列表
-   - 请求方法: GET
-   - 响应:
-     ```json
-     {
-       "userRoles": ["角色1", "角色2", ...],
-       "assistantRoles": ["角色1", "角色2", ...]
-     }
-     ```
-
-## 自定义角色
-
-若要修改可用的角色列表，请编辑 `src/components/Header.js` 文件中的 `userRoles` 和 `assistantRoles` 数组。
-
-## 部署指南
-
-1. 构建项目: `npm run build`
-2. 将 `build` 目录中的文件部署到网站服务器
-3. 确保服务器正确配置以处理单页应用路由（将所有请求重定向到 index.html）
-
-### Nginx 配置示例
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    root /path/to/build;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
+```
+{
+  "messages": [
+    {
+      "role": "郭芙蓉",
+      "content": "掌柜的，给我涨工钱了该"
+    },
+    {
+      "role": "佟湘玉",
+      "content": "你涨什么工钱呀？"
+    },
+    {
+      "role": "郭芙蓉",
+      "content": "我干了十年了不得涨点工钱？"
+    },
+    {
+      "role": "佟湘玉",
+      "content": "那小郭，你不要动不动就拿这事儿跟我磨蹭，要涨工钱可以，你得自己去跟客人商量，你要是不跟客人商量，那我也没辙。"
+    },
+    {
+      "role": "邢育森",
+      "content": "掌柜的，你说啥呢？你该给人涨工钱就得涨"
     }
+  ],
+  "userRole": "邢育森",
+  "assistantRole": "佟湘玉"
 }
 ```
+userRole和assistantRole是本轮对话双方角色
+## 自定义角色
 
-## 常见问题解答
+若要修改可用的角色列表，请编辑 `src/components/RoleSelector.js` 文件中的角色信息。
 
-**Q: 如何更改默认角色?**  
-A: 在 `src/App.js` 中修改 `userRole` 和 `assistantRole` 的默认值。
-
-**Q: 如何禁用流式输出?**  
-A: 在设置中关闭"启用流式输出"选项，或在 `src/App.js` 中将 `streamingEnabled` 的默认值设为 `false`。
-
-**Q: 我的对话历史保存在哪里?**  
-A: 对话历史保存在浏览器的 LocalStorage 中。清除浏览器数据将删除所有历史记录。
-
-**Q: 如何增加更多AI模型?**  
-A: 此前端设计不支持模型选择，而是使用角色选择。如需添加模型选择功能，需要修改代码结构。
 
 ## 许可证
 
