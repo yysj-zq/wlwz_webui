@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  TextField, 
-  Button, 
-  IconButton, 
-  Avatar, 
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Avatar,
   Divider,
   useMediaQuery,
   CircularProgress
@@ -21,7 +19,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import 'highlight.js/styles/github.css';
 import { useTheme } from '../contexts/ThemeContext';
-
+import RoleSelector from './RoleSelector';
 const MessageContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   marginBottom: theme.spacing(2),
@@ -42,13 +40,12 @@ const StyledAvatar = styled(Avatar)(({ theme }) => ({
   marginRight: theme.spacing(2),
 }));
 
-const Chat = ({ conversation, onSendMessage, userRole, assistantRole, sidebarOpen }) => {
+const Chat = ({ conversation, onSendMessage, userRole, assistantRole, setUserRole, sidebarOpen }) => {
   const { theme } = useTheme();
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const drawerWidth = 280;
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -117,38 +114,38 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, sidebarOpe
   };
 
   return (
-    <Box 
-      sx={{ 
-        flexGrow: 1, 
-        padding: 0, 
-        display: 'flex', 
+    <Box
+      sx={{
+        flexGrow: 1,
+        padding: 0,
+        display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        ml: { md: sidebarOpen ? `${drawerWidth}px` : 0 },
         transition: theme => theme.transitions.create(['margin', 'width'], {
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.leavingScreen,
         }),
       }}
     >
-      <Box 
-        sx={{ 
-          flexGrow: 1, 
-          overflow: 'auto', 
-          p: 2, 
-          display: 'flex', 
+      {/* 对话记录 */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflow: 'auto',
+          p: 2,
+          display: 'flex',
           flexDirection: 'column',
           backgroundColor: theme.palette.background.chat,
         }}
       >
         {conversation?.messages?.length === 0 ? (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: '100%' 
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%'
             }}
           >
             <Typography variant="h5" color="text.secondary" gutterBottom>
@@ -160,8 +157,8 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, sidebarOpe
           </Box>
         ) : (
           conversation?.messages?.map((msg, index) => (
-            <MessageContainer 
-              key={msg.id} 
+            <MessageContainer
+              key={msg.id}
               className={msg.role}
             >
               <StyledAvatar>
@@ -192,19 +189,31 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, sidebarOpe
 
       <Divider />
 
-      <Box 
-        component="form" 
-        sx={{ 
-          p: 2, 
+      {/* 输入框和发送按钮 */}
+      <Box
+        component="form"
+        sx={{
+          p: 2,
           backgroundColor: theme.palette.background.paper,
           borderTop: `1px solid ${theme.palette.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          flexDirection: 'row',
         }}
         onSubmit={(e) => {
           e.preventDefault();
           handleSendMessage();
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {/* 当前角色与头像 */}
+        <Box sx={{ mr: 2 }}>
+          <RoleSelector
+            assistantRole={userRole}
+            setAssistantRole={setUserRole}
+            position="bottom"
+          />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
           <TextField
             fullWidth
             variant="outlined"

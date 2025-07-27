@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -6,7 +6,6 @@ import {
   IconButton,
   Switch,
   FormControlLabel,
-  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -27,7 +26,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
-import PersonIcon from '@mui/icons-material/Person';
+import RoleSelector, { assistantRoles } from './RoleSelector';
 
 const Header = ({
   onSidebarToggle,
@@ -43,15 +42,6 @@ const Header = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-
-  // 预设角色列表示例
-  const userRoles = [
-    "佟湘玉", "白展堂", "郭芙蓉", "李大嘴", "吕秀才", "莫小贝", "燕小六", "祝无双", "邢育森"
-  ];
-
-  const assistantRoles = [
-    "佟湘玉", "白展堂", "郭芙蓉", "李大嘴", "吕秀才", "莫小贝", "燕小六", "祝无双", "邢育森"
-  ];
 
   const handleSettingsClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -89,37 +79,11 @@ const Header = ({
           </Typography>
 
           {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-              {/* <FormControl variant="outlined" size="small" sx={{ minWidth: 120, mr: 2 }}>
-                <InputLabel id="user-role-label">你的角色</InputLabel>
-                <Select
-                  labelId="user-role-label"
-                  id="user-role"
-                  value={userRole}
-                  onChange={(e) => setUserRole(e.target.value)}
-                  label="你的角色"
-                >
-                  {userRoles.map((role) => (
-                    <MenuItem key={role} value={role}>{role}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl> */}
-
-              <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-                <InputLabel id="assistant-role-label">AI角色</InputLabel>
-                <Select
-                  labelId="assistant-role-label"
-                  id="assistant-role"
-                  value={assistantRole}
-                  onChange={(e) => setAssistantRole(e.target.value)}
-                  label="AI角色"
-                >
-                  {assistantRoles.map((role) => (
-                    <MenuItem key={role} value={role}>{role}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
+            <RoleSelector 
+              assistantRole={assistantRole} 
+              setAssistantRole={setAssistantRole} 
+              position="top"
+            />
           )}
 
           <Tooltip title="新对话">
@@ -163,8 +127,8 @@ const Header = ({
                   onChange={(e) => setUserRole(e.target.value)}
                   label="你的角色"
                 >
-                  {userRoles.map((role) => (
-                    <MenuItem key={role} value={role}>{role}</MenuItem>
+                  {assistantRoles.map((role) => (
+                    <MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -178,7 +142,7 @@ const Header = ({
                   label="AI角色"
                 >
                   {assistantRoles.map((role) => (
-                    <MenuItem key={role} value={role}>{role}</MenuItem>
+                    <MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -206,3 +170,4 @@ const Header = ({
 };
 
 export default Header;
+

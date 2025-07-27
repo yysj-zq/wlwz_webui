@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#FFCCDD" />
+  <circle cx="100" cy="80" r="45" fill="#FFDDE8" />
+  <circle cx="80" cy="70" r="4" fill="#2C1B18" />
+  <circle cx="120" cy="70" r="4" fill="#2C1B18" />
+  <path d="M90 95 Q100 100 110 95" stroke="#C25B56" stroke-width="2" fill="none" />
+  <path d="M70 50 Q100 25 130 50" stroke="#2C1B18" stroke-width="6" fill="none" />
+  <path d="M65 45 Q75 30 85 45" stroke="#2C1B18" stroke-width="5" fill="none" />
+  <path d="M135 45 Q125 30 115 45" stroke="#2C1B18" stroke-width="5" fill="none" />
+  <path d="M70 120 Q100 130 130 120" stroke="#C25B56" stroke-width="2" fill="none" />
+  <circle cx="80" cy="85" r="7" fill="#FFB3C1" fill-opacity="0.6" />
+  <circle cx="120" cy="85" r="7" fill="#FFB3C1" fill-opacity="0.6" />
+  <text x="100" y="180" font-family="Arial" font-size="16" text-anchor="middle" fill="#2C1B18">莫小贝</text>
+</svg>

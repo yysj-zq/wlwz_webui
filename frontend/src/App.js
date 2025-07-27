@@ -228,21 +228,24 @@ function App() {
         setStreamingEnabled={setStreamingEnabled}
       />
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar
-          open={sidebarOpen}
-          conversations={conversations}
-          currentConversationId={currentConversationId}
-          onSelectConversation={handleSelectConversation}
-          onNewChat={handleCreateNewChat}
-          onDeleteConversation={handleDeleteConversation}
-          onUpdateTitle={handleUpdateConversationTitle}
-          isMobile={isMobile}
-        />
+        {sidebarOpen || isMobile ? (
+          <Sidebar
+            open={sidebarOpen}
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleCreateNewChat}
+            onDeleteConversation={handleDeleteConversation}
+            onUpdateTitle={handleUpdateConversationTitle}
+            isMobile={isMobile}
+          />
+        ) : null}
         <Chat
           conversation={currentConversation}
           onSendMessage={handleSendMessage}
           userRole={userRole}
           assistantRole={assistantRole}
+          setUserRole={setUserRole}
           sidebarOpen={sidebarOpen}
         />
       </Box>

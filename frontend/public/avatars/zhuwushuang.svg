@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#F0C0A0" />
+  <circle cx="100" cy="80" r="50" fill="#F8D0B0" />
+  <circle cx="80" cy="70" r="5" fill="#2C1B18" />
+  <circle cx="120" cy="70" r="5" fill="#2C1B18" />
+  <path d="M90 95 Q100 105 110 95" stroke="#8E3B31" stroke-width="3" fill="none" />
+  <path d="M60 40 Q100 20 140 40" stroke="#2C1B18" stroke-width="8" fill="none" />
+  <path d="M65 130 Q100 140 135 130" stroke="#2C1B18" stroke-width="3" fill="none" />
+  <path d="M70 35 Q100 10 130 35" stroke="#663300" stroke-width="5" fill="none" />
+  <rect x="85" y="40" width="30" height="5" fill="#663300" />
+  <text x="100" y="180" font-family="Arial" font-size="16" text-anchor="middle" fill="#2C1B18">祝无双</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#FFB3C1" />
+  <circle cx="100" cy="80" r="50" fill="#FFD6E0" />
+  <circle cx="80" cy="70" r="5" fill="#2C1B18" />
+  <circle cx="120" cy="70" r="5" fill="#2C1B18" />
+  <path d="M90 95 Q100 105 110 95" stroke="#C25B56" stroke-width="3" fill="none" />
+  <path d="M70 40 Q100 30 130 40" stroke="#2C1B18" stroke-width="8" fill="none" />
+  <path d="M60 42 Q75 35 85 42" stroke="#2C1B18" stroke-width="5" fill="none" />
+  <path d="M140 42 Q125 35 115 42" stroke="#2C1B18" stroke-width="5" fill="none" />
+  <path d="M70 120 Q100 140 130 120" stroke="#C25B56" stroke-width="3" fill="none" />
+  <text x="100" y="180" font-family="Arial" font-size="16" text-anchor="middle" fill="#2C1B18">郭芙蓉</text>
+</svg>

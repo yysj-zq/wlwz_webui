@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#FFD9B3" />
+  <circle cx="100" cy="80" r="50" fill="#FFECD6" />
+  <circle cx="80" cy="70" r="5" fill="#2C1B18" />
+  <circle cx="120" cy="70" r="5" fill="#2C1B18" />
+  <path d="M90 95 Q100 105 110 95" stroke="#C25B56" stroke-width="3" fill="none" />
+  <path d="M60 40 Q100 20 140 40" stroke="#2C1B18" stroke-width="8" fill="none" />
+  <path d="M65 130 Q100 150 135 130" stroke="#2C1B18" stroke-width="4" fill="none" />
+  <text x="100" y="180" font-family="Arial" font-size="16" text-anchor="middle" fill="#2C1B18">佟湘玉</text>
+</svg>

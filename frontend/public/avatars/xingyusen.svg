@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#C0A080" />
+  <circle cx="100" cy="80" r="50" fill="#D0B090" />
+  <circle cx="80" cy="70" r="5" fill="#2C1B18" />
+  <circle cx="120" cy="70" r="5" fill="#2C1B18" />
+  <path d="M85 95 Q100 90 115 95" stroke="#8E3B31" stroke-width="3" fill="none" />
+  <path d="M60 45 Q100 25 140 45" stroke="#2C1B18" stroke-width="8" fill="none" />
+  <path d="M70 125 Q100 135 130 125" stroke="#2C1B18" stroke-width="3" fill="none" />
+  <path d="M70 60 Q80 50 90 60" stroke="#2C1B18" stroke-width="2" fill="none" />
+  <path d="M130 60 Q120 50 110 60" stroke="#2C1B18" stroke-width="2" fill="none" />
+  <rect x="85" y="25" width="30" height="10" rx="5" ry="5" fill="#8B4513" />
+  <text x="100" y="180" font-family="Arial" font-size="16" text-anchor="middle" fill="#2C1B18">邢育森</text>
+</svg>
