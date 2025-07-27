@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "角色扮演对话API"
     DESCRIPTION: str = "提供角色扮演和聊天功能的后端 API"
     VERSION: str = "1.0.0"
-
+    PORT: int = int(os.getenv("PORT", 8081))
     # CORS设置
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
 

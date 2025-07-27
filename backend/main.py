@@ -167,4 +167,5 @@ async def root():
     return {"status": "ok", "message": "服务正常运行"}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    logger.info("Start")
+    uvicorn.run("main:app", host="0.0.0.0", port=settings.PORT, reload=True, log_level=settings.LOG_LEVEL.lower())

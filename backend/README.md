@@ -10,43 +10,6 @@
 - 易于与大模型 API 集成
 - 可配置的环境设置
 
-## 项目结构
-
-```
-backend/
-│
-├── main.py                 # 应用入口点
-├── config.py               # 配置管理
-├── requirements.txt        # 依赖列表
-├── .env.example            # 环境变量示例
-│
-├── routers/                # 路由模块
-│   ├── __init__.py
-│   ├── chat_router.py      # 聊天相关接口
-│   └── roles_router.py     # 角色相关接口
-│
-├── services/               # 业务逻辑服务
-│   ├── __init__.py
-│   ├── chat_service.py     # 聊天服务逻辑
-│   ├── roles_service.py    # 角色服务逻辑
-│   └── models.py           # 数据模型定义
-│
-└── utils/                  # 工具函数
-    ├── __init__.py
-    └── model_client.py     # 大模型 API 客户端
-```
-
-### 组件职责说明
-
-- **路由层 (routers/)**: 处理 HTTP 请求和响应，参数验证，路由分发
-- **服务层 (services/)**:
-  - `models.py`: 定义数据结构和验证规则
-  - `chat_service.py`: 实现对话业务逻辑，调用底层 API 客户端
-  - `roles_service.py`: 实现角色管理业务逻辑
-- **工具层 (utils/)**:
-  - `model_client.py`: 封装与大模型 API 的通信细节，处理请求/响应格式转换
-
-
 ## 快速开始
 
 ### 1. 安装依赖
@@ -75,17 +38,17 @@ cp .env.example .env
 ### 3. 启动服务
 
 ```bash
-uvicorn main:app --reload
+python main.py
 ```
 
-服务将在 http://localhost:8000 上运行。
+服务将在 http://localhost:8081 上运行。
 
 ## API 文档
 
 启动服务后，可以访问自动生成的 API 文档：
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8081/docs
+- ReDoc: http://localhost:8081/redoc
 
 ## API 端点说明
 
@@ -140,22 +103,14 @@ uvicorn main:app --reload
 
 修改 `utils/model_client.py` 中的 `call_model_api` 函数，根据目标 API 的要求调整请求格式和处理逻辑。
 
+### 修改编排逻辑
+
+services/chat_service.py
+
 ### 修改系统提示词
 
-在 `utils/model_client.py` 中找到构建系统提示词的部分，根据需要修改模板内容。
+在 `utils/prompt.py` 中修改模板内容。
 
-## 常见问题
-
-1. **服务无法启动**
-   - 检查依赖是否正确安装
-   - 确认端口 8000 是否被占用
-
-2. **CORS 错误**
-   - 在 `.env` 文件中正确设置 `CORS_ORIGINS` 变量，包含前端域名
-
-3. **大模型 API 调用失败**
-   - 检查 `MODEL_BASE_URL` 和 `MODEL_API_KEY` 是否正确配置
-   - 查看服务日志以获取详细错误信息
 
 ## 许可证
 
