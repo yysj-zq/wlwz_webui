@@ -17,33 +17,35 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
   height: '300px',
   borderRadius: '50%',
 
-  // 增强的渐变背景
+  // 武林外传主题渐变背景
   background: theme.palette.mode === 'dark'
-    ? 'linear-gradient(135deg, rgba(25,32,46,0.98) 0%, rgba(37,47,63,0.95) 50%, rgba(45,55,72,0.92) 100%)'
-    : 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 50%, rgba(241,245,249,0.92) 100%)',
+    ? `radial-gradient(circle at 30% 30%, ${theme.palette.background.paper}F0, ${theme.palette.background.default}F0), 
+       repeating-conic-gradient(from 0deg at 50% 50%, ${theme.palette.divider}20 0deg 10deg, transparent 10deg 20deg)`
+    : `radial-gradient(circle at 30% 30%, ${theme.palette.background.paper}F5, ${theme.palette.background.default}F5), 
+       repeating-conic-gradient(from 0deg at 50% 50%, ${theme.palette.divider}15 0deg 10deg, transparent 10deg 20deg)`,
 
-  // 增强的毛玻璃效果
-  backdropFilter: 'blur(20px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+  // 武林外传主题毛玻璃效果
+  backdropFilter: 'blur(12px) saturate(120%)',
+  WebkitBackdropFilter: 'blur(12px) saturate(120%)',
 
-  // 双重边框效果
-  border: `1px solid ${theme.palette.mode === 'dark'
-    ? 'rgba(255,255,255,0.15)'
-    : 'rgba(0,0,0,0.08)'}`,
+  // 武林外传主题边框
+  border: `2px solid ${theme.palette.mode === 'dark'
+    ? theme.palette.divider
+    : theme.palette.primary.main}`,
 
-  // 内阴影和外阴影组合
+  // 武林外传主题阴影
   boxShadow: theme.palette.mode === 'dark'
     ? `
-      0 8px 32px rgba(0,0,0,0.4),
-      0 4px 16px rgba(0,0,0,0.25),
-      inset 0 1px 0 rgba(255,255,255,0.1),
-      0 0 0 1px rgba(255,255,255,0.05)
+      0 8px 32px ${theme.palette.background.default}60,
+      0 4px 16px ${theme.palette.background.default}30,
+      inset 0 1px 0 ${theme.palette.background.paper}30,
+      0 0 0 1px ${theme.palette.divider}30
     `
     : `
-      0 8px 32px rgba(0,0,0,0.12),
-      0 4px 16px rgba(0,0,0,0.08),
-      inset 0 1px 0 rgba(255,255,255,0.8),
-      0 0 0 1px rgba(0,0,0,0.05)
+      0 8px 32px ${theme.palette.primary.main}30,
+      0 4px 16px ${theme.palette.primary.main}15,
+      inset 0 1px 0 ${theme.palette.background.paper}60,
+      0 0 0 1px ${theme.palette.primary.main}15
     `,
 
   zIndex: 1300,
@@ -60,16 +62,16 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
     transform: 'translate(-50%, -50%) scale(1.02)',
     boxShadow: theme.palette.mode === 'dark'
       ? `
-        0 12px 48px rgba(0,0,0,0.5),
-        0 6px 24px rgba(0,0,0,0.3),
-        inset 0 1px 0 rgba(255,255,255,0.15),
-        0 0 0 1px rgba(255,255,255,0.08)
+        0 12px 48px ${theme.palette.background.default}80,
+        0 6px 24px ${theme.palette.background.default}40,
+        inset 0 1px 0 ${theme.palette.background.paper}40,
+        0 0 0 1px ${theme.palette.divider}40
       `
       : `
-        0 12px 48px rgba(0,0,0,0.15),
-        0 6px 24px rgba(0,0,0,0.1),
-        inset 0 1px 0 rgba(255,255,255,0.9),
-        0 0 0 1px rgba(0,0,0,0.08)
+        0 12px 48px ${theme.palette.primary.main}45,
+        0 6px 24px ${theme.palette.primary.main}25,
+        inset 0 1px 0 ${theme.palette.background.paper}80,
+        0 0 0 1px ${theme.palette.primary.main}25
       `,
   },
 
@@ -78,7 +80,7 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
     transform: 'translate(-50%, -50%) scale(0.98)',
   },
 
-  // 添加微妙的发光效果
+  // 添加武林外传主题发光效果
   '&::before': {
     content: '""',
     position: 'absolute',
@@ -88,15 +90,15 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
     bottom: '-2px',
     borderRadius: '50%',
     background: theme.palette.mode === 'dark'
-      ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3))'
-      : 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(147,51,234,0.2))',
+      ? `linear-gradient(135deg, ${theme.palette.secondary.main}30, ${theme.palette.primary.main}30)`
+      : `linear-gradient(135deg, ${theme.palette.secondary.main}20, ${theme.palette.primary.main}20)`,
     zIndex: -1,
     opacity: 0,
     transition: 'opacity 0.3s ease',
   },
 
   '&:hover::before': {
-    opacity: 1,
+    opacity: 0.7,
   },
 
   // 响应式设计

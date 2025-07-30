@@ -23,33 +23,46 @@ export const ThemeProvider = ({ children }) => {
         palette: {
           mode,
           primary: {
-            main: mode === 'light' ? '#3f51b5' : '#90caf9',
+            main: mode === 'light' ? '#A0522D' : '#D2B48C', // 更柔和的褐色
           },
           secondary: {
-            main: mode === 'light' ? '#f50057' : '#f48fb1',
+            main: mode === 'light' ? '#CD853F' : '#DEB887', // 珊瑚色
           },
           background: {
-            default: mode === 'light' ? '#f5f5f5' : '#121212',
-            paper: mode === 'light' ? '#ffffff' : '#1e1e1e',
-            sidebar: mode === 'light' ? '#f0f0f0' : '#1a1a1a',
-            chat: mode === 'light' ? '#ffffff' : '#121212',
+            default: mode === 'light' ? '#F5F0E6' : '#2C2213', // 更柔和的小麦色/深褐色背景
+            paper: mode === 'light' ? '#FFFDF8' : '#3D2F19', // 更柔和的纸张色
+            sidebar: mode === 'light' ? '#F8F4EC' : '#352A18', // 更柔和的侧边栏
+            chat: mode === 'light' ? '#F8F4EC' : '#352A18', // 更柔和的聊天区
           },
           text: {
-            primary: mode === 'light' ? '#24292f' : '#e6edf3',
-            secondary: mode === 'light' ? '#57606a' : '#768390',
+            primary: mode === 'light' ? '#5D4037' : '#F5E9D2', // 更柔和的深褐色/米色文字
+            secondary: mode === 'light' ? '#8D6E63' : '#DCC9A8', // 更柔和的次要文字
           },
-          divider: mode === 'light' ? '#d0d7de' : '#30363d',
+          divider: mode === 'light' ? '#D7CCC8' : '#5D4E44', // 更柔和的分隔线
+          // 武林外传角色颜色 (更柔和的版本)
+          tongxiangyu: '#B71C1C', // 佟湘玉 - 深红色
+          baizhantang: '#1565C0', // 白展堂 - 皇家蓝
+          guofurong: '#C2185B', // 郭芙蓉 - 玫瑰红
+          lidazui: '#6A1B9A', // 李大嘴 - 紫色
+          lvxiucai: '#388E3C', // 吕秀才 - 绿色
+          moxiaobei: '#E91E63', // 莫小贝 - 粉红
+          yanxiaoliu: '#0277BD', // 燕小六 - 海军蓝
+          zhuwushuang: '#FFB300', // 祝无双 - 金色
+          xingyusen: '#616161', // 邢育森 - 灰色
         },
         typography: {
           fontFamily: [
-            '-apple-system',
-            'BlinkMacSystemFont',
-            '"Segoe UI"',
-            'Roboto',
-            '"Helvetica Neue"',
-            'Arial',
-            'sans-serif',
+            '"Microsoft YaHei"',
+            '"SimHei"',
+            '"KaiTi"',
+            'STKaiti',
+            'serif',
           ].join(','),
+          // 武林外传特色字体样式
+          h6: {
+            fontFamily: '"KaiTi", "STKaiti", serif',
+            fontWeight: 'bold',
+          },
         },
         components: {
           MuiCssBaseline: {
@@ -57,17 +70,57 @@ export const ThemeProvider = ({ children }) => {
               body: {
                 scrollbarWidth: 'thin',
                 '&::-webkit-scrollbar': {
-                  width: '0.4em',
+                  width: '0.6em',
                 },
                 '&::-webkit-scrollbar-track': {
-                  background: mode === 'light' ? '#f1f1f1' : '#121212',
+                  background: mode === 'light' ? '#F5DEB3' : '#8B4513',
                 },
                 '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: mode === 'light' ? '#888' : '#555',
+                  backgroundColor: mode === 'light' ? '#D2B48C' : '#CD853F',
+                  borderRadius: '0.3em',
                 },
                 '&::-webkit-scrollbar-thumb:hover': {
-                  background: mode === 'light' ? '#555' : '#777',
+                  background: mode === 'light' ? '#CD853F' : '#DEB887',
                 },
+              },
+            },
+          },
+          // 武林外传风格按钮
+          MuiButton: {
+            styleOverrides: {
+              root: {
+                borderRadius: '20px',
+                textTransform: 'none',
+                fontFamily: '"KaiTi", "STKaiti", serif',
+                fontWeight: 'bold',
+              },
+              contained: {
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: 'none',
+                },
+              },
+            },
+          },
+          // 武林外传风格输入框
+          MuiTextField: {
+            styleOverrides: {
+              root: {
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '20px',
+                },
+              },
+            },
+          },
+          // 武林外传风格卡片
+          MuiPaper: {
+            styleOverrides: {
+              root: {
+                borderRadius: '12px',
+                backgroundImage: mode === 'light' 
+                  ? 'linear-gradient(135deg, rgba(255, 248, 220, 0.8) 0%, rgba(255, 228, 181, 0.8) 100%)'
+                  : 'linear-gradient(135deg, rgba(160, 82, 45, 0.8) 0%, rgba(139, 69, 19, 0.8) 100%)',
+                border: `1px solid ${mode === 'light' ? '#D2B48C' : '#CD853F'}`,
               },
             },
           },

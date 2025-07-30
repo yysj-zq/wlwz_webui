@@ -41,6 +41,27 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
     width: drawerWidth,
     boxSizing: 'border-box',
     backgroundColor: theme.palette.background.sidebar,
+    borderRight: `1px solid ${theme.palette.divider}`,
+    // 添加武林外传主题纹理背景
+    backgroundImage: theme.palette.mode === 'light' 
+      ? `radial-gradient(circle, ${theme.palette.divider}15 1px, transparent 1px),
+         linear-gradient(90deg, ${theme.palette.primary.main}05 1px, transparent 1px)`
+      : `radial-gradient(circle, ${theme.palette.divider}20 1px, transparent 1px),
+         linear-gradient(90deg, ${theme.palette.primary.main}08 1px, transparent 1px)`,
+    backgroundSize: '20px 20px, 100% 100%',
+    position: 'relative',
+    // 添加装饰性边框
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      border: `1px solid ${theme.palette.divider}20`,
+      borderRadius: 'inherit',
+      pointerEvents: 'none',
+    }
   },
 }));
 
@@ -50,6 +71,26 @@ const MobileDrawer = styled(Drawer)(({ theme }) => ({
     width: drawerWidth,
     boxSizing: 'border-box',
     backgroundColor: theme.palette.background.sidebar,
+    // 添加武林外传主题纹理背景
+    backgroundImage: theme.palette.mode === 'light' 
+      ? `radial-gradient(circle, ${theme.palette.divider}15 1px, transparent 1px),
+         linear-gradient(90deg, ${theme.palette.primary.main}05 1px, transparent 1px)`
+      : `radial-gradient(circle, ${theme.palette.divider}20 1px, transparent 1px),
+         linear-gradient(90deg, ${theme.palette.primary.main}08 1px, transparent 1px)`,
+    backgroundSize: '20px 20px, 100% 100%',
+    position: 'relative',
+    // 添加装饰性边框
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      border: `1px solid ${theme.palette.divider}20`,
+      borderRadius: 'inherit',
+      pointerEvents: 'none',
+    }
   },
 }));
 

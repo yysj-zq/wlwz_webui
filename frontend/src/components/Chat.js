@@ -21,15 +21,50 @@ import { RoleSelector, RolePool } from './RoleSelector';
 const MessageContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   marginBottom: theme.spacing(2),
-  padding: theme.spacing(1),
-  borderRadius: theme.spacing(1),
+  padding: theme.spacing(1.5),
+  borderRadius: theme.spacing(2),
   backgroundColor: 'transparent',
+  position: 'relative',
+  overflow: 'hidden',
+  boxShadow: theme.palette.mode === 'light' 
+    ? `0 2px 8px ${theme.palette.divider}30`
+    : `0 2px 8px ${theme.palette.divider}50`,
   '&.user': {
-    backgroundColor: theme.palette.mode === 'light' ? 'rgba(230, 230, 230, 0.5)' : 'rgba(66, 66, 66, 0.5)',
+    backgroundColor: theme.palette.mode === 'light' 
+      ? `${theme.palette.background.paper}D0` 
+      : `${theme.palette.background.paper}B0`,
+    border: `1px solid ${theme.palette.mode === 'light' 
+      ? theme.palette.primary.main + '40' 
+      : theme.palette.primary.main + '60'}`,
+    // 添加纹理背景
+    backgroundImage: theme.palette.mode === 'light' 
+      ? `repeating-linear-gradient(45deg, ${theme.palette.primary.main}15 0px, ${theme.palette.primary.main}15 2px, transparent 2px, transparent 8px)`
+      : `repeating-linear-gradient(45deg, ${theme.palette.primary.main}20 0px, ${theme.palette.primary.main}20 2px, transparent 2px, transparent 8px)`,
   },
   '&.assistant': {
-    backgroundColor: theme.palette.mode === 'light' ? 'rgba(240, 240, 240, 0.5)' : 'rgba(50, 50, 50, 0.5)',
+    backgroundColor: theme.palette.mode === 'light' 
+      ? `${theme.palette.background.default}D0` 
+      : `${theme.palette.background.default}B0`,
+    border: `1px solid ${theme.palette.mode === 'light' 
+      ? theme.palette.secondary.main + '40' 
+      : theme.palette.secondary.main + '60'}`,
+    // 添加纹理背景
+    backgroundImage: theme.palette.mode === 'light' 
+      ? `repeating-linear-gradient(-45deg, ${theme.palette.secondary.main}15 0px, ${theme.palette.secondary.main}15 2px, transparent 2px, transparent 8px)`
+      : `repeating-linear-gradient(-45deg, ${theme.palette.secondary.main}20 0px, ${theme.palette.secondary.main}20 2px, transparent 2px, transparent 8px)`,
   },
+  // 添加装饰性边角
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: theme.spacing(2),
+    pointerEvents: 'none',
+    border: `1px solid ${theme.palette.divider}30`,
+  }
 }));
 
 const StyledAvatar = styled(Avatar)(({ theme }) => ({

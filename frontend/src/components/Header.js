@@ -62,7 +62,32 @@ const Header = ({
 
   return (
     <>
-      <AppBar position="static" color="default" elevation={1} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <AppBar 
+        position="static" 
+        color="default" 
+        elevation={1} 
+        sx={{ 
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          background: mode === 'light' 
+            ? 'linear-gradient(135deg, #FFF8DC 0%, #F5F0E6 100%)'
+            : 'linear-gradient(135deg, #3D2F19 0%, #2C2213 100%)',
+          borderBottom: `1px solid ${mode === 'light' ? '#D7CCC8' : '#5D4E44'}`,
+          position: 'relative',
+          // 添加装饰性纹理
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: mode === 'light' 
+              ? `repeating-linear-gradient(90deg, ${theme.palette.divider}10 0px, ${theme.palette.divider}10 1px, transparent 1px, transparent 20px)`
+              : `repeating-linear-gradient(90deg, ${theme.palette.divider}15 0px, ${theme.palette.divider}15 1px, transparent 1px, transparent 20px)`,
+            pointerEvents: 'none',
+          }
+        }}
+      >
         <Toolbar>
           <IconButton
             color="inherit"
@@ -74,7 +99,21 @@ const Header = ({
             <MenuIcon />
           </IconButton>
 
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography 
+            variant="h6" 
+            component="div" 
+            sx={{ 
+              flexGrow: 1,
+              fontFamily: '"KaiTi", "STKaiti", serif',
+              fontWeight: 'bold',
+              background: mode === 'light'
+                ? 'linear-gradient(135deg, #8B4513, #A0522D)'
+                : 'linear-gradient(135deg, #F5DEB3, #FFE4B5)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
             武林外传AI聊天
           </Typography>
 
@@ -87,19 +126,58 @@ const Header = ({
           )}
 
           <Tooltip title="新对话">
-            <IconButton color="primary" onClick={onNewChat}>
+            <IconButton 
+              color="primary" 
+              onClick={onNewChat}
+              sx={{
+                background: mode === 'light' 
+                  ? 'linear-gradient(135deg, #8B451320, #A0522D20)'
+                  : 'linear-gradient(135deg, #F5DEB320, #FFE4B520)',
+                '&:hover': {
+                  background: mode === 'light' 
+                    ? 'linear-gradient(135deg, #8B451330, #A0522D30)'
+                    : 'linear-gradient(135deg, #F5DEB330, #FFE4B530)'
+                }
+              }}
+            >
               <AddIcon />
             </IconButton>
           </Tooltip>
 
           <Tooltip title={mode === 'dark' ? "切换到亮色模式" : "切换到暗色模式"}>
-            <IconButton onClick={toggleMode} color="inherit">
+            <IconButton 
+              onClick={toggleMode} 
+              color="inherit"
+              sx={{
+                background: mode === 'light' 
+                  ? 'linear-gradient(135deg, #8B451320, #A0522D20)'
+                  : 'linear-gradient(135deg, #F5DEB320, #FFE4B520)',
+                '&:hover': {
+                  background: mode === 'light' 
+                    ? 'linear-gradient(135deg, #8B451330, #A0522D30)'
+                    : 'linear-gradient(135deg, #F5DEB330, #FFE4B530)'
+                }
+              }}
+            >
               {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
             </IconButton>
           </Tooltip>
 
           <Tooltip title="设置">
-            <IconButton color="inherit" onClick={handleSettingsClick}>
+            <IconButton 
+              color="inherit" 
+              onClick={handleSettingsClick}
+              sx={{
+                background: mode === 'light' 
+                  ? 'linear-gradient(135deg, #8B451320, #A0522D20)'
+                  : 'linear-gradient(135deg, #F5DEB320, #FFE4B520)',
+                '&:hover': {
+                  background: mode === 'light' 
+                    ? 'linear-gradient(135deg, #8B451330, #A0522D30)'
+                    : 'linear-gradient(135deg, #F5DEB330, #FFE4B530)'
+                }
+              }}
+            >
               <SettingsIcon />
             </IconButton>
           </Tooltip>
@@ -108,41 +186,117 @@ const Header = ({
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={handleSettingsClose}
+            sx={{
+              '& .MuiPaper-root': {
+                background: mode === 'light' 
+                  ? 'linear-gradient(135deg, #FFF8DC 0%, #FFE4B5 100%)'
+                  : 'linear-gradient(135deg, #A0522D 0%, #8B4513 100%)',
+                border: `1px solid ${mode === 'light' ? '#D2B48C' : '#CD853F'}`
+              }
+            }}
           >
-            <MenuItem onClick={handleOpenSettingsDialog}>偏好设置</MenuItem>
+            <MenuItem 
+              onClick={handleOpenSettingsDialog}
+              sx={{
+                fontFamily: '"KaiTi", "STKaiti", serif',
+                '&:hover': {
+                  background: mode === 'light' 
+                    ? 'rgba(139, 69, 19, 0.1)'
+                    : 'rgba(245, 222, 179, 0.1)'
+                }
+              }}
+            >
+              偏好设置
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
 
-      <Dialog open={settingsOpen} onClose={handleCloseSettingsDialog}>
-        <DialogTitle>设置</DialogTitle>
+      <Dialog 
+        open={settingsOpen} 
+        onClose={handleCloseSettingsDialog}
+        sx={{
+          '& .MuiPaper-root': {
+            background: mode === 'light' 
+              ? 'linear-gradient(135deg, #FFF8DC 0%, #FFE4B5 100%)'
+              : 'linear-gradient(135deg, #A0522D 0%, #8B4513 100%)',
+            border: `1px solid ${mode === 'light' ? '#D2B48C' : '#CD853F'}`
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontFamily: '"KaiTi", "STKaiti", serif',
+            fontWeight: 'bold'
+          }}
+        >
+          设置
+        </DialogTitle>
         <DialogContent>
           {isMobile && (
             <>
               <FormControl fullWidth margin="normal">
-                <InputLabel id="mobile-user-role-label">你的角色</InputLabel>
+                <InputLabel 
+                  id="mobile-user-role-label"
+                  sx={{
+                    fontFamily: '"KaiTi", "STKaiti", serif'
+                  }}
+                >
+                  你的角色
+                </InputLabel>
                 <Select
                   labelId="mobile-user-role-label"
                   value={userRole}
                   onChange={(e) => setUserRole(e.target.value)}
                   label="你的角色"
+                  sx={{
+                    fontFamily: '"KaiTi", "STKaiti", serif',
+                    borderRadius: '12px'
+                  }}
                 >
                   {RolePool.map((role) => (
-                    <MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
+                    <MenuItem 
+                      key={role.name} 
+                      value={role.name}
+                      sx={{
+                        fontFamily: '"KaiTi", "STKaiti", serif'
+                      }}
+                    >
+                      {role.name}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
               <FormControl fullWidth margin="normal">
-                <InputLabel id="mobile-assistant-role-label">AI角色</InputLabel>
+                <InputLabel 
+                  id="mobile-assistant-role-label"
+                  sx={{
+                    fontFamily: '"KaiTi", "STKaiti", serif'
+                  }}
+                >
+                  AI角色
+                </InputLabel>
                 <Select
                   labelId="mobile-assistant-role-label"
                   value={assistantRole}
                   onChange={(e) => setAssistantRole(e.target.value)}
                   label="AI角色"
+                  sx={{
+                    fontFamily: '"KaiTi", "STKaiti", serif',
+                    borderRadius: '12px'
+                  }}
                 >
                   {RolePool.map((role) => (
-                    <MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
+                    <MenuItem 
+                      key={role.name} 
+                      value={role.name}
+                      sx={{
+                        fontFamily: '"KaiTi", "STKaiti", serif'
+                      }}
+                    >
+                      {role.name}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -158,11 +312,26 @@ const Header = ({
               />
             }
             label="启用流式输出"
-            sx={{ mt: 2, display: 'block' }}
+            sx={{ 
+              mt: 2, 
+              display: 'block',
+              fontFamily: '"KaiTi", "STKaiti", serif',
+              '& .MuiTypography-root': {
+                fontFamily: '"KaiTi", "STKaiti", serif'
+              }
+            }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseSettingsDialog}>关闭</Button>
+          <Button 
+            onClick={handleCloseSettingsDialog}
+            sx={{
+              fontFamily: '"KaiTi", "STKaiti", serif',
+              borderRadius: '20px'
+            }}
+          >
+            关闭
+          </Button>
         </DialogActions>
       </Dialog>
     </>
@@ -170,4 +339,3 @@ const Header = ({
 };
 
 export default Header;
-
