@@ -15,11 +15,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeHighlight from 'rehype-highlight';
-import PersonIcon from '@mui/icons-material/Person';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
 import 'highlight.js/styles/github.css';
 import { useTheme } from '../contexts/ThemeContext';
-import RoleSelector from './RoleSelector';
+import { RoleSelector, RolePool } from './RoleSelector';
 const MessageContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   marginBottom: theme.spacing(2),
@@ -162,7 +160,12 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, setUserRol
               className={msg.role}
             >
               <StyledAvatar>
-                {msg.role === 'user' ? <PersonIcon /> : <SmartToyIcon />}
+                <img
+                  src={RolePool.find(role => role.name === msg.role).avatar}
+                  alt={msg.role}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+
               </StyledAvatar>
               <Box sx={{ flexGrow: 1 }}>
                 <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
@@ -217,7 +220,7 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, setUserRol
           <TextField
             fullWidth
             variant="outlined"
-            placeholder={`以"${userRole}"的身份发送消息...`}
+            placeholder={`以"${userRole}"的身份发送消息给"${assistantRole}"`}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}

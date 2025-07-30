@@ -26,7 +26,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
-import RoleSelector, { assistantRoles } from './RoleSelector';
+import RoleSelector, { RolePool } from './RoleSelector';
 
 const Header = ({
   onSidebarToggle,
@@ -127,7 +127,7 @@ const Header = ({
                   onChange={(e) => setUserRole(e.target.value)}
                   label="你的角色"
                 >
-                  {assistantRoles.map((role) => (
+                  {RolePool.map((role) => (
                     <MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
                   ))}
                 </Select>
@@ -141,7 +141,7 @@ const Header = ({
                   onChange={(e) => setAssistantRole(e.target.value)}
                   label="AI角色"
                 >
-                  {assistantRoles.map((role) => (
+                  {RolePool.map((role) => (
                     <MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
                   ))}
                 </Select>

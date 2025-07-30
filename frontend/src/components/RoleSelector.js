@@ -16,7 +16,7 @@ import {
 } from "./styles/RoleSelectorStyles";
 
 // 角色数据配置
-export const assistantRoles = [
+export const RolePool = [
   { name: "佟湘玉", avatar: "/avatars/tongxiangyu.webp", description: "掌柜" },
   { name: "白展堂", avatar: "/avatars/baizhantang.webp", description: "跑堂" },
   { name: "郭芙蓉", avatar: "/avatars/guofurong.webp", description: "杂役" },
@@ -55,11 +55,11 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
   }, [open, onClose]);
 
   // 获取当前选中角色的信息
-  const selectedRoleInfo = assistantRoles.find(role => role.name === selectedRole) || assistantRoles[0];
+  const selectedRoleInfo = RolePool.find(role => role.name === selectedRole) || RolePool[0];
 
   // 获取要在中心显示的角色信息（悬停的角色或选中的角色）
   const centerDisplayRole = hoveredRole
-    ? assistantRoles.find(role => role.name === hoveredRole) || selectedRoleInfo
+    ? RolePool.find(role => role.name === hoveredRole) || selectedRoleInfo
     : selectedRoleInfo;
 
   // 计算每个角色在圆周上的位置
@@ -71,7 +71,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
     // 如果排除选中的角色，需要调整索引
     let adjustedIndex = index;
     if (excludeSelected) {
-      const selectedIndex = assistantRoles.findIndex(role => role.name === selectedRole);
+      const selectedIndex = RolePool.findIndex(role => role.name === selectedRole);
       if (index >= selectedIndex) {
         adjustedIndex = index + 1;
       }
@@ -86,7 +86,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
   };
 
   // 过滤掉当前选中的角色
-  const otherRoles = assistantRoles.filter(role => role.name !== selectedRole);
+  const otherRoles = RolePool.filter(role => role.name !== selectedRole);
 
   const handleRoleHover = (roleName) => {
     setHoveredRole(roleName);
@@ -128,7 +128,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
 
         {/* 外围显示其他角色 */}
         {otherRoles.map((role, index) => {
-          const position = getPosition(index, assistantRoles.length, true);
+          const position = getPosition(index, RolePool.length, true);
           const isHovered = hoveredRole === role.name;
 
           return (
@@ -165,7 +165,7 @@ export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bott
   const [hoverTimeout, setHoverTimeout] = useState(null);
 
   // 获取当前选中角色的信息
-  const selectedRoleInfo = assistantRoles.find(role => role.name === assistantRole) || assistantRoles[0];
+  const selectedRoleInfo = RolePool.find(role => role.name === assistantRole) || RolePool[0];
 
   const handleMouseEnter = () => {
     const timeout = setTimeout(() => {
