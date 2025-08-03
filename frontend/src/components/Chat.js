@@ -25,7 +25,7 @@ const MessageContainer = styled(Box)(({ theme }) => ({
   borderRadius: theme.spacing(2),
   backgroundColor: 'transparent',
   position: 'relative',
-  overflow: 'hidden',
+  // 移除 overflow: 'hidden' 以允许内容正常显示
   boxShadow: theme.palette.mode === 'light' 
     ? `0 2px 8px ${theme.palette.divider}30`
     : `0 2px 8px ${theme.palette.divider}50`,
