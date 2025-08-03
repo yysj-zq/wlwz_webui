@@ -1,6 +1,8 @@
+
 # 武林外传AI对话
 
 一个基于FastAPI后端和React前端的角色扮演AI聊天网站。
+![wlwz](image.png "wlwz")
 
 ## 功能特点
 

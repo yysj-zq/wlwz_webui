@@ -75,7 +75,7 @@ function App() {
     if (shouldCreateNewChat) {
       const newConversation = {
         id: uuidv4(),
-        title: '新的对话',
+        title: sceneInput ? sceneInput.substring(0, 30) + (sceneInput.length > 30 ? '...' : '') : '新的对话',
         messages: sceneInput ? [{ 
           id: uuidv4(),
           role: 'scene',
