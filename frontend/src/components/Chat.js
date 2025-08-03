@@ -139,31 +139,47 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, setUserRol
               key={msg.id}
               className={msg.role}
             >
-              <StyledAvatar>
-                <img
-                  src={RolePool.find(role => role.name === msg.role).avatar}
-                  alt={msg.role}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-
-              </StyledAvatar>
-              <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  {msg.role}
-                </Typography>
-                <Box>
-                  {msg.loading ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CircularProgress size={20} sx={{ mr: 1 }} />
-                      <Typography variant="body1">
-                        {msg.content || '思考中...'}
-                      </Typography>
-                    </Box>
-                  ) : (
-                    renderMarkdown(msg.content)
-                  )}
+              {msg.role === 'scene' ? (
+                // 场景消息的特殊显示
+                <Box sx={{ 
+                  width: '100%', 
+                  textAlign: 'center', 
+                  padding: '10px',
+                  fontStyle: 'italic',
+                  color: theme.palette.text.secondary
+                }}>
+                  <Typography variant="body1">
+                    {msg.content}
+                  </Typography>
                 </Box>
-              </Box>
+              ) : (
+                <>
+                  <StyledAvatar>
+                    <img
+                      src={RolePool.find(role => role.name === msg.role)?.avatar || '/avatars/tongxiangyu.webp'}
+                      alt={msg.role}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </StyledAvatar>
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      {msg.role}
+                    </Typography>
+                    <Box>
+                      {msg.loading ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <CircularProgress size={20} sx={{ mr: 1 }} />
+                          <Typography variant="body1">
+                            {msg.content || '思考中...'}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        renderMarkdown(msg.content)
+                      )}
+                    </Box>
+                  </Box>
+                </>
+              )}
             </MessageContainer>
           ))
         )}

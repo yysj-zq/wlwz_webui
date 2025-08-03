@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, CssBaseline, useMediaQuery } from '@mui/material';
+import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
 import { useTheme } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -36,6 +36,9 @@ function App() {
     const saved = localStorage.getItem('streamingEnabled');
     return saved ? JSON.parse(saved) : true;
   });
+  const [sceneDialogOpen, setSceneDialogOpen] = useState(false);
+  const [sceneInput, setSceneInput] = useState('');
+  const [shouldCreateNewChat, setShouldCreateNewChat] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('conversations', JSON.stringify(conversations));
@@ -64,14 +67,38 @@ function App() {
   const currentConversation = conversations.find(conv => conv.id === currentConversationId) || conversations[0];
 
   const handleCreateNewChat = () => {
-    const newConversation = {
-      id: uuidv4(),
-      title: '新的对话',
-      messages: [],
-      createdAt: new Date().toISOString(),
-    };
-    setConversations([...conversations, newConversation]);
-    setCurrentConversationId(newConversation.id);
+    setShouldCreateNewChat(true);
+    setSceneDialogOpen(true);
+  };
+
+  const handleSceneSubmit = () => {
+    if (shouldCreateNewChat) {
+      const newConversation = {
+        id: uuidv4(),
+        title: '新的对话',
+        messages: sceneInput ? [{ 
+          id: uuidv4(),
+          role: 'scene',
+          content: `${sceneInput}`,
+          timestamp: new Date().toISOString(),
+        }] : [],
+        createdAt: new Date().toISOString(),
+      };
+      setConversations([...conversations, newConversation]);
+      setCurrentConversationId(newConversation.id);
+    }
+    setSceneDialogOpen(false);
+    setSceneInput('');
+    setShouldCreateNewChat(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const handleSceneCancel = () => {
+    setSceneDialogOpen(false);
+    setSceneInput('');
+    setShouldCreateNewChat(false);
     if (isMobile) {
       setSidebarOpen(false);
     }
@@ -249,6 +276,31 @@ function App() {
           sidebarOpen={sidebarOpen}
         />
       </Box>
+
+      {/* 场景输入对话框 */}
+      <Dialog open={sceneDialogOpen} onClose={handleSceneCancel}>
+        <DialogTitle>设置场景</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={sceneInput}
+            onChange={(e) => setSceneInput(e.target.value)}
+            multiline
+            rows={5}
+            placeholder="请输入场景描述，例如：【大堂，昼】（老白趴在桌上睡觉，小郭在擦桌子）"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSceneCancel}>取消</Button>
+          <Button onClick={handleSceneSubmit} variant="contained" color="primary">
+            确认
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

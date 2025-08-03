@@ -57,7 +57,7 @@ npm start
 ```
 ## TODO
 
-- [ ] 对话场景嵌入message
+- [x] 对话场景嵌入message
 - [x] 【UI】对话头像设置
 
 
