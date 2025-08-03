@@ -66,3 +66,7 @@ npm start
 ## 许可证
 
 [MIT License](LICENSE)
+
+## 免责声明
+
+本项目使用了《武林外传》相关元素，仅用于技术演示和学习交流。详细信息请参阅[免责声明](DISCLAIMER.md)。
