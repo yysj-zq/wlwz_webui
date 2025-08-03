@@ -1,4 +1,4 @@
-import asyncio
+import logging
 from typing import List, AsyncIterator,Dict
 from .models import Message
 from utils.model_client import call_model_api
@@ -81,12 +81,17 @@ def preprocess_message(
     user_message = ""
     
     for message in messages:
-        if message.role == "system":
-            continue
+        if message.role == assistant_role:
+            wlwz_messages.append({"role": "user", "content": user_message.strip()})
+            user_message = ""
+
+            assistant_message = f"{message.role}：{message.content}"
+            wlwz_messages.append({"role": "assistant", "content": assistant_message})
         else:
             user_message += f"{message.role}：{message.content}\n"
     wlwz_messages.append({"role": "user", "content": user_message.strip()})
     
+    logging.info(f"Processed messages: {wlwz_messages}")
     return wlwz_messages
 
 
