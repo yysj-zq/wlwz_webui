@@ -6,9 +6,12 @@ import {
   Button,
   Divider,
   useMediaQuery,
-  CircularProgress
+  CircularProgress,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import ReplayIcon from '@mui/icons-material/Replay';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -18,7 +21,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { RoleSelector, RolePool } from './RoleSelector';
 import { MessageContainer, StyledAvatar } from './styles/ChatStyles';
 
-const Chat = ({ conversation, onSendMessage, userRole, assistantRole, setUserRole, sidebarOpen }) => {
+const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageAudio, userRole, assistantRole, setUserRole, sidebarOpen }) => {
   const { theme } = useTheme();
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
@@ -162,9 +165,27 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, setUserRol
                     />
                   </StyledAvatar>
                   <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                      {msg.role}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        {msg.role}
+                      </Typography>
+                      {msg.role === assistantRole && !msg.loading && (
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          {msg.audioLoading && <CircularProgress size={14} sx={{ mr: 0.5 }} />}
+                          {msg.audioUrl && (
+                            <Tooltip title="重播语音">
+                              <IconButton
+                                size="small"
+                                onClick={() => onPlayMessageAudio?.(msg.id)}
+                                aria-label="重播语音"
+                              >
+                                <ReplayIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
                     <Box>
                       {msg.loading ? (
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -177,6 +198,22 @@ const Chat = ({ conversation, onSendMessage, userRole, assistantRole, setUserRol
                         renderMarkdown(msg.content)
                       )}
                     </Box>
+                    {msg.audioError && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                        <Typography variant="caption" color="error">
+                          {msg.audioError}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="text"
+                          onClick={() => onRetryMessageAudio?.(msg.id)}
+                          disabled={msg.audioLoading}
+                          sx={{ minWidth: 'auto', px: 0.5, fontSize: '0.75rem' }}
+                        >
+                          重试语音
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
                 </>
               )}

@@ -21,7 +21,8 @@ async def chat(request: ChatRequest):
             assistant_role=request.assistantRole
         )
         return {
-            "response": response
+            "content": response,
+            "response": response,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

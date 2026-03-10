@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # 响应设置
     STREAM_DELAY: float = float(os.getenv("STREAM_DELAY", "0.02"))
 
+    # TTS（Triton）配置
+    TTS_TRITON_URL: str = os.getenv("TTS_TRITON_URL", "http://localhost:8000")
+    TTS_MODEL_NAME: str = os.getenv("TTS_MODEL_NAME", "spark_tts")
+    TTS_REQUEST_TIMEOUT: float = float(os.getenv("TTS_REQUEST_TIMEOUT", "30"))
+
     class Config:
         env_file = ".env"
         case_sensitive = True

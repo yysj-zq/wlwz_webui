@@ -71,16 +71,26 @@ export const sendStreamMessage = (messages, userRole, assistantRole, onChunk, on
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data:')) {
+          const normalizedLine = line.trim();
+          if (normalizedLine.startsWith('data:')) {
             try {
-              const data = JSON.parse(line.substring(5).trim());
+              const data = JSON.parse(normalizedLine.substring(5).trim());
+              if (data.error) {
+                onError(new Error(data.error));
+                reader.cancel();
+                return;
+              }
               if (data.content) {
                 onChunk(data.content);
               }
             } catch (e) {
               console.error('Error parsing SSE data:', e);
             }
-          } else if (line.startsWith('event: done')) {
+          } else if (normalizedLine.startsWith('event: error')) {
+            onError(new Error('流式响应异常'));
+            reader.cancel();
+            return;
+          } else if (normalizedLine.startsWith('event: done')) {
             onDone();
             reader.cancel();
             return;
@@ -108,6 +118,26 @@ export const getRoles = async () => {
   } catch (error) {
     throw error;
   }
+};
+
+// 请求角色语音（返回音频 Blob）
+export const requestTTS = async (text, assistantRole, speakerId = null) => {
+  const response = await api.post(
+    '/api/tts',
+    {
+      text,
+      assistantRole,
+      speakerId,
+    },
+    {
+      responseType: 'blob',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  return response.data;
 };
 
 export default api;

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
 import { useTheme } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chat from './components/Chat';
 import { v4 as uuidv4 } from 'uuid';
-import { sendChatMessage, sendStreamMessage } from './services/api';
+import { sendChatMessage, sendStreamMessage, requestTTS } from './services/api';
 
 function App() {
   const { theme } = useTheme();
@@ -26,11 +26,11 @@ function App() {
   });
   const [userRole, setUserRole] = useState(() => {
     const saved = localStorage.getItem('userRole');
-    return saved || '学生';
+    return saved || '佟湘玉';
   });
   const [assistantRole, setAssistantRole] = useState(() => {
     const saved = localStorage.getItem('assistantRole');
-    return saved || '学习导师';
+    return saved || '白展堂';
   });
   const [streamingEnabled, setStreamingEnabled] = useState(() => {
     const saved = localStorage.getItem('streamingEnabled');
@@ -39,6 +39,7 @@ function App() {
   const [sceneDialogOpen, setSceneDialogOpen] = useState(false);
   const [sceneInput, setSceneInput] = useState('');
   const [shouldCreateNewChat, setShouldCreateNewChat] = useState(false);
+  const audioPlayerRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem('conversations', JSON.stringify(conversations));
@@ -59,6 +60,15 @@ function App() {
   useEffect(() => {
     localStorage.setItem('streamingEnabled', JSON.stringify(streamingEnabled));
   }, [streamingEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleSidebarToggle = () => {
     setSidebarOpen(!sidebarOpen);
@@ -119,10 +129,115 @@ function App() {
     }
   };
 
+  const stopCurrentAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+      audioPlayerRef.current = null;
+    }
+  };
+
+  const updateMessageAudioMeta = (messageId, patch) => {
+    setConversations(prevConversations =>
+      prevConversations.map(conv => {
+        if (conv.id === currentConversationId) {
+          return {
+            ...conv,
+            messages: conv.messages.map(msg =>
+              msg.id === messageId ? { ...msg, ...patch } : msg
+            )
+          };
+        }
+        return conv;
+      })
+    );
+  };
+
+  const autoplayMessageAudio = async (messageId, text) => {
+    if (!text || !text.trim()) {
+      return;
+    }
+
+    updateMessageAudioMeta(messageId, {
+      audioLoading: true,
+      audioError: '',
+    });
+
+    try {
+      const audioBlob = await requestTTS(text, assistantRole);
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      updateMessageAudioMeta(messageId, {
+        audioUrl,
+        audioLoading: false,
+        audioError: '',
+      });
+
+      stopCurrentAudio();
+      const audio = new Audio(audioUrl);
+      audioPlayerRef.current = audio;
+      await audio.play();
+    } catch (error) {
+      console.error('TTS Error:', error);
+      updateMessageAudioMeta(messageId, {
+        audioLoading: false,
+        audioError: '语音生成失败，请稍后重试。',
+      });
+    }
+  };
+
+  const handlePlayMessageAudio = async (messageId) => {
+    const currentConv = conversations.find(conv => conv.id === currentConversationId);
+    const message = currentConv?.messages?.find(msg => msg.id === messageId);
+
+    if (!message?.audioUrl) {
+      return;
+    }
+
+    try {
+      stopCurrentAudio();
+      const audio = new Audio(message.audioUrl);
+      audioPlayerRef.current = audio;
+      await audio.play();
+    } catch (error) {
+      console.error('Audio Play Error:', error);
+      updateMessageAudioMeta(messageId, {
+        audioError: '音频播放失败，请重试。',
+      });
+    }
+  };
+
+  const handleRetryMessageAudio = async (messageId) => {
+    const currentConv = conversations.find(conv => conv.id === currentConversationId);
+    const message = currentConv?.messages?.find(msg => msg.id === messageId);
+
+    if (!message?.content || message.loading) {
+      return;
+    }
+
+    await autoplayMessageAudio(messageId, message.content);
+  };
+
   const handleUpdateConversationTitle = (id, newTitle) => {
     setConversations(conversations.map(conv =>
       conv.id === id ? { ...conv, title: newTitle } : conv
     ));
+  };
+
+  const sanitizeAssistantContent = (rawContent) => {
+    if (!rawContent || typeof rawContent !== 'string') {
+      return rawContent;
+    }
+
+    let cleaned = rawContent;
+    // 移除完整 think 块（包含中间内容），而不是只去掉标签本身
+    cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
+    // 去掉开头可能残留的角色前缀
+    cleaned = cleaned.replace(new RegExp(`^\\s*${assistantRole}：\\s*`), '');
+    // 折叠多余空行
+    cleaned = cleaned.replace(/^\s+/, '').replace(/\n{3,}/g, '\n\n');
+
+    return cleaned.trim();
   };
 
   const handleSendMessage = (message) => {
@@ -216,14 +331,10 @@ function App() {
 
   // 更新助手消息
   const updateAssistantMessage = (messageId, content, done) => {
-    // 过滤掉响应开头的角色前缀，例如："学习导师：你好" -> "你好"
     let processedContent = content;
     if (content && typeof content === 'string' && done) {
-      // 仅在消息完成时进行最终过滤
-      const rolePrefix = `<think>\n\n</think>\n\n${assistantRole}：`;
-      if (processedContent.startsWith(rolePrefix)) {
-        processedContent = processedContent.substring(rolePrefix.length);
-      }
+      // 仅在消息完成时进行最终清洗，避免流式阶段闪烁
+      processedContent = sanitizeAssistantContent(content);
     }
 
     setConversations(prevConversations =>
@@ -239,6 +350,10 @@ function App() {
         return conv;
       })
     );
+
+    if (done && processedContent) {
+      autoplayMessageAudio(messageId, processedContent);
+    }
   };
 
   return (
@@ -270,6 +385,8 @@ function App() {
         <Chat
           conversation={currentConversation}
           onSendMessage={handleSendMessage}
+          onPlayMessageAudio={handlePlayMessageAudio}
+          onRetryMessageAudio={handleRetryMessageAudio}
           userRole={userRole}
           assistantRole={assistantRole}
           setUserRole={setUserRole}

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 
-from routers import chat_router, roles_router
+from routers import chat_router, roles_router, tts_router
 from config import settings
 
 # 配置日志
@@ -78,6 +78,7 @@ class SSELoggingMiddleware(BaseHTTPMiddleware):
         # 收集所有流式数据
         collected_chunks = []
         full_content = ""
+        is_sse_response = (response.media_type or "").startswith("text/event-stream")
         
         async def log_and_stream():
             nonlocal full_content
@@ -86,13 +87,18 @@ class SSELoggingMiddleware(BaseHTTPMiddleware):
             try:
                 async for chunk in response.body_iterator:
                     chunk_count += 1
-                    chunk_str = chunk.decode('utf-8') if isinstance(chunk, bytes) else str(chunk)
-                    collected_chunks.append(chunk_str)
-                    
-                    # 解析SSE数据
-                    sse_content = self._parse_sse_chunk(chunk_str)
-                    if sse_content:
-                        full_content += sse_content
+                    if is_sse_response:
+                        chunk_str = chunk.decode('utf-8', errors='ignore') if isinstance(chunk, bytes) else str(chunk)
+                        collected_chunks.append(chunk_str)
+
+                        # 仅解析 SSE 文本数据；二进制流（如 audio/wav）不做文本解析
+                        sse_content = self._parse_sse_chunk(chunk_str)
+                        if sse_content:
+                            full_content += sse_content
+                    else:
+                        # 非 SSE 响应只记录块大小，避免把二进制强制按 UTF-8 解码
+                        chunk_size = len(chunk) if isinstance(chunk, (bytes, bytearray)) else len(str(chunk))
+                        collected_chunks.append(f"<binary_chunk size={chunk_size}>")
                     
                     yield chunk
                 
@@ -100,7 +106,10 @@ class SSELoggingMiddleware(BaseHTTPMiddleware):
                 process_time = time.time() - start_time
                 logger.info(f"[STREAMING RESPONSE] {method} {url} - 状态码: {response.status_code} - 耗时: {process_time:.3f}s")
                 logger.info(f"[STREAM CHUNKS] 总计: {chunk_count} 个数据块")
-                logger.info(f"[STREAM CONTENT] {full_content}")
+                if is_sse_response:
+                    logger.info(f"[STREAM CONTENT] {full_content}")
+                else:
+                    logger.info(f"[STREAM CONTENT] <non-sse media_type={response.media_type}>")
                 
             except Exception as e:
                 process_time = time.time() - start_time
@@ -160,6 +169,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(chat_router.router, prefix=settings.API_PREFIX, tags=["聊天"])
 app.include_router(roles_router.router, prefix=settings.API_PREFIX, tags=["角色"])
+app.include_router(tts_router.router, prefix=settings.API_PREFIX, tags=["语音"])
 
 @app.get("/")
 async def root():
