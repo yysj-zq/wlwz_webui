@@ -25,7 +25,7 @@ cp .env.example .env
 python main.py
 ```
 
-服务默认运行在 **http://localhost:8081**。
+服务默认运行在 `http://localhost:8081` 。
 
 ### 前端
 
@@ -35,7 +35,7 @@ npm install
 npm start
 ```
 
-应用默认运行在 **http://localhost:3000**。需配置 `REACT_APP_API_URL` 指向后端（详见 frontend/README.md）。
+应用默认运行在 `http://localhost:3000`。需配置 `REACT_APP_API_URL` 指向后端（详见 [frontend/README.md](frontend/README.md)）。
 
 ---
 
