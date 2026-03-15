@@ -22,7 +22,7 @@ npm start
 
 ## 配置
 
-在项目根目录创建 `.env`，指定后端地址：
+在本目录创建 `.env`，指定后端地址：
 
 ```
 REACT_APP_API_URL=http://localhost:8081
