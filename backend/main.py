@@ -9,8 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 
-from routers import chat_router, roles_router, tts_router
+from routers import chat_router, roles_router, tts_router, auth_router, conversation_router
 from config import settings
+from db import init_db, AsyncSessionLocal
+from services.roles_service import init_builtin_roles_if_enabled
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+import os
+
+# 后端代码所在目录，与启动时工作目录无关，便于前后端分离部署
+_BACKEND_DIR = Path(__file__).resolve().parent
+_STATIC_DIR = _BACKEND_DIR / "static"
 
 # 配置日志
 logging.basicConfig(
@@ -166,7 +175,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 应用启动与关闭事件
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    """
+    应用启动时初始化数据库结构；
+    若配置 INIT_BUILTIN_ROLES_ON_START=true，则从配置文件重建内置角色。
+    """
+    await init_db()
+    async with AsyncSessionLocal() as db:
+        await init_builtin_roles_if_enabled(db)
+
+    # 角色头像静态文件：固定为 backend/static，与启动 CWD 无关
+    (_STATIC_DIR / "role-avatars").mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
 # 注册路由
+app.include_router(auth_router.router, prefix=settings.API_PREFIX, tags=["认证"])
+app.include_router(conversation_router.router, prefix=settings.API_PREFIX, tags=["会话"])
 app.include_router(chat_router.router, prefix=settings.API_PREFIX, tags=["聊天"])
 app.include_router(roles_router.router, prefix=settings.API_PREFIX, tags=["角色"])
 app.include_router(tts_router.router, prefix=settings.API_PREFIX, tags=["语音"])

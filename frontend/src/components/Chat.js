@@ -18,10 +18,27 @@ import rehypeRaw from 'rehype-raw';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github.css';
 import { useTheme } from '../contexts/ThemeContext';
-import { RoleSelector, RolePool } from './RoleSelector';
+import { RoleSelector } from './RoleSelector';
 import { MessageContainer, StyledAvatar } from './styles/ChatStyles';
 
-const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageAudio, userRole, assistantRole, setUserRole, sidebarOpen }) => {
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8081';
+
+// 无头像时使用的占位图（灰色圆形 SVG，不依赖任何静态文件）
+const PLACEHOLDER_AVATAR = "data:image/svg+xml," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="#9e9e9e"><circle cx="24" cy="24" r="24"/><text x="24" y="30" text-anchor="middle" fill="#fff" font-size="20" font-family="sans-serif">?</text></svg>'
+);
+
+const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageAudio, userRole, assistantRole, setUserRole, sidebarOpen, rolesConfig }) => {
+  const roleList = rolesConfig?.roles?.map((r) => ({
+    name: r.name,
+    avatar: r.avatar_url ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`) : '',
+    description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '...' : ''),
+  })) || [];
+  const getAvatarForRole = (roleName) => {
+    const r = rolesConfig?.roles?.find((x) => x.name === roleName);
+    if (!r?.avatar_url) return PLACEHOLDER_AVATAR;
+    return r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`;
+  };
   const { theme } = useTheme();
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
@@ -159,9 +176,10 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
                 <>
                   <StyledAvatar>
                     <img
-                      src={RolePool.find(role => role.name === msg.role)?.avatar || '/avatars/tongxiangyu.webp'}
+                      src={getAvatarForRole(msg.role)}
                       alt={msg.role}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.target.src = PLACEHOLDER_AVATAR; }}
                     />
                   </StyledAvatar>
                   <Box sx={{ flexGrow: 1 }}>
@@ -247,6 +265,7 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
             assistantRole={userRole}
             setAssistantRole={setUserRole}
             position="bottom"
+            roleList={roleList}
           />
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>

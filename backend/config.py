@@ -36,6 +36,27 @@ class Settings(BaseSettings):
     TTS_MODEL_NAME: str = os.getenv("TTS_MODEL_NAME", "spark_tts")
     TTS_REQUEST_TIMEOUT: float = float(os.getenv("TTS_REQUEST_TIMEOUT", "30"))
 
+    # 数据库配置
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "sqlite+aiosqlite:///./app.db"
+    )
+
+    # 认证 / JWT 配置
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "change-this-in-production")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440")
+    )
+
+    # Redis / TTS 缓存配置
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    TTS_CACHE_TTL_SECONDS: int = int(os.getenv("TTS_CACHE_TTL_SECONDS", "3600"))
+
+    # 角色初始化：为 true 时每次启动根据配置文件重建内置角色
+    INIT_BUILTIN_ROLES_ON_START: bool = os.getenv("INIT_BUILTIN_ROLES_ON_START", "false").lower() == "true"
+    ROLES_CONFIG_PATH: str = os.getenv("ROLES_CONFIG_PATH", "config/roles.yaml")
+
     class Config:
         env_file = ".env"
         case_sensitive = True

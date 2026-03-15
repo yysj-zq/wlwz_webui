@@ -4,8 +4,9 @@ import { useTheme } from './contexts/ThemeContext';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chat from './components/Chat';
+import RolesConfig from './components/RolesConfig';
 import { v4 as uuidv4 } from 'uuid';
-import { sendChatMessage, sendStreamMessage, requestTTS } from './services/api';
+import { sendChatMessage, sendStreamMessage, requestTTS, login, register, getCurrentUser, setAuthToken, listConversations, getConversationMessages, deleteConversationApi, renameConversationApi, getRoles } from './services/api';
 
 function App() {
   const { theme } = useTheme();
@@ -40,10 +41,62 @@ function App() {
   const [sceneInput, setSceneInput] = useState('');
   const [shouldCreateNewChat, setShouldCreateNewChat] = useState(false);
   const audioPlayerRef = useRef(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [rolesConfig, setRolesConfig] = useState(null);
+  const [rolesConfigOpen, setRolesConfigOpen] = useState(false);
+
+  const loadRoles = () => {
+    getRoles()
+      .then((data) => setRolesConfig(data))
+      .catch((e) => console.error('Load roles error', e));
+  };
 
   useEffect(() => {
-    localStorage.setItem('conversations', JSON.stringify(conversations));
-  }, [conversations]);
+    loadRoles();
+  }, []);
+
+  useEffect(() => {
+    // 初始化 token 与当前用户
+    const savedToken = localStorage.getItem('accessToken');
+    if (savedToken) {
+      setAuthToken(savedToken);
+      getCurrentUser()
+        .then(async (user) => {
+          setCurrentUser(user);
+          loadRoles();
+          try {
+            const backendConvs = await listConversations();
+            const mapped = backendConvs.map(c => ({
+              id: uuidv4(),
+              backendConversationId: c.id,
+              title: c.title,
+              messages: [],
+              createdAt: c.created_at,
+            }));
+            setConversations(mapped);
+            setCurrentConversationId(mapped[0]?.id || null);
+          } catch (e) {
+            console.error('Load conversations error', e);
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('accessToken');
+          setAuthToken(null);
+          setCurrentUser(null);
+          loadRoles();
+        });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      localStorage.setItem('conversations', JSON.stringify(conversations));
+    }
+  }, [conversations, currentUser]);
 
   useEffect(() => {
     localStorage.setItem('currentConversationId', currentConversationId);
@@ -116,12 +169,35 @@ function App() {
 
   const handleSelectConversation = (id) => {
     setCurrentConversationId(id);
+    const conv = conversations.find(c => c.id === id);
+    if (currentUser && conv && conv.backendConversationId && (!conv.messages || conv.messages.length === 0)) {
+      getConversationMessages(conv.backendConversationId)
+        .then(msgs => {
+          const uiMessages = msgs.map(m => ({
+            id: uuidv4(),
+            role: m.role,
+            content: m.content,
+            timestamp: m.created_at,
+          }));
+          setConversations(prev =>
+            prev.map(c =>
+              c.id === id ? { ...c, messages: uiMessages } : c
+            )
+          );
+        })
+        .catch(e => console.error('Load messages error', e));
+    }
     if (isMobile) {
       setSidebarOpen(false);
     }
   };
 
   const handleDeleteConversation = (id) => {
+    const conv = conversations.find(c => c.id === id);
+    if (currentUser && conv && conv.backendConversationId) {
+      deleteConversationApi(conv.backendConversationId)
+        .catch(e => console.error('Delete conversation error', e));
+    }
     const newConversations = conversations.filter(conv => conv.id !== id);
     setConversations(newConversations);
     if (id === currentConversationId) {
@@ -163,8 +239,9 @@ function App() {
       audioError: '',
     });
 
+    const speakerId = rolesConfig?.assistantVoiceMap?.[assistantRole] ?? null;
     try {
-      const audioBlob = await requestTTS(text, assistantRole);
+      const audioBlob = await requestTTS(text, assistantRole, speakerId || null);
       const audioUrl = URL.createObjectURL(audioBlob);
 
       updateMessageAudioMeta(messageId, {
@@ -219,6 +296,11 @@ function App() {
   };
 
   const handleUpdateConversationTitle = (id, newTitle) => {
+    const target = conversations.find(conv => conv.id === id);
+    if (currentUser && target && target.backendConversationId) {
+      renameConversationApi(target.backendConversationId, newTitle)
+        .catch(e => console.error('Rename conversation error', e));
+    }
     setConversations(conversations.map(conv =>
       conv.id === id ? { ...conv, title: newTitle } : conv
     ));
@@ -300,11 +382,21 @@ function App() {
         apiMessages,
         userRole,
         assistantRole,
-        (chunk) => {
+        currentConv.backendConversationId || null,
+        (chunk, conversationIdFromServer) => {
           // 收到数据块时回调
           responseContent += chunk;
           console.log('got'+chunk);
           updateAssistantMessage(lastMessageId, responseContent, false);
+          if (conversationIdFromServer && !currentConv.backendConversationId) {
+            setConversations(prev =>
+              prev.map(conv =>
+                conv.id === currentConversationId
+                  ? { ...conv, backendConversationId: conversationIdFromServer }
+                  : conv
+              )
+            );
+          }
         },
         () => {
           // 完成时回调
@@ -318,8 +410,17 @@ function App() {
       );
     } else {
       // 使用普通API（非流式）
-      sendChatMessage(apiMessages, userRole, assistantRole)
+      sendChatMessage(apiMessages, userRole, assistantRole, currentConv.backendConversationId || null)
         .then(response => {
+          if (response.conversationId && !currentConv.backendConversationId) {
+            setConversations(prev =>
+              prev.map(conv =>
+                conv.id === currentConversationId
+                  ? { ...conv, backendConversationId: response.conversationId }
+                  : conv
+              )
+            );
+          }
           updateAssistantMessage(lastMessageId, response.content || '抱歉，没有收到有效回复。', true);
         })
         .catch(error => {
@@ -368,6 +469,15 @@ function App() {
         setAssistantRole={setAssistantRole}
         streamingEnabled={streamingEnabled}
         setStreamingEnabled={setStreamingEnabled}
+        currentUser={currentUser}
+        onLoginClick={() => setAuthDialogOpen(true)}
+        onLogout={() => {
+          localStorage.removeItem('accessToken');
+          setAuthToken(null);
+          setCurrentUser(null);
+        }}
+        rolesConfig={rolesConfig}
+        onOpenRolesConfig={() => setRolesConfigOpen(true)}
       />
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {sidebarOpen || isMobile ? (
@@ -391,6 +501,7 @@ function App() {
           assistantRole={assistantRole}
           setUserRole={setUserRole}
           sidebarOpen={sidebarOpen}
+          rolesConfig={rolesConfig}
         />
       </Box>
 
@@ -418,6 +529,78 @@ function App() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 登录/注册对话框 */}
+      <Dialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)}>
+        <DialogTitle>{authMode === 'login' ? '登录' : '注册'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="邮箱"
+            type="email"
+            fullWidth
+            variant="outlined"
+            value={authEmail}
+            onChange={(e) => setAuthEmail(e.target.value)}
+          />
+          <TextField
+            margin="dense"
+            label="密码"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={authPassword}
+            onChange={(e) => setAuthPassword(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAuthDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+            {authMode === 'login' ? '去注册' : '去登录'}
+          </Button>
+          <Button
+            onClick={async () => {
+              try {
+                if (authMode === 'login') {
+                  const tokenResp = await login(authEmail, authPassword);
+                  localStorage.setItem('accessToken', tokenResp.access_token);
+                  setAuthToken(tokenResp.access_token);
+                  const user = await getCurrentUser();
+                  setCurrentUser(user);
+                  loadRoles();
+                  const backendConvs = await listConversations();
+                  const mapped = backendConvs.map(c => ({
+                    id: uuidv4(),
+                    backendConversationId: c.id,
+                    title: c.title,
+                    messages: [],
+                    createdAt: c.created_at,
+                  }));
+                  setConversations(mapped);
+                  setCurrentConversationId(mapped[0]?.id || null);
+                } else {
+                  await register(authEmail, authPassword, null);
+                }
+                setAuthDialogOpen(false);
+              } catch (e) {
+                console.error('Auth error', e);
+              }
+            }}
+          >
+            {authMode === 'login' ? '登录' : '注册'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 角色配置对话框 */}
+      <RolesConfig
+        open={rolesConfigOpen}
+        onClose={() => setRolesConfigOpen(false)}
+        rolesConfig={rolesConfig}
+        currentUser={currentUser}
+        onSaved={loadRoles}
+      />
     </Box>
   );
 }

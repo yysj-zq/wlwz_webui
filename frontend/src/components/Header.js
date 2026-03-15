@@ -26,7 +26,9 @@ import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
-import RoleSelector, { RolePool } from './RoleSelector';
+import RoleSelector from './RoleSelector';
+
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8081';
 
 const Header = ({
   onSidebarToggle,
@@ -36,8 +38,18 @@ const Header = ({
   assistantRole,
   setAssistantRole,
   streamingEnabled,
-  setStreamingEnabled
+  setStreamingEnabled,
+  currentUser,
+  onLoginClick,
+  onLogout,
+  rolesConfig,
+  onOpenRolesConfig,
 }) => {
+  const roleList = rolesConfig?.roles?.map((r) => ({
+    name: r.name,
+    avatar: r.avatar_url ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`) : '',
+    description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '...' : ''),
+  })) || [];
   const { theme, mode, toggleMode } = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -122,6 +134,7 @@ const Header = ({
               assistantRole={assistantRole} 
               setAssistantRole={setAssistantRole} 
               position="top"
+              roleList={roleList}
             />
           )}
 
@@ -208,6 +221,22 @@ const Header = ({
             >
               偏好设置
             </MenuItem>
+            <MenuItem 
+              onClick={() => {
+                handleSettingsClose();
+                onOpenRolesConfig?.();
+              }}
+              sx={{
+                fontFamily: '"KaiTi", "STKaiti", serif',
+                '&:hover': {
+                  background: mode === 'light' 
+                    ? 'rgba(139, 69, 19, 0.1)'
+                    : 'rgba(245, 222, 179, 0.1)'
+                }
+              }}
+            >
+              角色配置
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
@@ -233,6 +262,18 @@ const Header = ({
           设置
         </DialogTitle>
         <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            {currentUser ? (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2">已登录：{currentUser.email}</Typography>
+                <Button size="small" onClick={onLogout}>退出登录</Button>
+              </Box>
+            ) : (
+              <Button variant="outlined" size="small" onClick={onLoginClick}>
+                登录 / 注册
+              </Button>
+            )}
+          </Box>
           {isMobile && (
             <>
               <FormControl fullWidth margin="normal">
@@ -254,7 +295,7 @@ const Header = ({
                     borderRadius: '12px'
                   }}
                 >
-                  {RolePool.map((role) => (
+                  {(roleList.length ? roleList : [{ name: userRole || '用户' }]).map((role) => (
                     <MenuItem 
                       key={role.name} 
                       value={role.name}
@@ -287,7 +328,7 @@ const Header = ({
                     borderRadius: '12px'
                   }}
                 >
-                  {RolePool.map((role) => (
+                  {(roleList.length ? roleList : [{ name: assistantRole || '助手' }]).map((role) => (
                     <MenuItem 
                       key={role.name} 
                       value={role.name}

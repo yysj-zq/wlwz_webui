@@ -15,23 +15,14 @@ import {
   SelectorContainer,
 } from "./styles/RoleSelectorStyles";
 
-// 角色数据配置
-export const RolePool = [
-  { name: "佟湘玉", avatar: "/avatars/tongxiangyu.webp", description: "掌柜" },
-  { name: "白展堂", avatar: "/avatars/baizhantang.webp", description: "跑堂" },
-  { name: "郭芙蓉", avatar: "/avatars/guofurong.webp", description: "杂役" },
-  { name: "李大嘴", avatar: "/avatars/lidazui.webp", description: "厨子" },
-  { name: "吕秀才", avatar: "/avatars/lvxiucai.webp", description: "账房先生" },
-  { name: "莫小贝", avatar: "/avatars/moxiaobei.webp", description: "掌柜小姑子" },
-  { name: "燕小六", avatar: "/avatars/yanxiaoliu.webp", description: "六扇门捕头" },
-  { name: "祝无双", avatar: "/avatars/zhuwushuang.webp", description: "六扇门捕快" },
-  { name: "邢育森", avatar: "/avatars/xingyusen.webp", description: "六扇门捕头" }
-];
+// 兜底：API 未返回时使用空数组，由父组件传入 roleList
+const DEFAULT_POOL = [];
 
 // 圆形角色选择器组件
-export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }) => {
+export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose, roleList = DEFAULT_POOL }) => {
   const [hoveredRole, setHoveredRole] = useState(null);
   const containerRef = useRef(null);
+  const list = roleList?.length ? roleList : DEFAULT_POOL;
 
   // 处理失焦
   useEffect(() => {
@@ -55,11 +46,11 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
   }, [open, onClose]);
 
   // 获取当前选中角色的信息
-  const selectedRoleInfo = RolePool.find(role => role.name === selectedRole) || RolePool[0];
+  const selectedRoleInfo = list.find(role => role.name === selectedRole) || list[0] || { name: selectedRole || "角色", avatar: "", description: "" };
 
   // 获取要在中心显示的角色信息（悬停的角色或选中的角色）
   const centerDisplayRole = hoveredRole
-    ? RolePool.find(role => role.name === hoveredRole) || selectedRoleInfo
+    ? (list.find(role => role.name === hoveredRole) || selectedRoleInfo)
     : selectedRoleInfo;
 
   // 计算每个角色在圆周上的位置
@@ -71,8 +62,8 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
     // 如果排除选中的角色，需要调整索引
     let adjustedIndex = index;
     if (excludeSelected) {
-      const selectedIndex = RolePool.findIndex(role => role.name === selectedRole);
-      if (index >= selectedIndex) {
+      const selectedIndex = list.findIndex(role => role.name === selectedRole);
+      if (selectedIndex >= 0 && index >= selectedIndex) {
         adjustedIndex = index + 1;
       }
     }
@@ -86,7 +77,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
   };
 
   // 过滤掉当前选中的角色
-  const otherRoles = RolePool.filter(role => role.name !== selectedRole);
+  const otherRoles = list.filter(role => role.name !== selectedRole);
 
   const handleRoleHover = (roleName) => {
     setHoveredRole(roleName);
@@ -108,7 +99,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
         {/* 中心显示当前选中的角色或悬停的角色 */}
         <Box sx={{ position: "relative" }}>
           <CenterAvatar
-            src={centerDisplayRole.avatar}
+            src={centerDisplayRole.avatar || undefined}
             alt={centerDisplayRole.name}
             ishovered={hoveredRole !== null}
           >
@@ -128,7 +119,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
 
         {/* 外围显示其他角色 */}
         {otherRoles.map((role, index) => {
-          const position = getPosition(index, RolePool.length, true);
+          const position = getPosition(index, list.length, true);
           const isHovered = hoveredRole === role.name;
 
           return (
@@ -141,7 +132,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
               onClick={() => handleRoleClick(role.name)}
             >
               <OuterAvatar
-                src={role.avatar}
+                src={role.avatar || undefined}
                 alt={role.name}
                 isselected={false}
                 ishovered={isHovered}
@@ -160,12 +151,13 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose }
 };
 
 // 角色选择器容器组件
-export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bottom' }) => {
+export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bottom', roleList = DEFAULT_POOL }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState(null);
+  const list = roleList?.length ? roleList : DEFAULT_POOL;
 
   // 获取当前选中角色的信息
-  const selectedRoleInfo = RolePool.find(role => role.name === assistantRole) || RolePool[0];
+  const selectedRoleInfo = list.find(role => role.name === assistantRole) || list[0] || { name: assistantRole || "角色", avatar: "", description: "" };
 
   const handleMouseEnter = () => {
     const timeout = setTimeout(() => {
@@ -238,6 +230,7 @@ export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bott
           onRoleSelect={setAssistantRole}
           open={selectorOpen}
           onClose={() => setSelectorOpen(false)}
+          roleList={roleList}
         />
       </SelectorContainer>
     </Box>
