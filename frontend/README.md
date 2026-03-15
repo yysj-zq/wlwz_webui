@@ -1,90 +1,58 @@
-# 角色扮演AI聊天界面
+# 武林外传 AI 对话前端应用
 
-这是一个现代化的角色扮演AI聊天前端项目，可以与OpenAI类型的大模型API进行角色扮演对话。界面美观、功能齐全，支持多轮对话、会话管理和流式输出。
+React 单页应用，角色扮演聊天界面，支持多会话、流式回复与 TTS 播放。
 
-## 功能特点
+## 功能概览
 
-- 🎭 **角色扮演**: 支持选择用户角色和AI角色进行对话
-- 💬 **多轮对话**: 支持与AI进行连续多轮对话
-- 📝 **会话管理**: 创建、编辑、删除和切换多个会话
-- ⚡ **流式输出**: 支持AI回复的实时流式显示
-- 🌓 **明暗主题**: 支持切换明亮和暗黑模式
-- 📱 **响应式设计**: 适配桌面和移动设备
+- **角色扮演**：选择用户角色与 AI 角色进行对话，角色列表由后端 API 提供
+- **多轮对话**：连续对话，消息列表与流式打字机效果
+- **会话管理**：创建、切换、删除会话，会话与登录用户关联
+- **TTS 播放**：对单条消息请求语音并播放
+- **明暗主题**：明亮 / 暗黑模式
+- **响应式**：适配桌面与移动端
 
-## 技术栈
-
-- **React**: 用于构建用户界面
-- **Material UI**: 现代化UI组件库
-- **Markdown渲染**: 支持AI回复中的富文本和代码高亮
-- **LocalStorage**: 本地保存会话历史和设置
-
-## 开始使用
-
-### 安装依赖
+## 快速启动
 
 ```bash
-cd frontend
 npm install
-```
-
-### 启动开发服务器
-
-```bash
 npm start
 ```
 
-应用将在 [http://localhost:3000](http://localhost:3000) 启动。
+应用默认在 **http://localhost:3000** 运行。
 
+## 配置
 
-## 如何配置
-
-### 后端API配置
-
-创建 `.env` 文件，设置API地址：
+在项目根目录创建 `.env`，指定后端地址：
 
 ```
-REACT_APP_API_URL=http://your-backend-api-url
+REACT_APP_API_URL=http://localhost:8081
 ```
-## 向后端发送的消息格式
+
+未配置时，请求会发往当前域名（同源）。
+
+## 项目结构
 
 ```
-{
-  "messages": [
-    {
-      "role": "郭芙蓉",
-      "content": "掌柜的，给我涨工钱了该"
-    },
-    {
-      "role": "佟湘玉",
-      "content": "你涨什么工钱呀？"
-    },
-    {
-      "role": "郭芙蓉",
-      "content": "我干了十年了不得涨点工钱？"
-    },
-    {
-      "role": "佟湘玉",
-      "content": "那小郭，你不要动不动就拿这事儿跟我磨蹭，要涨工钱可以，你得自己去跟客人商量，你要是不跟客人商量，那我也没辙。"
-    },
-    {
-      "role": "邢育森",
-      "content": "掌柜的，你说啥呢？你该给人涨工钱就得涨"
-    }
-  ],
-  "userRole": "邢育森",
-  "assistantRole": "佟湘玉"
-}
+frontend/
+├── public/
+├── src/
+│   ├── components/      # UI 组件
+│   │   ├── Chat.js          # 聊天区域与消息列表
+│   │   ├── Header.js        # 顶栏、会话与设置
+│   │   ├── RoleSelector.js  # 角色选择
+│   │   └── RolesConfig.js   # 角色/配置相关
+│   ├── services/
+│   │   └── api.js       # 后端 API 封装（聊天、会话、角色、TTS、认证）
+│   ├── App.js           # 根组件与全局状态
+│   └── index.js         # 入口
+└── package.json
 ```
-userRole和assistantRole是本轮对话双方角色
-## 自定义角色
 
-若要修改可用的角色列表，请编辑 `src/components/RoleSelector.js` 文件中的角色信息。
+## 技术栈
 
+- React 18、Create React App
+- Material UI（MUI）
+- Axios、react-markdown
+- 本地状态 + localStorage 持久化部分设置
 
-## 许可证
-
-MIT
-
-## 免责声明
-
-本项目使用了《武林外传》相关元素，仅用于技术演示和学习交流。详细信息请参阅[免责声明](../DISCLAIMER.md)。
+与后端的交互（登录态、会话、消息格式等）均通过 `src/services/api.js` 完成，角色列表来自后端 `/api/roles`。

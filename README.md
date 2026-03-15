@@ -1,38 +1,33 @@
+# 武林外传 AI 对话
 
-# 武林外传AI对话
-
-一个基于FastAPI后端和React前端的角色扮演AI聊天网站。
+基于 FastAPI 后端与 React 前端的角色扮演 AI 聊天应用。
 ![wlwz](image.png "wlwz")
 
 ## 功能特点
 
-- 🎭 **角色扮演对话**: 支持用户和AI助手角色自定义
-- 💬 **多轮对话**: 支持连续多轮对话
-- ⚡ **流式输出**: 支持AI回复的实时流式显示
-- 🌓 **明暗主题**: 支持切换明亮和暗黑模式
-- 📱 **响应式设计**: 适配桌面和移动设备
-
-## 技术栈
-
-- **后端**: FastAPI, Python
-- **前端**: React, Material UI
-- **特性**: 流式响应, 会话管理, 本地存储
+- **角色扮演对话**：内置《武林外传》角色，支持多轮连续对话
+- **流式输出**：AI 回复实时流式显示
+- **TTS 语音**：支持按角色朗读消息
+- **会话持久化**：会话列表与历史保存，支持多会话切换
+- **用户认证**：登录/注册，会话与用户关联
+- **明暗主题**：明亮 / 暗黑模式切换
+- **响应式设计**：适配桌面与移动端
 
 ## 快速开始
 
-### 后端启动
+### 后端
 
 ```bash
 cd backend
 pip install -r requirements.txt
 cp .env.example .env
-# 配置 .env 文件
+# 编辑 .env 配置数据库、LLM、TTS 等（详见 backend/README.md）
 python main.py
 ```
 
-服务将在 http://localhost:8081 上运行。
+服务默认运行在 **http://localhost:8081**。
 
-### 前端启动
+### 前端
 
 ```bash
 cd frontend
@@ -40,33 +35,11 @@ npm install
 npm start
 ```
 
-应用将在 http://localhost:3000 上运行。
+应用默认运行在 **http://localhost:3000**。需配置 `REACT_APP_API_URL` 指向后端（详见 frontend/README.md）。
 
-## 项目结构
+---
 
-```
-.
-├── backend/          # 后端服务
-│   ├── routers/      # API路由
-│   ├── services/     # 业务逻辑
-│   ├── utils/        # 工具函数
-│   └── ...
-└── frontend/         # 前端应用
-    ├── src/
-    │   ├── components/  # UI组件
-    │   └── services/    # API服务
-    └── ...
-```
-## TODO
+更多说明见 [backend/README.md](backend/README.md) 与 [frontend/README.md](frontend/README.md)。  
 
-- [x] 对话场景嵌入message
-- [x] 【UI】对话头像设置
-
-
-## 许可证
-
-[MIT License](LICENSE)
-
-## 免责声明
-
-本项目使用了《武林外传》相关元素，仅用于技术演示和学习交流。详细信息请参阅[免责声明](DISCLAIMER.md)。
+## DISCLAIMER
+本项目使用《武林外传》相关元素，仅用于技术演示与学习交流，详见 [免责声明](DISCLAIMER.md)。
