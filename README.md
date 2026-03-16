@@ -19,10 +19,10 @@
 
 ```bash
 cd backend
-pip install -r requirements.txt
+uv sync
 cp .env.example .env
 # 编辑 .env 配置数据库、LLM、TTS 等（详见 backend/README.md）
-python main.py
+uv run main.py
 ```
 
 服务默认运行在 `http://localhost:8081` 。

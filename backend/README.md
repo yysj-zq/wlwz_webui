@@ -13,10 +13,10 @@ FastAPI 后端，提供聊天、会话、角色、TTS 与认证等 API。
 ## 快速启动
 
 ```bash
-pip install -r requirements.txt
+uv sync
 cp .env.example .env
 # 编辑 .env 后启动
-python main.py
+uv run main.py
 ```
 
 服务默认在 **http://localhost:8081** 运行。API 文档：http://localhost:8081/docs 。

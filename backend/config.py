@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # 大模型配置
     MODEL_BASE_URL: str = os.getenv("MODEL_BASE_URL", "http://localhost:8080")
     MODEL_API_KEY: Optional[str] = os.getenv("MODEL_API_KEY")
-    MODEL_NAME: str = os.getenv("MODEL_NAME")
+    MODEL_NAME: str = os.getenv("MODEL_NAME", "default-model")
 
     # 响应设置
     STREAM_DELAY: float = float(os.getenv("STREAM_DELAY", "0.02"))
