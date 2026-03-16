@@ -9,10 +9,7 @@ import {
 
 // 圆形选择器容器样式
 export const CircleContainer = styled(Paper)(({ theme }) => ({
-  position: 'absolute',
-  top: '20%',
-  left: '80%',
-  transform: 'translate(-50%, -50%)',
+  position: 'relative',
   width: '300px',
   height: '300px',
   borderRadius: '50%',
@@ -59,7 +56,7 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
 
   // 悬停效果
   '&:hover': {
-    transform: 'translate(-50%, -50%) scale(1.02)',
+    transform: 'scale(1.02)',
     boxShadow: theme.palette.mode === 'dark'
       ? `
         0 12px 48px ${theme.palette.background.default}80,
@@ -77,7 +74,7 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
 
   // 活跃状态
   '&:active': {
-    transform: 'translate(-50%, -50%) scale(0.98)',
+    transform: 'scale(0.98)',
   },
 
   // 添加武林外传主题发光效果
@@ -103,10 +100,10 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
   '@media (prefers-reduced-motion: reduce)': {
     transition: 'none',
     '&:hover': {
-      transform: 'translate(-50%, -50%)',
+      transform: 'none',
     },
     '&:active': {
-      transform: 'translate(-50%, -50%)',
+      transform: 'none',
     },
   },
 
@@ -114,14 +111,6 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
   [theme.breakpoints.down('sm')]: {
     width: '250px',
     height: '250px',
-    left: '70%',
-  },
-
-  [theme.breakpoints.down('xs')]: {
-    width: '200px',
-    height: '200px',
-    top: '15%',
-    left: '60%',
   }
 }));
 
@@ -353,10 +342,19 @@ export const CurrentAvatar = styled(Avatar)(({ theme, isselectoropen }) => ({
 // 轮盘容器样式
 export const SelectorContainer = styled(Box)(({ theme, isselectoropen, position = 'bottom' }) => ({
   position: 'absolute',
-  top: position === 'top' ? 200 : -200,
-  left: position === 'top' ? -150: 50,
-  width: '100%',
-  height: '100%',
+  top: position === 'top' ? 'auto' : `calc(100% + ${theme.spacing(1)})`,
+  bottom: position === 'top' ? `calc(100% + ${theme.spacing(1)})` : 'auto',
+  left: position === 'top' ? 'auto' : 0,
+  right: position === 'top' ? 0 : 'auto',
+  width: 'max-content',
+  height: 'max-content',
   pointerEvents: isselectoropen ? 'auto' : 'none',
-  zIndex: 1200
+  opacity: isselectoropen ? 1 : 0,
+  transform: isselectoropen ? 'translateY(0)' : 'translateY(-4px)',
+  transition: 'opacity 0.2s ease, transform 0.2s ease',
+  zIndex: 1400,
+  '@media (prefers-reduced-motion: reduce)': {
+    transition: 'none',
+    transform: 'none',
+  }
 }));

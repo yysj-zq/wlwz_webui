@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Typography } from '@mui/material';
+import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Typography, Drawer, Tabs, Tab } from '@mui/material';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
 import Header from './components/Header';
@@ -51,6 +51,8 @@ function App() {
   const [rolesConfig, setRolesConfig] = useState(null);
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [controlCenterOpen, setControlCenterOpen] = useState(false);
+  const [controlCenterTab, setControlCenterTab] = useState(() => localStorage.getItem('controlCenterTab') || 'settings');
 
   const loadRoles = () => {
     getRoles()
@@ -116,6 +118,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('streamingEnabled', JSON.stringify(streamingEnabled));
   }, [streamingEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('controlCenterTab', controlCenterTab);
+  }, [controlCenterTab]);
 
   useEffect(() => {
     return () => {
@@ -462,6 +468,13 @@ function App() {
 
   const isChatPage = location.pathname === '/';
 
+  const openControlCenter = (tab) => {
+    if (tab) {
+      setControlCenterTab(tab);
+    }
+    setControlCenterOpen(true);
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: theme.palette.background.default }}>
       <CssBaseline />
@@ -471,9 +484,7 @@ function App() {
       <Header
         onSidebarToggle={isChatPage ? handleSidebarToggle : undefined}
         onNewChat={isChatPage ? handleCreateNewChat : undefined}
-        assistantRole={assistantRole}
-        setAssistantRole={setAssistantRole}
-        rolesConfig={rolesConfig}
+        onOpenControlCenter={openControlCenter}
       />
       <Box component="main" id="main-content" sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <Routes>
@@ -496,41 +507,8 @@ function App() {
                 userRole={userRole}
                 assistantRole={assistantRole}
                 setUserRole={setUserRole}
-                rolesConfig={rolesConfig}
-              />
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <SettingsPage
-                currentUser={currentUser}
-                onLoginClick={() => {
-                  setAuthError('');
-                  setAuthDialogOpen(true);
-                }}
-                onLogout={() => {
-                  localStorage.removeItem('accessToken');
-                  setAuthToken(null);
-                  setCurrentUser(null);
-                }}
-                userRole={userRole}
-                setUserRole={setUserRole}
-                assistantRole={assistantRole}
                 setAssistantRole={setAssistantRole}
-                streamingEnabled={streamingEnabled}
-                setStreamingEnabled={setStreamingEnabled}
                 rolesConfig={rolesConfig}
-              />
-            }
-          />
-          <Route
-            path="/roles"
-            element={
-              <RolesPage
-                rolesConfig={rolesConfig}
-                currentUser={currentUser}
-                onSaved={loadRoles}
               />
             }
           />
@@ -538,10 +516,107 @@ function App() {
         </Routes>
       </Box>
 
+      <Drawer
+        anchor="right"
+        open={controlCenterOpen}
+        onClose={() => setControlCenterOpen(false)}
+        sx={{ zIndex: (muiTheme) => muiTheme.zIndex.drawer + 3 }}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 520 },
+            borderLeft: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.default,
+            '@keyframes controlCenterIn': {
+              from: { opacity: 0, transform: 'translateX(12px)' },
+              to: { opacity: 1, transform: 'translateX(0)' },
+            },
+            animation: 'controlCenterIn 220ms ease-out',
+          },
+        }}
+      >
+        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Box>
+              <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: 1.1 }}>
+                Control Center
+              </Typography>
+              <Typography variant="h6">控制中心</Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              按 Esc 关闭
+            </Typography>
+          </Box>
+          <Tabs
+            value={controlCenterTab}
+            onChange={(_, value) => setControlCenterTab(value)}
+            sx={{ mt: 1 }}
+          >
+            <Tab value="settings" label="偏好设置" />
+            <Tab value="roles" label="角色配置" />
+          </Tabs>
+        </Box>
+
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          {controlCenterTab === 'settings' ? (
+            <SettingsPage
+              embedded
+              currentUser={currentUser}
+              onLoginClick={() => {
+                setAuthError('');
+                setAuthDialogOpen(true);
+              }}
+              onLogout={() => {
+                localStorage.removeItem('accessToken');
+                setAuthToken(null);
+                setCurrentUser(null);
+              }}
+              userRole={userRole}
+              setUserRole={setUserRole}
+              assistantRole={assistantRole}
+              setAssistantRole={setAssistantRole}
+              streamingEnabled={streamingEnabled}
+              setStreamingEnabled={setStreamingEnabled}
+              rolesConfig={rolesConfig}
+            />
+          ) : (
+            <RolesPage
+              embedded
+              rolesConfig={rolesConfig}
+              currentUser={currentUser}
+              onSaved={loadRoles}
+            />
+          )}
+        </Box>
+      </Drawer>
+
       {/* 场景输入对话框 */}
-      <Dialog open={sceneDialogOpen} onClose={handleSceneCancel}>
-        <DialogTitle>设置场景</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={sceneDialogOpen}
+        onClose={handleSceneCancel}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            width: { xs: 'calc(100% - 24px)', sm: 760 },
+            maxWidth: 760,
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`,
+            background: theme.palette.mode === 'light'
+              ? 'linear-gradient(180deg, rgba(255, 252, 245, 0.96), rgba(248, 241, 228, 0.98))'
+              : 'linear-gradient(180deg, rgba(61, 47, 25, 0.96), rgba(45, 34, 19, 0.98))',
+            boxShadow: theme.palette.mode === 'light'
+              ? '0 14px 44px rgba(88,57,34,0.2)'
+              : '0 14px 44px rgba(0,0,0,0.45)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: 1.1 }}>
+            Scene Setup
+          </Typography>
+          <Typography variant="h6">设置场景</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
           <TextField
             autoFocus
             margin="dense"
@@ -556,11 +631,33 @@ function App() {
             rows={5}
             placeholder="请输入场景描述，例如：【大堂，昼】（老白趴在桌上睡觉，小郭在擦桌子）…"
             autoComplete="off"
+            sx={{
+              mt: 0.5,
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.06)',
+              },
+            }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleSceneCancel}>取消</Button>
-          <Button onClick={handleSceneSubmit} variant="contained" color="primary">
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5 }}>
+          <Button
+            onClick={handleSceneCancel}
+            sx={{
+              borderRadius: 999,
+              px: 2,
+            }}
+          >
+            取消
+          </Button>
+          <Button
+            onClick={handleSceneSubmit}
+            variant="contained"
+            color="primary"
+            sx={{
+              borderRadius: 999,
+              px: 2.5,
+            }}
+          >
             确认
           </Button>
         </DialogActions>

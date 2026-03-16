@@ -117,10 +117,24 @@ export const ThemeProvider = ({ children }) => {
             styleOverrides: {
               root: {
                 borderRadius: '12px',
-                backgroundImage: mode === 'light' 
-                  ? 'linear-gradient(135deg, rgba(255, 248, 220, 0.8) 0%, rgba(255, 228, 181, 0.8) 100%)'
-                  : 'linear-gradient(135deg, rgba(160, 82, 45, 0.8) 0%, rgba(139, 69, 19, 0.8) 100%)',
-                border: `1px solid ${mode === 'light' ? '#D2B48C' : '#CD853F'}`,
+                backgroundImage: 'none',
+                border: 'none',
+              },
+            },
+          },
+          MuiAppBar: {
+            styleOverrides: {
+              root: {
+                borderRadius: 0,
+                backgroundImage: 'none',
+              },
+            },
+          },
+          MuiDrawer: {
+            styleOverrides: {
+              paper: {
+                borderRadius: 0,
+                backgroundImage: 'none',
               },
             },
           },

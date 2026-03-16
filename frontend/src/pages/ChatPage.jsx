@@ -19,6 +19,7 @@ const ChatPage = ({
   userRole,
   assistantRole,
   setUserRole,
+  setAssistantRole,
   rolesConfig,
 }) => {
   return (
@@ -43,6 +44,7 @@ const ChatPage = ({
         userRole={userRole}
         assistantRole={assistantRole}
         setUserRole={setUserRole}
+        setAssistantRole={setAssistantRole}
         sidebarOpen={sidebarOpen}
         rolesConfig={rolesConfig}
       />

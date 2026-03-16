@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Box, Fade } from "@mui/material";
+import { Box, Fade, Popper, ClickAwayListener } from "@mui/material";
 import {
   CircleContainer,
   CenterAvatar,
@@ -12,7 +12,6 @@ import {
   CenterRoleDescription,
   CurrentAvatarContainer,
   CurrentAvatar,
-  SelectorContainer,
 } from "./styles/RoleSelectorStyles";
 
 // 兜底：API 未返回时使用空数组，由父组件传入 roleList
@@ -21,29 +20,7 @@ const DEFAULT_POOL = [];
 // 圆形角色选择器组件
 export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose, roleList = DEFAULT_POOL }) => {
   const [hoveredRole, setHoveredRole] = useState(null);
-  const containerRef = useRef(null);
   const list = roleList?.length ? roleList : DEFAULT_POOL;
-
-  // 处理失焦
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        onClose();
-      }
-    };
-
-    if (open) {
-      // 延迟添加事件监听器，避免立即触发
-      const timer = setTimeout(() => {
-        document.addEventListener("mousedown", handleClickOutside);
-      }, 100);
-
-      return () => {
-        clearTimeout(timer);
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }
-  }, [open, onClose]);
 
   // 获取当前选中角色的信息
   const selectedRoleInfo = list.find(role => role.name === selectedRole) || list[0] || { name: selectedRole || "角色", avatar: "", description: "" };
@@ -102,7 +79,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose, 
 
   return (
     <Fade in={open} timeout={400}>
-      <CircleContainer ref={containerRef}>
+      <CircleContainer>
         {/* 中心显示当前选中的角色或悬停的角色 */}
         <Box sx={{ position: "relative" }}>
           <CenterAvatar
@@ -164,7 +141,7 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose, 
 // 角色选择器容器组件
 export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bottom', roleList = DEFAULT_POOL }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const rootRef = useRef(null);
+  const anchorRef = useRef(null);
   const list = roleList?.length ? roleList : DEFAULT_POOL;
 
   // 获取当前选中角色的信息
@@ -198,81 +175,101 @@ export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bott
   };
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (rootRef.current && !rootRef.current.contains(event.target)) {
-        setSelectorOpen(false);
-      }
-    };
-
     const handleGlobalKeyDown = (event) => {
       if (event.key === 'Escape') {
         setSelectorOpen(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleGlobalKeyDown);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleGlobalKeyDown);
     };
   }, []);
 
+  const placement = position === 'top' ? 'bottom-end' : 'top-start';
+
   return (
-    <Box
-      ref={rootRef}
+    <ClickAwayListener onClickAway={handleClose}>
+      <Box
+      ref={anchorRef}
       sx={{
         display: "flex",
         alignItems: "center",
-        mr: 2,
         position: "relative",
         zIndex: 1000
       }}
     >
-      {/* 当前头像和当前角色 */}
-      <CurrentAvatarContainer
-        component="button"
-        type="button"
-        isselectoropen={selectorOpen}
-        onClick={handleToggle}
-        onKeyDown={handleTriggerKeyDown}
-        aria-haspopup="menu"
-        aria-expanded={selectorOpen}
-        aria-label={`当前角色${selectedRoleInfo.name}，点击切换角色`}
-      >
-        {/* 当前头像 */}
-        <CurrentAvatar
-          src={selectedRoleInfo.avatar}
-          alt={selectedRoleInfo.name}
+        {/* 当前头像和当前角色 */}
+        <CurrentAvatarContainer
+          component="button"
+          type="button"
           isselectoropen={selectorOpen}
+          onClick={handleToggle}
+          onKeyDown={handleTriggerKeyDown}
+          aria-haspopup="menu"
+          aria-expanded={selectorOpen}
+          aria-label={`当前角色${selectedRoleInfo.name}，点击切换角色`}
         >
-          {selectedRoleInfo.name.charAt(0)}
-        </CurrentAvatar>
-        {/* 当前角色 */}
-        <Box>
-          <Box sx={{ fontWeight: 600, lineHeight: 1.2, fontSize: "0.875rem" }}>
-            {selectedRoleInfo.name}
+          {/* 当前头像 */}
+          <CurrentAvatar
+            src={selectedRoleInfo.avatar}
+            alt={selectedRoleInfo.name}
+            isselectoropen={selectorOpen}
+          >
+            {selectedRoleInfo.name.charAt(0)}
+          </CurrentAvatar>
+          {/* 当前角色 */}
+        <Box sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              fontWeight: 600,
+              lineHeight: 1.2,
+              fontSize: "0.875rem",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: 90,
+            }}
+          >
+              {selectedRoleInfo.name}
+            </Box>
+          <Box
+            sx={{
+              color: "text.secondary",
+              lineHeight: 1,
+              fontSize: "0.75rem",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: 90,
+            }}
+          >
+              {selectedRoleInfo.description}
+            </Box>
           </Box>
-          <Box sx={{ color: "text.secondary", lineHeight: 1, fontSize: "0.75rem" }}>
-            {selectedRoleInfo.description}
-          </Box>
-        </Box>
-      </CurrentAvatarContainer>
+        </CurrentAvatarContainer>
 
-      {/* 轮盘 */}
-      <SelectorContainer
-        isselectoropen={selectorOpen}
-        position={position}
-      >
-        <CircleRoleSelector
-          selectedRole={assistantRole}
-          onRoleSelect={setAssistantRole}
+        <Popper
           open={selectorOpen}
-          onClose={handleClose}
-          roleList={roleList}
-        />
-      </SelectorContainer>
-    </Box>
+          anchorEl={anchorRef.current}
+          placement={placement}
+          modifiers={[
+            { name: 'offset', options: { offset: [0, 12] } },
+            { name: 'flip', options: { fallbackPlacements: ['top-start', 'top-end', 'bottom-start', 'bottom-end'] } },
+            { name: 'preventOverflow', options: { padding: 12 } },
+          ]}
+          style={{ zIndex: 1800 }}
+        >
+          <CircleRoleSelector
+            selectedRole={assistantRole}
+            onRoleSelect={setAssistantRole}
+            open={selectorOpen}
+            onClose={handleClose}
+            roleList={roleList}
+          />
+        </Popper>
+      </Box>
+    </ClickAwayListener>
   );
 };
 

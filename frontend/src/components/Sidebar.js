@@ -39,28 +39,13 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
   '& .MuiDrawer-paper': {
     width: drawerWidth,
     boxSizing: 'border-box',
+    borderRadius: 0,
     backgroundColor: theme.palette.background.sidebar,
     borderRight: `1px solid ${theme.palette.divider}`,
-    // 添加武林外传主题纹理背景
-    backgroundImage: theme.palette.mode === 'light' 
-      ? `radial-gradient(circle, ${theme.palette.divider}15 1px, transparent 1px),
-         linear-gradient(90deg, ${theme.palette.primary.main}05 1px, transparent 1px)`
-      : `radial-gradient(circle, ${theme.palette.divider}20 1px, transparent 1px),
-         linear-gradient(90deg, ${theme.palette.primary.main}08 1px, transparent 1px)`,
-    backgroundSize: '20px 20px, 100% 100%',
+    backgroundImage: theme.palette.mode === 'light'
+      ? 'linear-gradient(180deg, rgba(255, 252, 245, 0.9), rgba(248, 241, 228, 0.95))'
+      : 'linear-gradient(180deg, rgba(61, 47, 25, 0.9), rgba(45, 34, 19, 0.95))',
     position: 'relative',
-    // 添加装饰性边框
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      border: `1px solid ${theme.palette.divider}20`,
-      borderRadius: 'inherit',
-      pointerEvents: 'none',
-    }
   },
 }));
 
@@ -69,27 +54,12 @@ const MobileDrawer = styled(Drawer)(({ theme }) => ({
   '& .MuiDrawer-paper': {
     width: drawerWidth,
     boxSizing: 'border-box',
+    borderRadius: 0,
     backgroundColor: theme.palette.background.sidebar,
-    // 添加武林外传主题纹理背景
-    backgroundImage: theme.palette.mode === 'light' 
-      ? `radial-gradient(circle, ${theme.palette.divider}15 1px, transparent 1px),
-         linear-gradient(90deg, ${theme.palette.primary.main}05 1px, transparent 1px)`
-      : `radial-gradient(circle, ${theme.palette.divider}20 1px, transparent 1px),
-         linear-gradient(90deg, ${theme.palette.primary.main}08 1px, transparent 1px)`,
-    backgroundSize: '20px 20px, 100% 100%',
+    backgroundImage: theme.palette.mode === 'light'
+      ? 'linear-gradient(180deg, rgba(255, 252, 245, 0.9), rgba(248, 241, 228, 0.95))'
+      : 'linear-gradient(180deg, rgba(61, 47, 25, 0.9), rgba(45, 34, 19, 0.95))',
     position: 'relative',
-    // 添加装饰性边框
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      border: `1px solid ${theme.palette.divider}20`,
-      borderRadius: 'inherit',
-      pointerEvents: 'none',
-    }
   },
 }));
 
@@ -144,14 +114,77 @@ const Sidebar = ({
     setConversationToDelete(null);
   };
 
+  const iconActionSx = {
+    width: 34,
+    height: 34,
+    border: muiTheme.palette.mode === 'light'
+      ? '1px solid rgba(122, 67, 36, 0.22)'
+      : '1px solid rgba(226, 190, 141, 0.25)',
+    background: muiTheme.palette.mode === 'light'
+      ? 'linear-gradient(180deg, rgba(255,255,255,0.62), rgba(160,82,45,0.14))'
+      : 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(210,180,140,0.18))',
+    boxShadow: muiTheme.palette.mode === 'light'
+      ? '0 2px 8px rgba(93, 52, 27, 0.14)'
+      : '0 2px 8px rgba(0, 0, 0, 0.32)',
+    transition: 'transform 160ms ease, background 160ms ease, box-shadow 160ms ease',
+    '&:hover': {
+      background: muiTheme.palette.mode === 'light'
+        ? 'linear-gradient(180deg, rgba(255,255,255,0.72), rgba(160,82,45,0.22))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(210,180,140,0.26))',
+      boxShadow: muiTheme.palette.mode === 'light'
+        ? '0 5px 14px rgba(93, 52, 27, 0.18)'
+        : '0 5px 14px rgba(0, 0, 0, 0.4)',
+      transform: 'translateY(-1px)',
+    },
+    '&:active': {
+      transform: 'translateY(0)',
+    },
+  };
+
+  const primaryPillSx = {
+    borderRadius: 999,
+    py: 1.05,
+    border: 'none',
+    backgroundColor: muiTheme.palette.mode === 'light' ? '#ae4f28' : '#c7a775',
+    color: muiTheme.palette.mode === 'light' ? '#fffaf4' : '#2a1d12',
+    boxShadow: muiTheme.palette.mode === 'light'
+      ? '0 4px 12px rgba(95, 45, 22, 0.2)'
+      : '0 4px 12px rgba(0, 0, 0, 0.32)',
+    letterSpacing: 0.3,
+    transition: 'transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease',
+    '&:hover': {
+      backgroundColor: muiTheme.palette.mode === 'light' ? '#b85a32' : '#d2b485',
+      boxShadow: muiTheme.palette.mode === 'light'
+        ? '0 6px 16px rgba(95, 45, 22, 0.24)'
+        : '0 6px 16px rgba(0, 0, 0, 0.38)',
+      transform: 'translateY(-1px)',
+    },
+    '&:active': {
+      transform: 'translateY(0)',
+      boxShadow: muiTheme.palette.mode === 'light'
+        ? '0 3px 10px rgba(95, 45, 22, 0.2)'
+        : '0 3px 10px rgba(0, 0, 0, 0.32)',
+    },
+  };
+
   const drawerContent = (
     <>
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" component="div">
+      <Box sx={{ p: 2, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box>
+          <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: 1 }}>
+            Conversation Hub
+          </Typography>
+          <Typography variant="h6" component="div">
           对话列表
-        </Typography>
+          </Typography>
+        </Box>
         {isMobile && (
-          <IconButton onClick={() => onSelectConversation(currentConversationId)} size="small" aria-label="关闭侧边栏">
+          <IconButton
+            onClick={() => onSelectConversation(currentConversationId)}
+            size="small"
+            aria-label="关闭侧边栏"
+            sx={iconActionSx}
+          >
             <CloseIcon />
           </IconButton>
         )}
@@ -163,6 +196,7 @@ const Sidebar = ({
           fullWidth 
           startIcon={<AddIcon />}
           onClick={onNewChat}
+          sx={primaryPillSx}
         >
           新对话
         </Button>
@@ -190,6 +224,7 @@ const Sidebar = ({
                         edge="end" 
                         size="small"
                         aria-label="编辑对话标题"
+                        sx={iconActionSx}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditStart(conversation.id, conversation.title);
@@ -203,6 +238,7 @@ const Sidebar = ({
                         edge="end" 
                         size="small" 
                         aria-label="删除对话"
+                        sx={iconActionSx}
                         onClick={(e) => handleDeleteClick(conversation.id, e)}
                       >
                         <DeleteOutlineIcon fontSize="small" />
@@ -212,12 +248,12 @@ const Sidebar = ({
                 ) : (
                   <Box>
                     <Tooltip title="保存">
-                      <IconButton edge="end" size="small" onClick={handleEditSave} aria-label="保存对话标题">
+                      <IconButton edge="end" size="small" onClick={handleEditSave} aria-label="保存对话标题" sx={iconActionSx}>
                         <CheckIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="取消">
-                      <IconButton edge="end" size="small" onClick={handleEditCancel} aria-label="取消编辑对话标题">
+                      <IconButton edge="end" size="small" onClick={handleEditCancel} aria-label="取消编辑对话标题" sx={iconActionSx}>
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -229,12 +265,19 @@ const Sidebar = ({
                 selected={conversation.id === currentConversationId}
                 onClick={() => onSelectConversation(conversation.id)}
                 sx={{
-                  borderRadius: '8px',
+                  borderRadius: '14px',
                   m: 0.5,
+                  border: `1px solid ${muiTheme.palette.divider}`,
+                  '&:hover': {
+                    backgroundColor: muiTheme.palette.mode === 'light'
+                      ? `${muiTheme.palette.primary.main}14`
+                      : `${muiTheme.palette.primary.main}26`,
+                  },
                   '&.Mui-selected': {
                     backgroundColor: muiTheme.palette.mode === 'light'
                       ? `${muiTheme.palette.primary.main}1f`
                       : `${muiTheme.palette.primary.main}2e`,
+                    borderColor: `${muiTheme.palette.primary.main}66`,
                   },
                   '&.Mui-selected:hover': {
                     backgroundColor: muiTheme.palette.mode === 'light'
@@ -244,7 +287,7 @@ const Sidebar = ({
                 }}
               >
                 <ListItemIcon>
-                  <ChatIcon />
+                  <ChatIcon color={conversation.id === currentConversationId ? 'primary' : 'inherit'} />
                 </ListItemIcon>
                 {editingId === conversation.id ? (
                   <InputBase
