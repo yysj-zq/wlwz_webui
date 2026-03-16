@@ -6,6 +6,29 @@ body {
   background-color: #f5f5f5;
 }
 
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 2000;
+}
+
+.skip-link:focus {
+  left: 16px;
+  top: 16px;
+  width: auto;
+  height: auto;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff8dc;
+  color: #5d4037;
+  border: 1px solid #d2b48c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
 /* 武林外传主题全局样式 */
 body {
   background: 
@@ -75,55 +98,4 @@ code {
   padding: 0;
 }
 
-/* 武林外传主题滚动条样式 */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f5f5f5;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d2b48c;
-  border-radius: 10px;
-  border: 2px solid #f5f5f5;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #cd853f;
-}
-
-/* 暗色主题滚动条 */
-.dark-theme ::-webkit-scrollbar-track {
-  background: #8b4513;
-}
-
-.dark-theme ::-webkit-scrollbar-thumb {
-  background: #d2691e;
-  border: 2px solid #8b4513;
-}
-
-.dark-theme ::-webkit-scrollbar-thumb:hover {
-  background: #de851e;
-}
-
-/* 武林外传特色标题样式 */
-h1, h2, h3, h4, h5, h6 {
-  font-family: "KaiTi", "STKaiti", serif;
-  font-weight: bold;
-}
-
-/* 武林外传特色按钮样式 */
-button {
-  font-family: "KaiTi", "STKaiti", serif;
-  border-radius: 20px !important;
-}
-
-/* 武林外传特色输入框样式 */
-input, textarea {
-  font-family: "Microsoft YaHei", "SimHei", serif;
-  border-radius: 12px !important;
-}
+/* 组件级滚动条/按钮/输入框样式统一由 MUI Theme 控制，避免来源冲突 */

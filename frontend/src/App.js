@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
+import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Typography } from '@mui/material';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
 import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import Chat from './components/Chat';
-import RolesConfig from './components/RolesConfig';
+import ChatPage from './pages/ChatPage';
+import SettingsPage from './pages/SettingsPage';
+import RolesPage from './pages/RolesPage';
 import { v4 as uuidv4 } from 'uuid';
 import { sendChatMessage, sendStreamMessage, requestTTS, login, register, getCurrentUser, setAuthToken, listConversations, getConversationMessages, deleteConversationApi, renameConversationApi, getRoles } from './services/api';
 
 function App() {
   const { theme } = useTheme();
+  const location = useLocation();
   const isMobile = useMediaQuery('(max-width:900px)');
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [conversations, setConversations] = useState(() => {
@@ -47,7 +49,8 @@ function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [rolesConfig, setRolesConfig] = useState(null);
-  const [rolesConfigOpen, setRolesConfigOpen] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
 
   const loadRoles = () => {
     getRoles()
@@ -138,7 +141,7 @@ function App() {
     if (shouldCreateNewChat) {
       const newConversation = {
         id: uuidv4(),
-        title: sceneInput ? sceneInput.substring(0, 30) + (sceneInput.length > 30 ? '...' : '') : '新的对话',
+        title: sceneInput ? sceneInput.substring(0, 30) + (sceneInput.length > 30 ? '…' : '') : '新的对话',
         messages: sceneInput ? [{ 
           id: uuidv4(),
           role: 'scene',
@@ -346,7 +349,7 @@ function App() {
         // 如果是第一条消息，更新标题
         let updatedTitle = conv.title;
         if (conv.messages.length === 0) {
-          updatedTitle = message.substring(0, 30) + (message.length > 30 ? '...' : '');
+          updatedTitle = message.substring(0, 30) + (message.length > 30 ? '…' : '');
         }
 
         return {
@@ -457,52 +460,82 @@ function App() {
     }
   };
 
+  const isChatPage = location.pathname === '/';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: theme.palette.background.default }}>
       <CssBaseline />
+      <a href="#main-content" className="skip-link">
+        跳到主内容
+      </a>
       <Header
-        onSidebarToggle={handleSidebarToggle}
-        onNewChat={handleCreateNewChat}
-        userRole={userRole}
-        setUserRole={setUserRole}
+        onSidebarToggle={isChatPage ? handleSidebarToggle : undefined}
+        onNewChat={isChatPage ? handleCreateNewChat : undefined}
         assistantRole={assistantRole}
         setAssistantRole={setAssistantRole}
-        streamingEnabled={streamingEnabled}
-        setStreamingEnabled={setStreamingEnabled}
-        currentUser={currentUser}
-        onLoginClick={() => setAuthDialogOpen(true)}
-        onLogout={() => {
-          localStorage.removeItem('accessToken');
-          setAuthToken(null);
-          setCurrentUser(null);
-        }}
         rolesConfig={rolesConfig}
-        onOpenRolesConfig={() => setRolesConfigOpen(true)}
       />
-      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {sidebarOpen || isMobile ? (
-          <Sidebar
-            open={sidebarOpen}
-            conversations={conversations}
-            currentConversationId={currentConversationId}
-            onSelectConversation={handleSelectConversation}
-            onNewChat={handleCreateNewChat}
-            onDeleteConversation={handleDeleteConversation}
-            onUpdateTitle={handleUpdateConversationTitle}
-            isMobile={isMobile}
+      <Box component="main" id="main-content" sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ChatPage
+                sidebarOpen={sidebarOpen}
+                isMobile={isMobile}
+                conversations={conversations}
+                currentConversationId={currentConversationId}
+                onSelectConversation={handleSelectConversation}
+                onNewChat={handleCreateNewChat}
+                onDeleteConversation={handleDeleteConversation}
+                onUpdateTitle={handleUpdateConversationTitle}
+                conversation={currentConversation}
+                onSendMessage={handleSendMessage}
+                onPlayMessageAudio={handlePlayMessageAudio}
+                onRetryMessageAudio={handleRetryMessageAudio}
+                userRole={userRole}
+                assistantRole={assistantRole}
+                setUserRole={setUserRole}
+                rolesConfig={rolesConfig}
+              />
+            }
           />
-        ) : null}
-        <Chat
-          conversation={currentConversation}
-          onSendMessage={handleSendMessage}
-          onPlayMessageAudio={handlePlayMessageAudio}
-          onRetryMessageAudio={handleRetryMessageAudio}
-          userRole={userRole}
-          assistantRole={assistantRole}
-          setUserRole={setUserRole}
-          sidebarOpen={sidebarOpen}
-          rolesConfig={rolesConfig}
-        />
+          <Route
+            path="/settings"
+            element={
+              <SettingsPage
+                currentUser={currentUser}
+                onLoginClick={() => {
+                  setAuthError('');
+                  setAuthDialogOpen(true);
+                }}
+                onLogout={() => {
+                  localStorage.removeItem('accessToken');
+                  setAuthToken(null);
+                  setCurrentUser(null);
+                }}
+                userRole={userRole}
+                setUserRole={setUserRole}
+                assistantRole={assistantRole}
+                setAssistantRole={setAssistantRole}
+                streamingEnabled={streamingEnabled}
+                setStreamingEnabled={setStreamingEnabled}
+                rolesConfig={rolesConfig}
+              />
+            }
+          />
+          <Route
+            path="/roles"
+            element={
+              <RolesPage
+                rolesConfig={rolesConfig}
+                currentUser={currentUser}
+                onSaved={loadRoles}
+              />
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Box>
 
       {/* 场景输入对话框 */}
@@ -515,11 +548,14 @@ function App() {
             type="text"
             fullWidth
             variant="outlined"
+            name="scene-description"
+            inputProps={{ 'aria-label': '场景描述输入框' }}
             value={sceneInput}
             onChange={(e) => setSceneInput(e.target.value)}
             multiline
             rows={5}
-            placeholder="请输入场景描述，例如：【大堂，昼】（老白趴在桌上睡觉，小郭在擦桌子）"
+            placeholder="请输入场景描述，例如：【大堂，昼】（老白趴在桌上睡觉，小郭在擦桌子）…"
+            autoComplete="off"
           />
         </DialogContent>
         <DialogActions>
@@ -531,9 +567,20 @@ function App() {
       </Dialog>
 
       {/* 登录/注册对话框 */}
-      <Dialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)}>
+      <Dialog
+        open={authDialogOpen}
+        onClose={() => {
+          if (!authLoading) {
+            setAuthError('');
+            setAuthDialogOpen(false);
+          }
+        }}
+      >
         <DialogTitle>{authMode === 'login' ? '登录' : '注册'}</DialogTitle>
         <DialogContent>
+          <Typography role="status" aria-live="polite" color="error" variant="body2" sx={{ minHeight: 24 }}>
+            {authError}
+          </Typography>
           <TextField
             autoFocus
             margin="dense"
@@ -541,6 +588,9 @@ function App() {
             type="email"
             fullWidth
             variant="outlined"
+            name="email"
+            autoComplete="email"
+            inputProps={{ inputMode: 'email', spellCheck: false }}
             value={authEmail}
             onChange={(e) => setAuthEmail(e.target.value)}
           />
@@ -550,17 +600,29 @@ function App() {
             type="password"
             fullWidth
             variant="outlined"
+            name="password"
+            autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
             value={authPassword}
             onChange={(e) => setAuthPassword(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAuthDialogOpen(false)}>取消</Button>
-          <Button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+          <Button onClick={() => setAuthDialogOpen(false)} disabled={authLoading}>
+            取消
+          </Button>
+          <Button
+            onClick={() => {
+              setAuthError('');
+              setAuthMode(authMode === 'login' ? 'register' : 'login');
+            }}
+            disabled={authLoading}
+          >
             {authMode === 'login' ? '去注册' : '去登录'}
           </Button>
           <Button
             onClick={async () => {
+              setAuthError('');
+              setAuthLoading(true);
               try {
                 if (authMode === 'login') {
                   const tokenResp = await login(authEmail, authPassword);
@@ -585,22 +647,17 @@ function App() {
                 setAuthDialogOpen(false);
               } catch (e) {
                 console.error('Auth error', e);
+                setAuthError(authMode === 'login' ? '登录失败，请检查邮箱和密码后重试。' : '注册失败，请稍后重试。');
+              } finally {
+                setAuthLoading(false);
               }
             }}
+            disabled={authLoading}
           >
-            {authMode === 'login' ? '登录' : '注册'}
+            {authLoading ? (authMode === 'login' ? '登录中…' : '注册中…') : (authMode === 'login' ? '登录' : '注册')}
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* 角色配置对话框 */}
-      <RolesConfig
-        open={rolesConfigOpen}
-        onClose={() => setRolesConfigOpen(false)}
-        rolesConfig={rolesConfig}
-        currentUser={currentUser}
-        onSaved={loadRoles}
-      />
     </Box>
   );
 }

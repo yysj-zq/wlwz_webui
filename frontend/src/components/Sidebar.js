@@ -28,7 +28,6 @@ import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
 import { format } from 'date-fns';
-import { useTheme } from '../contexts/ThemeContext';
 
 // 侧边栏宽度
 const drawerWidth = 280;
@@ -104,7 +103,6 @@ const Sidebar = ({
   onUpdateTitle,
   isMobile
 }) => {
-  const { theme } = useTheme();
   const muiTheme = useMuiTheme();
   const [editingId, setEditingId] = useState(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -153,7 +151,7 @@ const Sidebar = ({
           对话列表
         </Typography>
         {isMobile && (
-          <IconButton onClick={() => onSelectConversation(currentConversationId)} size="small">
+          <IconButton onClick={() => onSelectConversation(currentConversationId)} size="small" aria-label="关闭侧边栏">
             <CloseIcon />
           </IconButton>
         )}
@@ -191,6 +189,7 @@ const Sidebar = ({
                       <IconButton 
                         edge="end" 
                         size="small"
+                        aria-label="编辑对话标题"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleEditStart(conversation.id, conversation.title);
@@ -203,6 +202,7 @@ const Sidebar = ({
                       <IconButton 
                         edge="end" 
                         size="small" 
+                        aria-label="删除对话"
                         onClick={(e) => handleDeleteClick(conversation.id, e)}
                       >
                         <DeleteOutlineIcon fontSize="small" />
@@ -212,12 +212,12 @@ const Sidebar = ({
                 ) : (
                   <Box>
                     <Tooltip title="保存">
-                      <IconButton edge="end" size="small" onClick={handleEditSave}>
+                      <IconButton edge="end" size="small" onClick={handleEditSave} aria-label="保存对话标题">
                         <CheckIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="取消">
-                      <IconButton edge="end" size="small" onClick={handleEditCancel}>
+                      <IconButton edge="end" size="small" onClick={handleEditCancel} aria-label="取消编辑对话标题">
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -232,14 +232,14 @@ const Sidebar = ({
                   borderRadius: '8px',
                   m: 0.5,
                   '&.Mui-selected': {
-                    backgroundColor: muiTheme.palette.mode === 'light' 
-                      ? 'rgba(25, 118, 210, 0.12)' 
-                      : 'rgba(144, 202, 249, 0.12)',
+                    backgroundColor: muiTheme.palette.mode === 'light'
+                      ? `${muiTheme.palette.primary.main}1f`
+                      : `${muiTheme.palette.primary.main}2e`,
                   },
                   '&.Mui-selected:hover': {
-                    backgroundColor: muiTheme.palette.mode === 'light' 
-                      ? 'rgba(25, 118, 210, 0.18)' 
-                      : 'rgba(144, 202, 249, 0.18)',
+                    backgroundColor: muiTheme.palette.mode === 'light'
+                      ? `${muiTheme.palette.primary.main}2b`
+                      : `${muiTheme.palette.primary.main}40`,
                   },
                 }}
               >
@@ -252,6 +252,11 @@ const Sidebar = ({
                     onChange={(e) => setEditingTitle(e.target.value)}
                     autoFocus
                     fullWidth
+                    inputProps={{
+                      'aria-label': '编辑对话标题',
+                      name: 'conversation-title',
+                      autoComplete: 'off',
+                    }}
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { createTheme, ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 
 const ThemeContext = createContext();
@@ -128,6 +128,11 @@ export const ThemeProvider = ({ children }) => {
       }),
     [mode],
   );
+
+  useEffect(() => {
+    document.body.classList.toggle('dark-theme', mode === 'dark');
+    document.documentElement.style.colorScheme = mode;
+  }, [mode]);
 
   return (
     <ThemeContext.Provider value={{ mode, toggleMode, theme }}>

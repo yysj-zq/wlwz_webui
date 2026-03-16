@@ -32,7 +32,7 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
   const roleList = rolesConfig?.roles?.map((r) => ({
     name: r.name,
     avatar: r.avatar_url ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`) : '',
-    description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '...' : ''),
+    description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '…' : ''),
   })) || [];
   const getAvatarForRole = (roleName) => {
     const r = rolesConfig?.roles?.find((x) => x.name === roleName);
@@ -70,6 +70,13 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const getMessageType = (role) => {
+    if (role === 'scene') return 'scene';
+    if (role === userRole) return 'user';
+    if (role === assistantRole) return 'assistant';
+    return 'assistant';
   };
 
   // 渲染markdown内容
@@ -157,7 +164,7 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
           conversation?.messages?.map((msg, index) => (
             <MessageContainer
               key={msg.id}
-              className={msg.role}
+              className={`message-${getMessageType(msg.role)}`}
             >
               {msg.role === 'scene' ? (
                 // 场景消息的特殊显示
@@ -209,7 +216,9 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <CircularProgress size={20} sx={{ mr: 1 }} />
                           <Typography variant="body1">
-                            {msg.content || '思考中...'}
+                            <Box component="span" role="status" aria-live="polite">
+                              {msg.content || '思考中…'}
+                            </Box>
                           </Typography>
                         </Box>
                       ) : (
@@ -217,7 +226,7 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
                       )}
                     </Box>
                     {msg.audioError && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }} role="status" aria-live="polite">
                         <Typography variant="caption" color="error">
                           {msg.audioError}
                         </Typography>
@@ -272,7 +281,7 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
           <TextField
             fullWidth
             variant="outlined"
-            placeholder={`以"${userRole}"的身份发送消息给"${assistantRole}"`}
+            placeholder={`以“${userRole}”的身份发送消息给“${assistantRole}”…`}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -282,6 +291,12 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
             autoFocus
             size="small"
             sx={{ mr: 1 }}
+            name="chat-message"
+            autoComplete="off"
+            inputProps={{
+              'aria-label': '聊天消息输入框',
+              spellCheck: false,
+            }}
           />
           <Button
             variant="contained"
@@ -290,6 +305,7 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
             onClick={handleSendMessage}
             disabled={!message.trim()}
             sx={{ minWidth: isMobile ? 'auto' : 100, px: isMobile ? 1 : 2 }}
+            aria-label="发送消息"
           >
             {isMobile ? '' : '发送'}
           </Button>

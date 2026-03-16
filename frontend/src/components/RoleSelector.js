@@ -93,6 +93,13 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose, 
     onClose();
   };
 
+  const handleRoleKeyDown = (event, roleName) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleRoleClick(roleName);
+    }
+  };
+
   return (
     <Fade in={open} timeout={400}>
       <CircleContainer ref={containerRef}>
@@ -125,11 +132,15 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose, 
           return (
             <OuterRoleOption
               key={role.name}
+              component="button"
+              type="button"
               className="outer-role-option"
               style={position}
               onMouseEnter={() => handleRoleHover(role.name)}
               onMouseLeave={handleRoleLeave}
               onClick={() => handleRoleClick(role.name)}
+              onKeyDown={(event) => handleRoleKeyDown(event, role.name)}
+              aria-label={`切换到角色${role.name}`}
             >
               <OuterAvatar
                 src={role.avatar || undefined}
@@ -153,38 +164,63 @@ export const CircleRoleSelector = ({ selectedRole, onRoleSelect, open, onClose, 
 // 角色选择器容器组件
 export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bottom', roleList = DEFAULT_POOL }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
-  const [hoverTimeout, setHoverTimeout] = useState(null);
+  const rootRef = useRef(null);
   const list = roleList?.length ? roleList : DEFAULT_POOL;
 
   // 获取当前选中角色的信息
   const selectedRoleInfo = list.find(role => role.name === assistantRole) || list[0] || { name: assistantRole || "角色", avatar: "", description: "" };
 
-  const handleMouseEnter = () => {
-    const timeout = setTimeout(() => {
-      setSelectorOpen(true);
-    }, 300); // 增加延迟时间，防止误触发
-    setHoverTimeout(timeout);
+  const handleOpen = () => {
+    setSelectorOpen(true);
   };
 
-  const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setSelectorOpen(false);
-    }, 300); // 增加延迟时间，给用户更多时间移动鼠标到轮盘
-    setHoverTimeout(timeout);
-  };
-
-  const handleSelectorMouseEnter = () => {
-    if (hoverTimeout) {
-      clearTimeout(hoverTimeout);
-    }
-  };
-
-  const handleSelectorMouseLeave = () => {
+  const handleClose = () => {
     setSelectorOpen(false);
   };
 
+  const handleToggle = () => {
+    setSelectorOpen((prev) => !prev);
+  };
+
+  const handleTriggerKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleToggle();
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      handleOpen();
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleClose();
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (rootRef.current && !rootRef.current.contains(event.target)) {
+        setSelectorOpen(false);
+      }
+    };
+
+    const handleGlobalKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setSelectorOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, []);
+
   return (
     <Box
+      ref={rootRef}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -195,9 +231,14 @@ export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bott
     >
       {/* 当前头像和当前角色 */}
       <CurrentAvatarContainer
+        component="button"
+        type="button"
         isselectoropen={selectorOpen}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onClick={handleToggle}
+        onKeyDown={handleTriggerKeyDown}
+        aria-haspopup="menu"
+        aria-expanded={selectorOpen}
+        aria-label={`当前角色${selectedRoleInfo.name}，点击切换角色`}
       >
         {/* 当前头像 */}
         <CurrentAvatar
@@ -221,15 +262,13 @@ export const RoleSelector = ({ assistantRole, setAssistantRole, position = 'bott
       {/* 轮盘 */}
       <SelectorContainer
         isselectoropen={selectorOpen}
-        onMouseEnter={handleSelectorMouseEnter}
-        onMouseLeave={handleSelectorMouseLeave}
         position={position}
       >
         <CircleRoleSelector
           selectedRole={assistantRole}
           onRoleSelect={setAssistantRole}
           open={selectorOpen}
-          onClose={() => setSelectorOpen(false)}
+          onClose={handleClose}
           roleList={roleList}
         />
       </SelectorContainer>

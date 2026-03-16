@@ -4,23 +4,15 @@ import {
   Toolbar,
   Typography,
   IconButton,
-  Switch,
-  FormControlLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
   Menu,
   MenuItem,
   Tooltip,
   useMediaQuery,
   Box,
-  Select,
-  FormControl,
-  InputLabel
+  Button,
 } from '@mui/material';
 import { useTheme } from '../contexts/ThemeContext';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -33,26 +25,20 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8081';
 const Header = ({
   onSidebarToggle,
   onNewChat,
-  userRole,
-  setUserRole,
   assistantRole,
   setAssistantRole,
-  streamingEnabled,
-  setStreamingEnabled,
-  currentUser,
-  onLoginClick,
-  onLogout,
   rolesConfig,
-  onOpenRolesConfig,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isChatPage = location.pathname === '/';
   const roleList = rolesConfig?.roles?.map((r) => ({
     name: r.name,
     avatar: r.avatar_url ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`) : '',
-    description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '...' : ''),
+    description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '…' : ''),
   })) || [];
   const { theme, mode, toggleMode } = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
 
   const handleSettingsClick = (event) => {
@@ -63,13 +49,14 @@ const Header = ({
     setAnchorEl(null);
   };
 
-  const handleOpenSettingsDialog = () => {
+  const handleOpenSettingsPage = () => {
     setAnchorEl(null);
-    setSettingsOpen(true);
+    navigate('/settings');
   };
 
-  const handleCloseSettingsDialog = () => {
-    setSettingsOpen(false);
+  const handleOpenRolesPage = () => {
+    setAnchorEl(null);
+    navigate('/roles');
   };
 
   return (
@@ -101,15 +88,17 @@ const Header = ({
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="打开侧边栏"
-            edge="start"
-            onClick={onSidebarToggle}
-            sx={{ mr: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
+          {onSidebarToggle ? (
+            <IconButton
+              color="inherit"
+              aria-label="打开侧边栏"
+              edge="start"
+              onClick={onSidebarToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          ) : null}
 
           <Typography 
             variant="h6" 
@@ -129,7 +118,7 @@ const Header = ({
             武林外传AI聊天
           </Typography>
 
-          {!isMobile && (
+          {!isMobile && assistantRole && setAssistantRole && (
             <RoleSelector 
               assistantRole={assistantRole} 
               setAssistantRole={setAssistantRole} 
@@ -138,29 +127,33 @@ const Header = ({
             />
           )}
 
-          <Tooltip title="新对话">
-            <IconButton 
-              color="primary" 
-              onClick={onNewChat}
-              sx={{
-                background: mode === 'light' 
-                  ? 'linear-gradient(135deg, #8B451320, #A0522D20)'
-                  : 'linear-gradient(135deg, #F5DEB320, #FFE4B520)',
-                '&:hover': {
+          {onNewChat ? (
+            <Tooltip title="新对话">
+              <IconButton 
+                color="primary" 
+                onClick={onNewChat}
+                aria-label="新对话"
+                sx={{
                   background: mode === 'light' 
-                    ? 'linear-gradient(135deg, #8B451330, #A0522D30)'
-                    : 'linear-gradient(135deg, #F5DEB330, #FFE4B530)'
-                }
-              }}
-            >
-              <AddIcon />
-            </IconButton>
-          </Tooltip>
+                    ? 'linear-gradient(135deg, #8B451320, #A0522D20)'
+                    : 'linear-gradient(135deg, #F5DEB320, #FFE4B520)',
+                  '&:hover': {
+                    background: mode === 'light' 
+                      ? 'linear-gradient(135deg, #8B451330, #A0522D30)'
+                      : 'linear-gradient(135deg, #F5DEB330, #FFE4B530)'
+                  }
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          ) : null}
 
           <Tooltip title={mode === 'dark' ? "切换到亮色模式" : "切换到暗色模式"}>
             <IconButton 
               onClick={toggleMode} 
               color="inherit"
+              aria-label={mode === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
               sx={{
                 background: mode === 'light' 
                   ? 'linear-gradient(135deg, #8B451320, #A0522D20)'
@@ -180,6 +173,7 @@ const Header = ({
             <IconButton 
               color="inherit" 
               onClick={handleSettingsClick}
+              aria-label="打开设置菜单"
               sx={{
                 background: mode === 'light' 
                   ? 'linear-gradient(135deg, #8B451320, #A0522D20)'
@@ -209,9 +203,10 @@ const Header = ({
             }}
           >
             <MenuItem 
-              onClick={handleOpenSettingsDialog}
+              onClick={handleOpenSettingsPage}
               sx={{
                 fontFamily: '"KaiTi", "STKaiti", serif',
+                color: location.pathname === '/settings' ? theme.palette.primary.main : 'inherit',
                 '&:hover': {
                   background: mode === 'light' 
                     ? 'rgba(139, 69, 19, 0.1)'
@@ -222,12 +217,10 @@ const Header = ({
               偏好设置
             </MenuItem>
             <MenuItem 
-              onClick={() => {
-                handleSettingsClose();
-                onOpenRolesConfig?.();
-              }}
+              onClick={handleOpenRolesPage}
               sx={{
                 fontFamily: '"KaiTi", "STKaiti", serif',
+                color: location.pathname === '/roles' ? theme.palette.primary.main : 'inherit',
                 '&:hover': {
                   background: mode === 'light' 
                     ? 'rgba(139, 69, 19, 0.1)'
@@ -241,140 +234,37 @@ const Header = ({
         </Toolbar>
       </AppBar>
 
-      <Dialog 
-        open={settingsOpen} 
-        onClose={handleCloseSettingsDialog}
-        sx={{
-          '& .MuiPaper-root': {
-            background: mode === 'light' 
-              ? 'linear-gradient(135deg, #FFF8DC 0%, #FFE4B5 100%)'
-              : 'linear-gradient(135deg, #A0522D 0%, #8B4513 100%)',
-            border: `1px solid ${mode === 'light' ? '#D2B48C' : '#CD853F'}`
-          }
-        }}
-      >
-        <DialogTitle
+      {!isChatPage ? (
+        <Box
           sx={{
-            fontFamily: '"KaiTi", "STKaiti", serif',
-            fontWeight: 'bold'
+            px: 3,
+            py: 1,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          设置
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2 }}>
-            {currentUser ? (
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2">已登录：{currentUser.email}</Typography>
-                <Button size="small" onClick={onLogout}>退出登录</Button>
-              </Box>
-            ) : (
-              <Button variant="outlined" size="small" onClick={onLoginClick}>
-                登录 / 注册
-              </Button>
-            )}
-          </Box>
-          {isMobile && (
-            <>
-              <FormControl fullWidth margin="normal">
-                <InputLabel 
-                  id="mobile-user-role-label"
-                  sx={{
-                    fontFamily: '"KaiTi", "STKaiti", serif'
-                  }}
-                >
-                  你的角色
-                </InputLabel>
-                <Select
-                  labelId="mobile-user-role-label"
-                  value={userRole}
-                  onChange={(e) => setUserRole(e.target.value)}
-                  label="你的角色"
-                  sx={{
-                    fontFamily: '"KaiTi", "STKaiti", serif',
-                    borderRadius: '12px'
-                  }}
-                >
-                  {(roleList.length ? roleList : [{ name: userRole || '用户' }]).map((role) => (
-                    <MenuItem 
-                      key={role.name} 
-                      value={role.name}
-                      sx={{
-                        fontFamily: '"KaiTi", "STKaiti", serif'
-                      }}
-                    >
-                      {role.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth margin="normal">
-                <InputLabel 
-                  id="mobile-assistant-role-label"
-                  sx={{
-                    fontFamily: '"KaiTi", "STKaiti", serif'
-                  }}
-                >
-                  AI角色
-                </InputLabel>
-                <Select
-                  labelId="mobile-assistant-role-label"
-                  value={assistantRole}
-                  onChange={(e) => setAssistantRole(e.target.value)}
-                  label="AI角色"
-                  sx={{
-                    fontFamily: '"KaiTi", "STKaiti", serif',
-                    borderRadius: '12px'
-                  }}
-                >
-                  {(roleList.length ? roleList : [{ name: assistantRole || '助手' }]).map((role) => (
-                    <MenuItem 
-                      key={role.name} 
-                      value={role.name}
-                      sx={{
-                        fontFamily: '"KaiTi", "STKaiti", serif'
-                      }}
-                    >
-                      {role.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </>
-          )}
-
-          <FormControlLabel
-            control={
-              <Switch
-                checked={streamingEnabled}
-                onChange={(e) => setStreamingEnabled(e.target.checked)}
-                color="primary"
-              />
-            }
-            label="启用流式输出"
-            sx={{ 
-              mt: 2, 
-              display: 'block',
-              fontFamily: '"KaiTi", "STKaiti", serif',
-              '& .MuiTypography-root': {
-                fontFamily: '"KaiTi", "STKaiti", serif'
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={handleCloseSettingsDialog}
-            sx={{
-              fontFamily: '"KaiTi", "STKaiti", serif',
-              borderRadius: '20px'
-            }}
-          >
-            关闭
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <Typography sx={{ fontFamily: '"KaiTi", "STKaiti", serif' }}>
+            {location.pathname === '/settings' ? '偏好设置' : '角色配置'}
+          </Typography>
+          {location.pathname !== '/' ? (
+            <Button
+              component={RouterLink}
+              to="/"
+              sx={{
+                fontFamily: '"KaiTi", "STKaiti", serif',
+                color: theme.palette.primary.main,
+                minWidth: 'auto',
+                px: 1,
+              }}
+            >
+              返回聊天
+            </Button>
+          ) : null}
+        </Box>
+      ) : null}
     </>
   );
 };

@@ -35,6 +35,10 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
   const [newName, setNewName] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
   const [newSpeakerId, setNewSpeakerId] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pendingDeleteRole, setPendingDeleteRole] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const roles = rolesConfig?.roles || [];
   const builtin = roles.filter((r) => r.is_builtin);
@@ -51,6 +55,8 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
   const handleSaveEdit = async () => {
     if (editingId == null) return;
     try {
+      setActionError('');
+      setActionLoading(true);
       await updateRole(editingId, {
         name: editName,
         system_prompt: editPrompt || null,
@@ -60,6 +66,9 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
       setEditingId(null);
     } catch (e) {
       console.error(e);
+      setActionError('保存角色失败，请稍后重试。');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -70,6 +79,8 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
   const handleAdd = async () => {
     if (!newName.trim()) return;
     try {
+      setActionError('');
+      setActionLoading(true);
       await createRole({
         name: newName.trim(),
         system_prompt: newPrompt.trim() || null,
@@ -82,15 +93,41 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
       setNewSpeakerId('');
     } catch (e) {
       console.error(e);
+      setActionError('添加角色失败，请稍后重试。');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteRequest = (role) => {
+    setPendingDeleteRole(role);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    if (actionLoading) {
+      return;
+    }
+    setDeleteDialogOpen(false);
+    setPendingDeleteRole(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDeleteRole?.id) {
+      return;
+    }
     try {
-      await deleteRole(id);
+      setActionError('');
+      setActionLoading(true);
+      await deleteRole(pendingDeleteRole.id);
       onSaved();
+      setDeleteDialogOpen(false);
+      setPendingDeleteRole(null);
     } catch (e) {
       console.error(e);
+      setActionError('删除角色失败，请稍后重试。');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -109,10 +146,11 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
     return url.startsWith('http') ? url : `${API_BASE}${url}`;
   };
 
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>角色配置</DialogTitle>
-      <DialogContent>
+  const content = (
+    <>
+        <Typography role="status" aria-live="polite" color="error" variant="body2" sx={{ minHeight: 24 }}>
+          {actionError}
+        </Typography>
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
           默认角色（全部可见，仅读）
         </Typography>
@@ -143,7 +181,7 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
                   <TableCell>{r.name}</TableCell>
                   <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {(r.system_prompt || '').slice(0, 60)}
-                    {(r.system_prompt || '').length > 60 ? '...' : ''}
+                    {(r.system_prompt || '').length > 60 ? '…' : ''}
                   </TableCell>
                   <TableCell>{r.default_speaker_id || '-'}</TableCell>
                 </TableRow>
@@ -197,7 +235,7 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
                               }}
                             />
                             <Tooltip title="上传头像">
-                              <IconButton size="small" component="span">
+                              <IconButton size="small" component="span" aria-label="上传角色头像">
                                 <PhotoCameraIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -211,7 +249,7 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
                               size="small"
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
-                              placeholder="名称"
+                              placeholder="名称…"
                             />
                           </TableCell>
                           <TableCell>
@@ -220,7 +258,7 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
                               multiline
                               value={editPrompt}
                               onChange={(e) => setEditPrompt(e.target.value)}
-                              placeholder="系统提示"
+                              placeholder="系统提示…"
                             />
                           </TableCell>
                           <TableCell>
@@ -228,14 +266,14 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
                               size="small"
                               value={editSpeakerId}
                               onChange={(e) => setEditSpeakerId(e.target.value)}
-                              placeholder="语音 ID"
+                              placeholder="语音 ID…"
                             />
                           </TableCell>
                           <TableCell align="right">
-                            <Button size="small" onClick={handleSaveEdit}>
+                            <Button size="small" onClick={handleSaveEdit} disabled={actionLoading}>
                               保存
                             </Button>
-                            <Button size="small" onClick={handleCancelEdit}>
+                            <Button size="small" onClick={handleCancelEdit} disabled={actionLoading}>
                               取消
                             </Button>
                           </TableCell>
@@ -244,14 +282,14 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
                         <>
                           <TableCell>{r.name}</TableCell>
                           <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {(r.system_prompt || '').slice(0, 40)}...
+                            {(r.system_prompt || '').slice(0, 40)}…
                           </TableCell>
                           <TableCell>{r.default_speaker_id || '-'}</TableCell>
                           <TableCell align="right">
-                            <IconButton size="small" onClick={() => handleStartEdit(r)}>
+                            <IconButton size="small" onClick={() => handleStartEdit(r)} aria-label="编辑角色">
                               <EditIcon fontSize="small" />
                             </IconButton>
-                            <IconButton size="small" onClick={() => handleDelete(r.id)} color="error">
+                            <IconButton size="small" onClick={() => handleDeleteRequest(r)} color="error" aria-label="删除角色">
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </TableCell>
@@ -266,27 +304,27 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mt: 1 }}>
                 <TextField
                   size="small"
-                  placeholder="角色名"
+                  placeholder="角色名…"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                 />
                 <TextField
                   size="small"
-                  placeholder="系统提示"
+                  placeholder="系统提示…"
                   value={newPrompt}
                   onChange={(e) => setNewPrompt(e.target.value)}
                   sx={{ minWidth: 180 }}
                 />
                 <TextField
                   size="small"
-                  placeholder="语音 ID"
+                  placeholder="语音 ID…"
                   value={newSpeakerId}
                   onChange={(e) => setNewSpeakerId(e.target.value)}
                 />
-                <Button size="small" variant="contained" onClick={handleAdd}>
+                <Button size="small" variant="contained" onClick={handleAdd} disabled={actionLoading}>
                   添加
                 </Button>
-                <Button size="small" onClick={() => setAdding(false)}>
+                <Button size="small" onClick={() => setAdding(false)} disabled={actionLoading}>
                   取消
                 </Button>
               </Box>
@@ -297,11 +335,60 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
             )}
           </>
         )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>关闭</Button>
-      </DialogActions>
-    </Dialog>
+    </>
+  );
+
+  if (open === undefined) {
+    return (
+      <>
+        <Box sx={{ p: 2 }}>{content}</Box>
+        <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+          <DialogTitle>确认删除角色</DialogTitle>
+          <DialogContent>
+            <Typography>
+              确定要删除角色“{pendingDeleteRole?.name || ''}”吗？此操作无法撤销。
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} disabled={actionLoading}>
+              取消
+            </Button>
+            <Button onClick={handleDeleteConfirm} color="error" disabled={actionLoading}>
+              {actionLoading ? '删除中…' : '确认删除'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>角色配置</DialogTitle>
+        <DialogContent>{content}</DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>关闭</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+        <DialogTitle>确认删除角色</DialogTitle>
+        <DialogContent>
+          <Typography>
+            确定要删除角色“{pendingDeleteRole?.name || ''}”吗？此操作无法撤销。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={actionLoading}>
+            取消
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" disabled={actionLoading}>
+            {actionLoading ? '删除中…' : '确认删除'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 

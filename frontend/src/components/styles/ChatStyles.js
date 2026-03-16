@@ -12,7 +12,7 @@ export const MessageContainer = styled(Box)(({ theme }) => ({
   boxShadow: theme.palette.mode === 'light' 
     ? `0 2px 8px ${theme.palette.divider}30`
     : `0 2px 8px ${theme.palette.divider}50`,
-  '&.user': {
+  '&.message-user': {
     backgroundColor: theme.palette.mode === 'light' 
       ? `${theme.palette.background.paper}D0` 
       : `${theme.palette.background.paper}B0`,
@@ -24,7 +24,7 @@ export const MessageContainer = styled(Box)(({ theme }) => ({
       ? `repeating-linear-gradient(45deg, ${theme.palette.primary.main}15 0px, ${theme.palette.primary.main}15 2px, transparent 2px, transparent 8px)`
       : `repeating-linear-gradient(45deg, ${theme.palette.primary.main}20 0px, ${theme.palette.primary.main}20 2px, transparent 2px, transparent 8px)`,
   },
-  '&.assistant': {
+  '&.message-assistant': {
     backgroundColor: theme.palette.mode === 'light' 
       ? `${theme.palette.background.default}D0` 
       : `${theme.palette.background.default}B0`,
@@ -35,6 +35,12 @@ export const MessageContainer = styled(Box)(({ theme }) => ({
     backgroundImage: theme.palette.mode === 'light' 
       ? `repeating-linear-gradient(-45deg, ${theme.palette.secondary.main}15 0px, ${theme.palette.secondary.main}15 2px, transparent 2px, transparent 8px)`
       : `repeating-linear-gradient(-45deg, ${theme.palette.secondary.main}20 0px, ${theme.palette.secondary.main}20 2px, transparent 2px, transparent 8px)`,
+  },
+  '&.message-scene': {
+    justifyContent: 'center',
+    backgroundColor: `${theme.palette.background.paper}88`,
+    border: `1px dashed ${theme.palette.divider}`,
+    boxShadow: 'none',
   },
   // 添加装饰性边角
   '&::before': {
