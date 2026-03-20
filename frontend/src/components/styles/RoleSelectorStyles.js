@@ -26,9 +26,7 @@ export const CircleContainer = styled(Paper)(({ theme }) => ({
   WebkitBackdropFilter: 'blur(12px) saturate(120%)',
 
   // 武林外传主题边框
-  border: `2px solid ${theme.palette.mode === 'dark'
-    ? theme.palette.divider
-    : theme.palette.primary.main}`,
+  border: 'none',
 
   // 武林外传主题阴影
   boxShadow: theme.palette.mode === 'dark'
@@ -120,7 +118,6 @@ export const CenterAvatar = styled(Avatar)(({ theme, ishovered }) => ({
   width: 80,
   height: 80,
   bottom: 25,
-  border: `4px solid ${theme.palette.primary.main}`,
   boxShadow: `0 0 20px ${theme.palette.primary.main}40`,
   zIndex: 10,
   transition: 'transform 0.3s ease, opacity 0.3s ease',
@@ -144,7 +141,6 @@ export const CenterRoleInfo = styled(Box)(({ theme }) => ({
   backdropFilter: 'blur(10px)',
   padding: '8px 16px',
   borderRadius: '16px',
-  border: `1px solid ${theme.palette.divider}40`,
   boxShadow: `0 8px 32px ${theme.palette.common.black}10, 0 2px 8px ${theme.palette.common.black}05`,
   transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
   '&:hover': {
@@ -192,11 +188,6 @@ export const OuterRoleOption = styled(Box)(({ theme }) => ({
 export const OuterAvatar = styled(Avatar)(({ theme, isselected, ishovered }) => ({
   width: 50,
   height: 50,
-  border: isselected
-    ? `3px solid ${theme.palette.primary.main}`
-    : ishovered
-      ? `3px solid ${theme.palette.secondary.main}`
-      : `2px solid ${theme.palette.divider}`,
   boxShadow: isselected
     ? `0 0 15px ${theme.palette.primary.main}60`
     : ishovered
@@ -206,7 +197,6 @@ export const OuterAvatar = styled(Avatar)(({ theme, isselected, ishovered }) => 
   opacity: isselected ? 0.7 : 1,
   '&:hover': {
     boxShadow: `0 0 20px ${theme.palette.primary.main}80`,
-    border: `3px solid ${theme.palette.primary.main}`
   },
   '@media (prefers-reduced-motion: reduce)': {
     transition: 'none',
@@ -221,7 +211,6 @@ export const RoleLabel = styled(Typography)(({ theme }) => ({
   background: theme.palette.background.paper,
   padding: '2px 6px',
   borderRadius: '8px',
-  border: `1px solid ${theme.palette.divider}`,
   marginTop: '4px',
   whiteSpace: 'nowrap',
   boxShadow: theme.shadows[2],
@@ -304,7 +293,6 @@ export const CurrentAvatarContainer = styled(Box)(({ theme, isselectoropen }) =>
   alignItems: 'center',
   padding: theme.spacing(1, 2),
   borderRadius: theme.spacing(3),
-  border: `2px solid ${isselectoropen ? theme.palette.primary.main : theme.palette.divider}`,
   cursor: 'pointer',
   backgroundColor: 'transparent',
   appearance: 'none',
@@ -335,7 +323,6 @@ export const CurrentAvatar = styled(Avatar)(({ theme, isselectoropen }) => ({
   width: 36,
   height: 36,
   marginRight: theme.spacing(1.5),
-  border: `2px solid ${isselectoropen ? theme.palette.primary.main : 'transparent'}`,
   transition: 'border-color 0.3s ease'
 }));
 

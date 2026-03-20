@@ -152,7 +152,7 @@ const RolesConfig = ({ open, onClose, rolesConfig, currentUser, onSaved }) => {
           {actionError}
         </Typography>
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-          默认角色（全部可见，仅读）
+          默认角色
         </Typography>
         <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
           <Table size="small">

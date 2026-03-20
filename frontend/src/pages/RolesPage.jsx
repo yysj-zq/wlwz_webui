@@ -15,8 +15,8 @@ const RolesPage = ({ embedded = false, rolesConfig, currentUser, onSaved }) => {
         background: embedded
           ? 'transparent'
           : theme.palette.mode === 'light'
-            ? 'linear-gradient(135deg, #f6f2e8 0%, #ece5d8 100%)'
-            : 'linear-gradient(135deg, #2d2418 0%, #221a11 100%)',
+            ? 'linear-gradient(135deg, #f6f9ff 0%, #edf3ff 100%)'
+            : 'linear-gradient(135deg, #121827 0%, #0f1421 100%)',
       }}
     >
       <Paper
@@ -25,10 +25,12 @@ const RolesPage = ({ embedded = false, rolesConfig, currentUser, onSaved }) => {
           maxWidth: embedded ? 'none' : 1100,
           mx: 'auto',
           borderRadius: 3,
-          border: `1px solid ${theme.palette.divider}`,
           background: theme.palette.mode === 'light'
-            ? 'linear-gradient(180deg, rgba(255, 252, 245, 0.9), rgba(248, 241, 228, 0.95))'
-            : 'linear-gradient(180deg, rgba(61, 47, 25, 0.9), rgba(45, 34, 19, 0.95))',
+            ? 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(246,249,255,0.9))'
+            : 'linear-gradient(180deg, rgba(21,27,41,0.92), rgba(15,20,33,0.9))',
+          boxShadow: theme.palette.mode === 'light'
+            ? '0 16px 44px rgba(17, 44, 107, 0.1)'
+            : '0 18px 44px rgba(0,0,0,0.42)',
         }}
       >
         <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: 1.2 }}>

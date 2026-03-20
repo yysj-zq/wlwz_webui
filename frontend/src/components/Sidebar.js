@@ -10,7 +10,6 @@ import {
   Typography, 
   IconButton,
   Button,
-  Divider,
   InputBase,
   Tooltip,
   Dialog,
@@ -39,13 +38,19 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
   '& .MuiDrawer-paper': {
     width: drawerWidth,
     boxSizing: 'border-box',
-    borderRadius: 0,
-    backgroundColor: theme.palette.background.sidebar,
-    borderRight: `1px solid ${theme.palette.divider}`,
+    borderRadius: 20,
+    top: 12,
+    left: 12,
+    height: 'calc(100% - 24px)',
+    backgroundColor: 'transparent',
     backgroundImage: theme.palette.mode === 'light'
-      ? 'linear-gradient(180deg, rgba(255, 252, 245, 0.9), rgba(248, 241, 228, 0.95))'
-      : 'linear-gradient(180deg, rgba(61, 47, 25, 0.9), rgba(45, 34, 19, 0.95))',
+      ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 248, 255, 0.78))'
+      : 'linear-gradient(180deg, rgba(20, 24, 34, 0.92), rgba(20, 24, 34, 0.76))',
+    backdropFilter: 'blur(18px)',
     position: 'relative',
+    boxShadow: theme.palette.mode === 'light'
+      ? '0 14px 40px rgba(13, 34, 80, 0.14)'
+      : '0 20px 44px rgba(0, 0, 0, 0.45)',
   },
 }));
 
@@ -54,12 +59,19 @@ const MobileDrawer = styled(Drawer)(({ theme }) => ({
   '& .MuiDrawer-paper': {
     width: drawerWidth,
     boxSizing: 'border-box',
-    borderRadius: 0,
-    backgroundColor: theme.palette.background.sidebar,
+    borderRadius: 20,
+    top: 12,
+    left: 12,
+    height: 'calc(100% - 24px)',
+    backgroundColor: 'transparent',
     backgroundImage: theme.palette.mode === 'light'
-      ? 'linear-gradient(180deg, rgba(255, 252, 245, 0.9), rgba(248, 241, 228, 0.95))'
-      : 'linear-gradient(180deg, rgba(61, 47, 25, 0.9), rgba(45, 34, 19, 0.95))',
+      ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 248, 255, 0.78))'
+      : 'linear-gradient(180deg, rgba(20, 24, 34, 0.92), rgba(20, 24, 34, 0.76))',
+    backdropFilter: 'blur(18px)',
     position: 'relative',
+    boxShadow: theme.palette.mode === 'light'
+      ? '0 14px 40px rgba(13, 34, 80, 0.14)'
+      : '0 20px 44px rgba(0, 0, 0, 0.45)',
   },
 }));
 
@@ -71,6 +83,7 @@ const Sidebar = ({
   onNewChat,
   onDeleteConversation,
   onUpdateTitle,
+  onClose,
   isMobile
 }) => {
   const muiTheme = useMuiTheme();
@@ -117,23 +130,20 @@ const Sidebar = ({
   const iconActionSx = {
     width: 34,
     height: 34,
-    border: muiTheme.palette.mode === 'light'
-      ? '1px solid rgba(122, 67, 36, 0.22)'
-      : '1px solid rgba(226, 190, 141, 0.25)',
     background: muiTheme.palette.mode === 'light'
-      ? 'linear-gradient(180deg, rgba(255,255,255,0.62), rgba(160,82,45,0.14))'
-      : 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(210,180,140,0.18))',
+      ? 'linear-gradient(180deg, rgba(255,255,255,0.76), rgba(210,224,255,0.52))'
+      : 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(118,144,214,0.22))',
     boxShadow: muiTheme.palette.mode === 'light'
       ? '0 2px 8px rgba(93, 52, 27, 0.14)'
       : '0 2px 8px rgba(0, 0, 0, 0.32)',
     transition: 'transform 160ms ease, background 160ms ease, box-shadow 160ms ease',
     '&:hover': {
       background: muiTheme.palette.mode === 'light'
-        ? 'linear-gradient(180deg, rgba(255,255,255,0.72), rgba(160,82,45,0.22))'
-        : 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(210,180,140,0.26))',
+        ? 'linear-gradient(180deg, rgba(255,255,255,0.88), rgba(210,224,255,0.66))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.2), rgba(118,144,214,0.3))',
       boxShadow: muiTheme.palette.mode === 'light'
-        ? '0 5px 14px rgba(93, 52, 27, 0.18)'
-        : '0 5px 14px rgba(0, 0, 0, 0.4)',
+        ? '0 5px 14px rgba(93, 52, 27, 0.12)'
+        : '0 5px 14px rgba(0, 0, 0, 0.3)',
       transform: 'translateY(-1px)',
     },
     '&:active': {
@@ -145,15 +155,15 @@ const Sidebar = ({
     borderRadius: 999,
     py: 1.05,
     border: 'none',
-    backgroundColor: muiTheme.palette.mode === 'light' ? '#ae4f28' : '#c7a775',
-    color: muiTheme.palette.mode === 'light' ? '#fffaf4' : '#2a1d12',
+    backgroundColor: muiTheme.palette.mode === 'light' ? '#2f5dff' : '#9cb6ff',
+    color: muiTheme.palette.mode === 'light' ? '#f6f9ff' : '#0f1a33',
     boxShadow: muiTheme.palette.mode === 'light'
       ? '0 4px 12px rgba(95, 45, 22, 0.2)'
       : '0 4px 12px rgba(0, 0, 0, 0.32)',
     letterSpacing: 0.3,
     transition: 'transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease',
     '&:hover': {
-      backgroundColor: muiTheme.palette.mode === 'light' ? '#b85a32' : '#d2b485',
+      backgroundColor: muiTheme.palette.mode === 'light' ? '#406bff' : '#adc3ff',
       boxShadow: muiTheme.palette.mode === 'light'
         ? '0 6px 16px rgba(95, 45, 22, 0.24)'
         : '0 6px 16px rgba(0, 0, 0, 0.38)',
@@ -180,7 +190,7 @@ const Sidebar = ({
         </Box>
         {isMobile && (
           <IconButton
-            onClick={() => onSelectConversation(currentConversationId)}
+            onClick={() => onClose?.()}
             size="small"
             aria-label="关闭侧边栏"
             sx={iconActionSx}
@@ -201,8 +211,6 @@ const Sidebar = ({
           新对话
         </Button>
       </Box>
-
-      <Divider />
 
       <List sx={{ overflow: 'auto', flex: 1 }}>
         {conversations.length === 0 ? (
@@ -267,7 +275,6 @@ const Sidebar = ({
                 sx={{
                   borderRadius: '14px',
                   m: 0.5,
-                  border: `1px solid ${muiTheme.palette.divider}`,
                   '&:hover': {
                     backgroundColor: muiTheme.palette.mode === 'light'
                       ? `${muiTheme.palette.primary.main}14`
@@ -277,7 +284,6 @@ const Sidebar = ({
                     backgroundColor: muiTheme.palette.mode === 'light'
                       ? `${muiTheme.palette.primary.main}1f`
                       : `${muiTheme.palette.primary.main}2e`,
-                    borderColor: `${muiTheme.palette.primary.main}66`,
                   },
                   '&.Mui-selected:hover': {
                     backgroundColor: muiTheme.palette.mode === 'light'
@@ -345,23 +351,18 @@ const Sidebar = ({
     </>
   );
 
-  return isMobile ? (
-    <MobileDrawer
+  const DrawerComponent = isMobile ? MobileDrawer : StyledDrawer;
+  return (
+    <DrawerComponent
       variant="temporary"
       open={open}
+      onClose={() => onClose?.()}
       ModalProps={{
         keepMounted: true,
       }}
     >
       {drawerContent}
-    </MobileDrawer>
-  ) : (
-    <StyledDrawer
-      variant="persistent"
-      open={open}
-    >
-      {drawerContent}
-    </StyledDrawer>
+    </DrawerComponent>
   );
 };
 

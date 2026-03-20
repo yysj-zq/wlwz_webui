@@ -1,19 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Box,
-  Avatar,
   Typography,
   TextField,
   Button,
-  Divider,
   useMediaQuery,
   CircularProgress,
   IconButton,
   Tooltip,
-  Chip
+  Chip,
+  Collapse,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import ReplayIcon from '@mui/icons-material/Replay';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -39,7 +39,20 @@ const PLACEHOLDER_AVATAR = "data:image/svg+xml," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="#9e9e9e"><circle cx="24" cy="24" r="24"/><text x="24" y="30" text-anchor="middle" fill="#fff" font-size="20" font-family="sans-serif">?</text></svg>'
 );
 
-const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageAudio, userRole, assistantRole, setUserRole, setAssistantRole, sidebarOpen, rolesConfig }) => {
+const Chat = ({
+  conversation,
+  onSendMessage,
+  onPlayMessageAudio,
+  onRetryMessageAudio,
+  userRole,
+  assistantRole,
+  setUserRole,
+  setAssistantRole,
+  rolesConfig,
+  zenMode = false,
+  onZenActivate,
+  onTopbarCondenseChange,
+}) => {
   const roleList = rolesConfig?.roles?.map((r) => ({
     name: r.name,
     avatar: r.avatar_url ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`) : '',
@@ -52,7 +65,10 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
   };
   const { theme } = useTheme();
   const [message, setMessage] = useState('');
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -65,8 +81,46 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
     scrollToBottom();
   }, [conversation]);
 
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+
+    const checkOverflow = () => {
+      const overflow = el.scrollHeight - el.clientHeight > 6;
+      setHasOverflow(overflow);
+    };
+
+    checkOverflow();
+    const raf = requestAnimationFrame(checkOverflow);
+    window.addEventListener('resize', checkOverflow);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [conversation, controlsOpen, zenMode, isMobile]);
+
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+
+    const notifyScrollState = () => {
+      onTopbarCondenseChange?.(el.scrollTop > 8);
+    };
+
+    notifyScrollState();
+    el.addEventListener('scroll', notifyScrollState, { passive: true });
+    window.addEventListener('resize', notifyScrollState);
+
+    return () => {
+      el.removeEventListener('scroll', notifyScrollState);
+      window.removeEventListener('resize', notifyScrollState);
+    };
+  }, [onTopbarCondenseChange, conversation?.id]);
+
   const handleSendMessage = () => {
     if (message.trim()) {
+      onZenActivate?.();
       onSendMessage(message.trim());
       setMessage('');
       // 聚焦回输入框
@@ -88,32 +142,6 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
     if (role === userRole) return 'user';
     if (role === assistantRole) return 'assistant';
     return 'assistant';
-  };
-
-  const getRoleMeta = (roleName) => {
-    const role = rolesConfig?.roles?.find((x) => x.name === roleName);
-    return {
-      description: (role?.system_prompt || '暂无角色设定').slice(0, 78) + ((role?.system_prompt || '').length > 78 ? '…' : ''),
-      avatar: getAvatarForRole(roleName),
-    };
-  };
-
-  const inferEmotion = (text = '') => {
-    const source = String(text || '');
-    if (!source.trim()) return { label: '待机', color: 'default' };
-    if (/！|!|激动|冲啊|马上|必须/.test(source)) return { label: '激昂', color: 'warning' };
-    if (/？|\?|困惑|为何|怎么/.test(source)) return { label: '疑惑', color: 'info' };
-    if (/怒|气|可恶|生气/.test(source)) return { label: '愠怒', color: 'error' };
-    if (/哈哈|开心|高兴|喜悦/.test(source)) return { label: '愉悦', color: 'success' };
-    return { label: '平稳', color: 'default' };
-  };
-
-  const getLatestRoleMessage = (roleName) => {
-    const list = conversation?.messages || [];
-    for (let i = list.length - 1; i >= 0; i -= 1) {
-      if (list[i].role === roleName) return list[i].content || '';
-    }
-    return '';
   };
 
   const historicalActors = Array.from(
@@ -177,23 +205,48 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
 
   return (
     <StageShell>
-      <ScriptColumn>
-        <SceneBanner>
-          <Typography variant="overline" sx={{ letterSpacing: 1.2, opacity: 0.75 }}>
-            Conversation Info
+      <ScriptColumn
+        sx={{
+          pt: hasOverflow ? 0 : { xs: '56px', md: '72px' },
+          transition: 'padding-top 220ms ease',
+        }}
+      >
+        <SceneBanner
+          sx={{
+            opacity: zenMode ? 0 : 1,
+            maxHeight: zenMode ? 0 : 120,
+            overflow: 'hidden',
+            transform: zenMode ? 'translateY(-8px)' : 'translateY(0)',
+            transition: 'opacity 200ms ease, max-height 260ms ease, transform 200ms ease',
+          }}
+        >
+          <Typography variant="overline" sx={{ letterSpacing: 1.2, opacity: 0.82 }}>
+            Stage Focus
           </Typography>
-          <Typography variant="h6" sx={{ lineHeight: 1.2, mt: 0.25 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              lineHeight: 1.15,
+              mt: 0.25,
+              fontSize: { xs: '1.1rem', md: '1.6rem' },
+              fontFamily: '"Sora", "Outfit", sans-serif',
+            }}
+          >
             {conversation?.title || '未命名场次'}
           </Typography>
         </SceneBanner>
 
         <Box
+          ref={messagesContainerRef}
           sx={{
             flexGrow: 1,
             overflow: 'auto',
-            px: 2,
+            px: { xs: 1, md: zenMode ? 3 : 2 },
             pb: 1,
             minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'padding 220ms ease',
           }}
         >
           {conversation?.messages?.length === 0 ? (
@@ -232,13 +285,27 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
                       <img
                         src={getAvatarForRole(msg.role)}
                         alt={msg.role}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          opacity: 0.94,
+                          filter: 'saturate(0.92) contrast(1.03)',
+                        }}
                         onError={(e) => { e.target.src = PLACEHOLDER_AVATAR; }}
                       />
                     </StyledAvatar>
                     <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="subtitle2" fontWeight="bold">
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.35, gap: 1 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontSize: '0.79rem',
+                            fontWeight: 600,
+                            letterSpacing: 0.2,
+                            opacity: 0.8,
+                          }}
+                        >
                           {msg.role}
                         </Typography>
                         {msg.role === assistantRole && !msg.loading && (
@@ -297,7 +364,6 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
           <div ref={messagesEndRef} />
         </Box>
 
-        <Divider />
         <ComposerCard
           component="form"
           onSubmit={(e) => {
@@ -305,35 +371,63 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
             handleSendMessage();
           }}
         >
-          {isMobile && (
-            <Box sx={{ mb: 1.25, display: 'grid', gap: 1 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                <Box sx={{ display: 'grid', gap: 0.75, minWidth: 0 }}>
+          <Collapse in={controlsOpen}>
+            <DirectorPanel sx={{ mt: 0, mb: 1.2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 1 }}>
+                <RoleBioCard>
                   <Typography variant="caption" color="text.secondary">
                     扮演角色
                   </Typography>
                   <RoleSelector
                     assistantRole={userRole}
                     setAssistantRole={setUserRole}
-                    position="top"
                     roleList={roleList}
                   />
-                </Box>
-                <Box sx={{ display: 'grid', gap: 0.75, minWidth: 0 }}>
+                </RoleBioCard>
+                <RoleBioCard>
                   <Typography variant="caption" color="text.secondary">
                     对话角色
                   </Typography>
                   <RoleSelector
                     assistantRole={assistantRole}
                     setAssistantRole={setAssistantRole}
-                    position="top"
                     roleList={roleList}
                   />
-                </Box>
+                </RoleBioCard>
+                <RoleBioCard>
+                  <Typography variant="caption" color="text.secondary">
+                    场景信息
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.65 }}>
+                    {currentScene}
+                  </Typography>
+                </RoleBioCard>
               </Box>
+            </DirectorPanel>
+          </Collapse>
+          {!zenMode && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+              <Chip size="small" label={`对话 ${dialogueCount} 条`} />
+              {historicalActors.slice(0, 3).map((actor) => (
+                <Chip key={actor} size="small" variant="outlined" label={actor} />
+              ))}
             </Box>
           )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton
+              onClick={() => setControlsOpen((prev) => !prev)}
+              aria-label="显示或隐藏控制面板"
+              sx={{
+                width: 40,
+                height: 40,
+                backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.66)' : 'rgba(255,255,255,0.12)',
+                '&:hover': {
+                  backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.2)',
+                },
+              }}
+            >
+              <TuneRoundedIcon />
+            </IconButton>
             <TextField
               fullWidth
               variant="outlined"
@@ -341,6 +435,7 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
+              onFocus={() => onZenActivate?.()}
               multiline
               maxRows={5}
               inputRef={inputRef}
@@ -367,66 +462,6 @@ const Chat = ({ conversation, onSendMessage, onPlayMessageAudio, onRetryMessageA
           </Box>
         </ComposerCard>
       </ScriptColumn>
-
-      {!isMobile && (
-        <DirectorPanel>
-          <Typography variant="h6">场景控制台</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-            <Box sx={{ display: 'grid', gap: 0.75, minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary">
-                扮演角色
-              </Typography>
-              <RoleSelector assistantRole={userRole} setAssistantRole={setUserRole} position="bottom" roleList={roleList} />
-            </Box>
-            <Box sx={{ display: 'grid', gap: 0.75, minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary">
-                对话角色
-              </Typography>
-              <RoleSelector assistantRole={assistantRole} setAssistantRole={setAssistantRole} position="bottom" roleList={roleList} />
-            </Box>
-          </Box>
-
-          <Divider sx={{ my: 1 }} />
-          {[userRole, assistantRole].map((roleName, idx) => {
-            const meta = getRoleMeta(roleName);
-            const latestMessage = getLatestRoleMessage(roleName);
-            const emotion = inferEmotion(latestMessage);
-            return (
-              <RoleBioCard key={`${roleName}-${idx}`}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Avatar src={meta.avatar} alt={roleName} sx={{ width: 38, height: 38 }} />
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="subtitle2" sx={{ lineHeight: 1.1 }}>
-                      {roleName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {idx === 0 ? '扮演角色' : '对话角色'}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ ml: 'auto' }}>
-                    <Chip size="small" label={emotion.label} color={emotion.color} variant="outlined" />
-                  </Box>
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {meta.description}
-                </Typography>
-              </RoleBioCard>
-            );
-          })}
-
-          <Divider sx={{ my: 1 }} />
-          <Typography variant="subtitle2">当前舞台信息</Typography>
-          <Typography variant="body2" color="text.secondary">
-            当前场景：{currentScene}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            对话条目：{dialogueCount}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            历史角色：{historicalActors.length ? historicalActors.join('、') : '暂无'}
-          </Typography>
-        </DirectorPanel>
-      )}
     </StageShell>
   );
 };

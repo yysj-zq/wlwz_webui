@@ -4,110 +4,100 @@ import {
   Box,
   Typography,
   IconButton,
-  Tooltip,
 } from '@mui/material';
 import { useTheme } from '../contexts/ThemeContext';
-import MenuIcon from '@mui/icons-material/Menu';
 import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
+import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded';
+import React from 'react';
 
 const Header = ({
+  zenMode = false,
+  condensed = false,
   onSidebarToggle,
   onNewChat,
   onOpenControlCenter,
 }) => {
-  const { mode, toggleMode } = useTheme();
+  const { mode } = useTheme();
+
   const actionButtonSx = {
-    width: 38,
-    height: 38,
-    ml: 0.75,
-    border: mode === 'light' ? '1px solid rgba(122, 67, 36, 0.22)' : '1px solid rgba(226, 190, 141, 0.25)',
+    width: 36,
+    height: 36,
+    ml: 0.6,
+    color: mode === 'light' ? '#2f3c5a' : '#d7deef',
     background: mode === 'light'
-      ? 'linear-gradient(180deg, rgba(255,255,255,0.62), rgba(160,82,45,0.14))'
-      : 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(210,180,140,0.18))',
+      ? 'rgba(255,255,255,0.45)'
+      : 'rgba(255,255,255,0.08)',
+    borderRadius: '10px',
+    backdropFilter: 'blur(10px) saturate(120%)',
     boxShadow: mode === 'light'
-      ? '0 2px 8px rgba(93, 52, 27, 0.14)'
-      : '0 2px 8px rgba(0, 0, 0, 0.32)',
-    transition: 'transform 160ms ease, background 160ms ease, box-shadow 160ms ease',
+      ? 'inset 0 1px 0 rgba(255,255,255,0.68), 0 6px 16px rgba(28, 45, 84, 0.1)'
+      : 'inset 0 1px 0 rgba(255,255,255,0.14), 0 8px 18px rgba(0, 0, 0, 0.32)',
+    transition: 'transform 160ms ease, background 160ms ease, box-shadow 160ms ease, color 160ms ease',
     '&:hover': {
       background: mode === 'light'
-        ? 'linear-gradient(180deg, rgba(255,255,255,0.72), rgba(160,82,45,0.22))'
-        : 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(210,180,140,0.26))',
+        ? 'rgba(255,255,255,0.68)'
+        : 'rgba(255,255,255,0.16)',
       boxShadow: mode === 'light'
-        ? '0 5px 14px rgba(93, 52, 27, 0.18)'
-        : '0 5px 14px rgba(0, 0, 0, 0.4)',
+        ? 'inset 0 1px 0 rgba(255,255,255,0.82), 0 8px 20px rgba(28, 45, 84, 0.14)'
+        : 'inset 0 1px 0 rgba(255,255,255,0.24), 0 10px 22px rgba(0, 0, 0, 0.38)',
       transform: 'translateY(-1px)',
-    },
-    '&:active': {
-      transform: 'translateY(0)',
-      boxShadow: mode === 'light'
-        ? '0 2px 8px rgba(93, 52, 27, 0.14)'
-        : '0 2px 8px rgba(0, 0, 0, 0.32)',
     },
   };
 
   return (
     <>
-      <AppBar 
-        position="static" 
-        color="default" 
-        elevation={1} 
-        sx={{ 
+      <AppBar
+        position="static"
+        color="default"
+        elevation={0}
+        sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           borderRadius: 0,
-          background: mode === 'light'
-            ? 'linear-gradient(180deg, #fbf7ef 0%, #f3eadb 100%)'
-            : 'linear-gradient(180deg, #2b2115 0%, #1f180f 100%)',
-          borderBottom: `1px solid ${mode === 'light' ? '#cebfa6' : '#5a4734'}`,
-          position: 'relative',
-          boxShadow: mode === 'light' ? '0 6px 24px rgba(88,57,34,0.12)' : '0 6px 24px rgba(0,0,0,0.35)',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: mode === 'light'
-              ? 'linear-gradient(90deg, rgba(160,82,45,0.08), transparent)'
-              : 'linear-gradient(90deg, rgba(210,180,140,0.08), transparent)',
-            pointerEvents: 'none',
-          }
+          background: 'transparent',
+          boxShadow: 'none',
+          opacity: zenMode ? 0 : 1,
+          transform: zenMode ? 'translateY(-12px)' : 'translateY(0)',
+          transition: 'opacity 220ms ease, transform 220ms ease',
         }}
       >
-        <Toolbar sx={{ minHeight: 68, px: { xs: 1.5, sm: 2.25 } }}>
-          {onSidebarToggle ? (
-            <IconButton
-              color="inherit"
-              aria-label="打开侧边栏"
-              edge="start"
-              onClick={onSidebarToggle}
-              sx={{
-                mr: 1.25,
-                ...actionButtonSx,
-              }}
-            >
-              <MenuIcon />
-            </IconButton>
-          ) : null}
-
-          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Toolbar
+          sx={{
+            minHeight: condensed ? 56 : 62,
+            mt: condensed ? 0.6 : 1.2,
+            mx: 'auto',
+            width: 'min(1100px, calc(100% - 20px))',
+            px: { xs: 1.2, sm: 1.8 },
+            gap: 1,
+            borderRadius: '16px',
+            background: mode === 'light'
+              ? (condensed
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.84), rgba(246,249,255,0.72))'
+                : 'linear-gradient(180deg, rgba(255,255,255,0.66), rgba(246,249,255,0.52))')
+              : (condensed
+                ? 'linear-gradient(180deg, rgba(21,27,40,0.74), rgba(21,27,40,0.58))'
+                : 'linear-gradient(180deg, rgba(21,27,40,0.58), rgba(21,27,40,0.4))'),
+            backdropFilter: 'blur(16px) saturate(124%)',
+            boxShadow: mode === 'light'
+              ? (condensed
+                ? 'inset 0 1px 0 rgba(255,255,255,0.9), 0 12px 26px rgba(27, 44, 83, 0.16)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.82), 0 8px 24px rgba(27, 44, 83, 0.12)')
+              : (condensed
+                ? 'inset 0 1px 0 rgba(255,255,255,0.16), 0 16px 30px rgba(0, 0, 0, 0.42)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.12), 0 12px 26px rgba(0, 0, 0, 0.36)'),
+            transition: 'min-height 180ms ease, margin-top 180ms ease, background 180ms ease, box-shadow 180ms ease',
+          }}
+        >
+          <Box sx={{ flexGrow: 1, minWidth: 0, pl: 0.4 }}>
             <Typography
-              variant="h6"
+              variant="body2"
               component="div"
               sx={{
-                fontFamily: '"KaiTi", "STKaiti", serif',
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                lineHeight: 1.08,
-                background: mode === 'light'
-                  ? 'linear-gradient(135deg, #5e2f16, #a24726)'
-                  : 'linear-gradient(135deg, #f3d8aa, #e6b26a)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                fontFamily: '"Manrope", "Noto Sans SC", sans-serif',
+                fontWeight: 600,
+                letterSpacing: 0.3,
+                color: mode === 'light' ? '#2a3551' : '#dbe5ff',
+                lineHeight: 1.15,
               }}
             >
               武林外传 AI 聊天
@@ -116,52 +106,45 @@ const Header = ({
               variant="caption"
               sx={{
                 display: 'block',
-                opacity: 0.72,
-                letterSpacing: 1.05,
-                color: mode === 'light' ? '#7a5a44' : '#d7c2a4',
+                opacity: condensed ? 0.55 : 0.7,
+                letterSpacing: 0.7,
+                color: mode === 'light' ? '#6f7f9f' : '#95a6cb',
                 textTransform: 'uppercase',
+                transition: 'opacity 180ms ease',
               }}
             >
               Story Console
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {onNewChat ? (
-              <Tooltip title="新对话">
-                <IconButton
-                  color="primary"
-                  onClick={onNewChat}
-                  aria-label="新对话"
-                  sx={actionButtonSx}
-                >
-                  <AddIcon />
-                </IconButton>
-              </Tooltip>
-            ) : null}
-
-            <Tooltip title={mode === 'dark' ? "切换到亮色模式" : "切换到暗色模式"}>
-              <IconButton 
-                onClick={toggleMode} 
-                color="inherit"
-                aria-label={mode === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
-                sx={actionButtonSx}
-              >
-                {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip title="设置">
-              <IconButton
-                color="inherit"
-                onClick={() => onOpenControlCenter?.()}
-                aria-label="打开设置菜单"
-                sx={actionButtonSx}
-              >
-                <SettingsIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
+          {onSidebarToggle ? (
+            <IconButton
+              color="inherit"
+              aria-label="显示或隐藏会话列表"
+              onClick={onSidebarToggle}
+              sx={actionButtonSx}
+            >
+              <ViewSidebarRoundedIcon />
+            </IconButton>
+          ) : null}
+          {onNewChat ? (
+            <IconButton
+              color="inherit"
+              aria-label="新建对话"
+              onClick={onNewChat}
+              sx={actionButtonSx}
+            >
+              <AddIcon />
+            </IconButton>
+          ) : null}
+          <IconButton
+            color="inherit"
+            aria-label="打开控制中心"
+            onClick={() => onOpenControlCenter?.()}
+            sx={actionButtonSx}
+          >
+            <SettingsIcon />
+          </IconButton>
         </Toolbar>
       </AppBar>
     </>

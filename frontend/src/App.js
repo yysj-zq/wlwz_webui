@@ -13,7 +13,7 @@ function App() {
   const { theme } = useTheme();
   const location = useLocation();
   const isMobile = useMediaQuery('(max-width:900px)');
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState(() => {
     const saved = localStorage.getItem('conversations');
     return saved ? JSON.parse(saved) : [{
@@ -53,6 +53,14 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [controlCenterOpen, setControlCenterOpen] = useState(false);
   const [controlCenterTab, setControlCenterTab] = useState(() => localStorage.getItem('controlCenterTab') || 'settings');
+  const [zenPinned, setZenPinned] = useState(false);
+  const [leftPeek, setLeftPeek] = useState(false);
+  const [sidebarPreviewActive, setSidebarPreviewActive] = useState(false);
+  const [topbarCondensed, setTopbarCondensed] = useState(false);
+  const leftEnterTimerRef = useRef(null);
+  const leftLeaveTimerRef = useRef(null);
+  const zenMode = zenPinned;
+  const effectiveSidebarOpen = sidebarOpen || sidebarPreviewActive;
 
   const loadRoles = () => {
     getRoles()
@@ -125,6 +133,8 @@ function App() {
 
   useEffect(() => {
     return () => {
+      if (leftEnterTimerRef.current) clearTimeout(leftEnterTimerRef.current);
+      if (leftLeaveTimerRef.current) clearTimeout(leftLeaveTimerRef.current);
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
@@ -133,7 +143,34 @@ function App() {
   }, []);
 
   const handleSidebarToggle = () => {
+    setSidebarPreviewActive(false);
     setSidebarOpen(!sidebarOpen);
+  };
+
+  const activateZenMode = () => {
+    setZenPinned(true);
+  };
+
+  const handleZenLeftEnter = () => {
+    if (!zenPinned) return;
+    if (leftLeaveTimerRef.current) clearTimeout(leftLeaveTimerRef.current);
+    if (leftEnterTimerRef.current) clearTimeout(leftEnterTimerRef.current);
+    leftEnterTimerRef.current = setTimeout(() => {
+      setLeftPeek(true);
+      if (!sidebarOpen) {
+        setSidebarPreviewActive(true);
+      }
+    }, 90);
+  };
+
+  const handleZenLeftLeave = () => {
+    if (!zenPinned) return;
+    if (leftEnterTimerRef.current) clearTimeout(leftEnterTimerRef.current);
+    if (leftLeaveTimerRef.current) clearTimeout(leftLeaveTimerRef.current);
+    leftLeaveTimerRef.current = setTimeout(() => {
+      setLeftPeek(false);
+      setSidebarPreviewActive(false);
+    }, 160);
   };
 
   const currentConversation = conversations.find(conv => conv.id === currentConversationId) || conversations[0];
@@ -162,9 +199,7 @@ function App() {
     setSceneDialogOpen(false);
     setSceneInput('');
     setShouldCreateNewChat(false);
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
+    setSidebarOpen(false);
   };
 
   const handleSceneCancel = () => {
@@ -481,25 +516,58 @@ function App() {
       <a href="#main-content" className="skip-link">
         跳到主内容
       </a>
-      <Header
-        onSidebarToggle={isChatPage ? handleSidebarToggle : undefined}
-        onNewChat={isChatPage ? handleCreateNewChat : undefined}
-        onOpenControlCenter={openControlCenter}
+      <Box
+        onMouseEnter={handleZenLeftEnter}
+        onMouseLeave={handleZenLeftLeave}
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: leftPeek ? 308 : 14,
+          zIndex: (muiTheme) => muiTheme.zIndex.drawer + 6,
+          pointerEvents: zenPinned ? 'auto' : 'none',
+          transition: 'width 160ms ease',
+        }}
       />
-      <Box component="main" id="main-content" sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: (muiTheme) => muiTheme.zIndex.appBar + 4,
+          pointerEvents: 'auto',
+        }}
+      >
+        <Header
+          zenMode={false}
+          condensed={topbarCondensed}
+          onSidebarToggle={isChatPage ? handleSidebarToggle : undefined}
+          onNewChat={isChatPage ? handleCreateNewChat : undefined}
+          onOpenControlCenter={openControlCenter}
+        />
+      </Box>
+      <Box component="main" id="main-content" sx={{ display: 'flex', flex: 1, minHeight: 0, pb: 0 }}>
         <Routes>
           <Route
             path="/"
             element={
               <ChatPage
-                sidebarOpen={sidebarOpen}
+                sidebarOpen={effectiveSidebarOpen}
                 isMobile={isMobile}
+                zenMode={zenMode}
                 conversations={conversations}
                 currentConversationId={currentConversationId}
                 onSelectConversation={handleSelectConversation}
                 onNewChat={handleCreateNewChat}
                 onDeleteConversation={handleDeleteConversation}
                 onUpdateTitle={handleUpdateConversationTitle}
+                onCloseSidebar={() => {
+                  setSidebarPreviewActive(false);
+                  setLeftPeek(false);
+                  setSidebarOpen(false);
+                }}
                 conversation={currentConversation}
                 onSendMessage={handleSendMessage}
                 onPlayMessageAudio={handlePlayMessageAudio}
@@ -509,6 +577,8 @@ function App() {
                 setUserRole={setUserRole}
                 setAssistantRole={setAssistantRole}
                 rolesConfig={rolesConfig}
+                onZenActivate={activateZenMode}
+                onTopbarCondenseChange={setTopbarCondensed}
               />
             }
           />
@@ -524,8 +594,11 @@ function App() {
         PaperProps={{
           sx: {
             width: { xs: '100%', sm: 520 },
-            borderLeft: `1px solid ${theme.palette.divider}`,
-            backgroundColor: theme.palette.background.default,
+            backgroundColor: 'transparent',
+            backdropFilter: 'blur(20px)',
+            background: theme.palette.mode === 'light'
+              ? 'linear-gradient(180deg, rgba(249, 251, 255, 0.94), rgba(245, 248, 255, 0.86))'
+              : 'linear-gradient(180deg, rgba(18, 22, 32, 0.95), rgba(18, 22, 32, 0.84))',
             '@keyframes controlCenterIn': {
               from: { opacity: 0, transform: 'translateX(12px)' },
               to: { opacity: 1, transform: 'translateX(0)' },
@@ -534,7 +607,7 @@ function App() {
           },
         }}
       >
-        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+        <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
             <Box>
               <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: 1.1 }}>
@@ -599,14 +672,14 @@ function App() {
           sx: {
             width: { xs: 'calc(100% - 24px)', sm: 760 },
             maxWidth: 760,
-            borderRadius: 3,
-            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: 4,
             background: theme.palette.mode === 'light'
-              ? 'linear-gradient(180deg, rgba(255, 252, 245, 0.96), rgba(248, 241, 228, 0.98))'
-              : 'linear-gradient(180deg, rgba(61, 47, 25, 0.96), rgba(45, 34, 19, 0.98))',
+              ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,249,255,0.92))'
+              : 'linear-gradient(180deg, rgba(26,30,44,0.95), rgba(17,21,33,0.95))',
             boxShadow: theme.palette.mode === 'light'
-              ? '0 14px 44px rgba(88,57,34,0.2)'
-              : '0 14px 44px rgba(0,0,0,0.45)',
+              ? '0 20px 60px rgba(12, 32, 78, 0.18)'
+              : '0 20px 60px rgba(0, 0, 0, 0.48)',
+            backdropFilter: 'blur(16px)',
           },
         }}
       >
@@ -671,6 +744,18 @@ function App() {
             setAuthError('');
             setAuthDialogOpen(false);
           }
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            background: theme.palette.mode === 'light'
+              ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,249,255,0.92))'
+              : 'linear-gradient(180deg, rgba(26,30,44,0.95), rgba(17,21,33,0.95))',
+            backdropFilter: 'blur(16px)',
+            boxShadow: theme.palette.mode === 'light'
+              ? '0 20px 60px rgba(12, 32, 78, 0.18)'
+              : '0 20px 60px rgba(0, 0, 0, 0.48)',
+          },
         }}
       >
         <DialogTitle>{authMode === 'login' ? '登录' : '注册'}</DialogTitle>
