@@ -65,11 +65,11 @@ const Header = ({
           sx={{
             minHeight: condensed ? 56 : 62,
             mt: condensed ? 0.6 : 1.2,
-            mx: 'auto',
-            width: 'min(1100px, calc(100% - 20px))',
-            px: { xs: 1.2, sm: 1.8 },
+            width: 'calc(100% - 20px)',
+            mx: '10px',
+            px: { xs: 1.2, sm: 2.2 },
             gap: 1,
-            borderRadius: '16px',
+            borderRadius: '14px',
             background: mode === 'light'
               ? (condensed
                 ? 'linear-gradient(180deg, rgba(255,255,255,0.84), rgba(246,249,255,0.72))'
