@@ -1,8 +1,7 @@
 import logging
 import time
 import json
-import asyncio
-from typing import Callable, AsyncGenerator
+from typing import Callable
 import uvicorn
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +14,6 @@ from db import init_db, AsyncSessionLocal
 from services.roles_service import init_builtin_roles_if_enabled
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-import os
 
 # 后端代码所在目录，与启动时工作目录无关，便于前后端分离部署
 _BACKEND_DIR = Path(__file__).resolve().parent
@@ -23,11 +21,11 @@ _STATIC_DIR = _BACKEND_DIR / "static"
 
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO,
+    level=settings.LOG_LEVEL,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('app.log', encoding='utf-8'),
-        logging.StreamHandler()
+        logging.StreamHandler(),
     ]
 )
 logger = logging.getLogger(__name__)
@@ -206,4 +204,4 @@ async def root():
 
 if __name__ == "__main__":
     logger.info("Start")
-    uvicorn.run("main:app", host="0.0.0.0", port=settings.PORT, reload=True, log_level=settings.LOG_LEVEL.lower())
+    uvicorn.run("main:app", host="0.0.0.0", port=settings.PORT, reload=True, access_log=False)
