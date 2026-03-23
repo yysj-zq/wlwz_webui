@@ -19,9 +19,13 @@ class Settings(BaseSettings):
     # CORS设置
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
 
-    # 日志配置
+    # 日志配置（structlog + stdlib；见 logging_config.configure_logging）
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FILE: Optional[str] = os.getenv("LOG_FILE", './logs/app.log')
+    LOG_FILE: str = os.getenv("LOG_FILE", "./logs/app.log")
+    LOG_JSON: bool = os.getenv("LOG_JSON", "false").lower() == "true"
+    LOG_ENABLE_FILE: bool = os.getenv("LOG_ENABLE_FILE", "true").lower() == "true"
+    LOG_REQUEST_BODY: bool = os.getenv("LOG_REQUEST_BODY", "true").lower() == "true"
+    LOG_SSE_CONTENT: bool = os.getenv("LOG_SSE_CONTENT", "true").lower() == "true"
 
     # 大模型配置
     MODEL_BASE_URL: str = os.getenv("MODEL_BASE_URL", "http://localhost:8080")

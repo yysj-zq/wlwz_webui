@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,9 +9,10 @@ from services.roles_service import get_speaker_id_for_role
 from services.tts_service import synthesize_role_voice
 from utils.security import get_current_user
 from utils.tts_cache import get_tts_cache, set_tts_cache
+from logging_config import get_logger
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @router.post("/tts")
@@ -37,16 +36,16 @@ async def tts(
         if len(preview) > 80:
             preview = preview[:80] + "..."
         logger.info(
-            "TTS request: assistant_role=%s speaker_id=%s text_len=%d text_preview=%s",
-            request.assistantRole,
-            speaker_id,
-            len(request.text or ""),
-            preview,
+            "tts_route_request",
+            assistant_role=request.assistantRole,
+            speaker_id=speaker_id,
+            text_len=len(request.text or ""),
+            text_preview=preview,
         )
         # Redis 缓存：同一用户 + 文本 + 声音在短时间内直接复用
         cached = await get_tts_cache(current_user.id, request.text, speaker_id)
         if cached is not None:
-            logger.info("TTS cache hit for user_id=%s", current_user.id)
+            logger.info("tts_cache_hit", user_id=current_user.id)
             wav_bytes = cached
         else:
             wav_bytes = synthesize_role_voice(text=request.text, speaker_id=speaker_id)

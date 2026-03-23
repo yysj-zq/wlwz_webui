@@ -1,7 +1,6 @@
 """
 角色服务：仅从数据库与配置文件（仅初始化时）读取，无硬编码兜底。
 """
-import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -10,9 +9,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
+from logging_config import get_logger
 from models.db_models import RoleProfile, User
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _load_roles_config() -> List[Dict[str, Any]]:
@@ -21,7 +21,7 @@ def _load_roles_config() -> List[Dict[str, Any]]:
     if not path.is_absolute():
         path = Path(__file__).resolve().parent.parent / path
     if not path.exists():
-        logger.warning("角色配置文件不存在: %s，跳过内置角色初始化", path)
+        logger.warning("roles_config_missing", path=str(path))
         return []
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
@@ -50,7 +50,7 @@ async def init_builtin_roles_if_enabled(db: AsyncSession) -> None:
         )
         db.add(r)
     await db.commit()
-    logger.info("内置角色已从配置文件初始化，共 %s 条", len(roles_data))
+    logger.info("builtin_roles_initialized", count=len(roles_data))
 
 
 async def get_available_roles_for_user(
