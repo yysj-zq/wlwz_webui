@@ -20,25 +20,31 @@ export const ThemeProvider = ({ children }) => {
   const theme = useMemo(
     () =>
       createTheme({
+        shape: {
+          borderRadius: 16,
+        },
         palette: {
           mode,
           primary: {
-            main: mode === 'light' ? '#3B5CCC' : '#9EB4FF',
+            main: mode === 'light' ? '#3B5CCC' : '#D6B25E',
+            light: mode === 'light' ? '#6E86E6' : '#F2D48A',
+            dark: mode === 'light' ? '#2844A6' : '#B8943F',
+            contrastText: mode === 'light' ? '#F6F9FF' : '#1A1307',
           },
           secondary: {
-            main: mode === 'light' ? '#5E76BD' : '#BFD0FF',
+            main: mode === 'light' ? '#5E76BD' : '#E6C987',
           },
           background: {
-            default: mode === 'light' ? '#EFF3FA' : '#0D111B',
-            paper: mode === 'light' ? '#FFFFFF' : '#171C2A',
-            sidebar: mode === 'light' ? '#F5F8FF' : '#121827',
-            chat: mode === 'light' ? '#F4F7FE' : '#121827',
+            default: mode === 'light' ? '#EFF3FA' : '#0B0C0F',
+            paper: mode === 'light' ? '#FFFFFF' : '#141315',
+            sidebar: mode === 'light' ? '#F5F8FF' : '#101012',
+            chat: mode === 'light' ? '#F4F7FE' : '#101012',
           },
           text: {
-            primary: mode === 'light' ? '#131C2E' : '#E8EEFF',
-            secondary: mode === 'light' ? '#62708E' : '#A7B5D5',
+            primary: mode === 'light' ? '#131C2E' : '#F3EFE7',
+            secondary: mode === 'light' ? '#62708E' : '#B8AFA2',
           },
-          divider: mode === 'light' ? '#DEE6F6' : '#2A334A',
+          divider: mode === 'light' ? '#DEE6F6' : '#2A2520',
           tongxiangyu: '#B71C1C', // 佟湘玉 - 深红色
           baizhantang: '#1565C0', // 白展堂 - 皇家蓝
           guofurong: '#C2185B', // 郭芙蓉 - 玫瑰红
@@ -65,6 +71,7 @@ export const ThemeProvider = ({ children }) => {
             styleOverrides: {
               body: {
                 scrollbarWidth: 'thin',
+                backgroundColor: mode === 'dark' ? '#0B0C0F' : undefined,
                 '&::-webkit-scrollbar': {
                   width: '0.6em',
                 },
@@ -97,6 +104,20 @@ export const ThemeProvider = ({ children }) => {
               },
             },
           },
+          MuiChip: {
+            styleOverrides: {
+              root: {
+                borderRadius: 999,
+              },
+              filled: {
+                backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.06)' : undefined,
+                border: mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : undefined,
+              },
+              outlined: {
+                borderColor: mode === 'dark' ? 'rgba(255,255,255,0.12)' : undefined,
+              },
+            },
+          },
           MuiTextField: {
             styleOverrides: {
               root: {
@@ -112,8 +133,23 @@ export const ThemeProvider = ({ children }) => {
           MuiOutlinedInput: {
             styleOverrides: {
               root: {
+                backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.04)' : undefined,
+                boxShadow: mode === 'dark'
+                  ? 'inset 0 0 0 1px rgba(255,255,255,0.10), 0 10px 24px rgba(0,0,0,0.30)'
+                  : undefined,
+                transition: 'box-shadow 160ms ease, background-color 160ms ease, transform 160ms ease',
                 '& fieldset': {
                   border: 'none',
+                },
+                '&:hover': {
+                  boxShadow: mode === 'dark'
+                    ? 'inset 0 0 0 1px rgba(255,255,255,0.14), 0 12px 28px rgba(0,0,0,0.34)'
+                    : undefined,
+                },
+                '&.Mui-focused': {
+                  boxShadow: mode === 'dark'
+                    ? 'inset 0 0 0 1px rgba(214,178,94,0.34), 0 16px 34px rgba(0,0,0,0.40)'
+                    : undefined,
                 },
               },
             },
@@ -122,8 +158,13 @@ export const ThemeProvider = ({ children }) => {
             styleOverrides: {
               root: {
                 borderRadius: '16px',
-                backgroundImage: 'none',
-                border: 'none',
+                backgroundImage: mode === 'dark'
+                  ? 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005))'
+                  : 'none',
+                border: mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                boxShadow: mode === 'dark'
+                  ? '0 18px 44px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.06)'
+                  : undefined,
               },
             },
           },
@@ -139,15 +180,46 @@ export const ThemeProvider = ({ children }) => {
             styleOverrides: {
               paper: {
                 borderRadius: 0,
-                backgroundImage: 'none',
-                border: 'none',
+                backgroundImage: mode === 'dark'
+                  ? 'linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004))'
+                  : 'none',
+                border: mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                boxShadow: mode === 'dark'
+                  ? '0 20px 60px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.05)'
+                  : undefined,
               },
             },
           },
           MuiDialog: {
             styleOverrides: {
               paper: {
-                border: 'none',
+                border: mode === 'dark' ? '1px solid rgba(255,255,255,0.10)' : 'none',
+                backgroundImage: mode === 'dark'
+                  ? 'linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006))'
+                  : 'none',
+                boxShadow: mode === 'dark'
+                  ? '0 26px 80px rgba(0,0,0,0.70), inset 0 1px 0 rgba(255,255,255,0.06)'
+                  : undefined,
+              },
+            },
+          },
+          MuiTabs: {
+            styleOverrides: {
+              root: {
+                minHeight: 40,
+              },
+              indicator: {
+                height: 3,
+                borderRadius: 999,
+              },
+            },
+          },
+          MuiTab: {
+            styleOverrides: {
+              root: {
+                minHeight: 40,
+                borderRadius: 999,
+                textTransform: 'none',
               },
             },
           },

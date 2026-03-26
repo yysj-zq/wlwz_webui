@@ -45,12 +45,15 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
     backgroundColor: 'transparent',
     backgroundImage: theme.palette.mode === 'light'
       ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 248, 255, 0.78))'
-      : 'linear-gradient(180deg, rgba(20, 24, 34, 0.92), rgba(20, 24, 34, 0.76))',
+      : 'linear-gradient(180deg, rgba(20, 19, 18, 0.92), rgba(20, 19, 18, 0.76))',
     backdropFilter: 'blur(18px)',
     position: 'relative',
     boxShadow: theme.palette.mode === 'light'
       ? '0 14px 40px rgba(13, 34, 80, 0.14)'
       : '0 20px 44px rgba(0, 0, 0, 0.45)',
+    border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.10)' : 'none',
+    outline: theme.palette.mode === 'dark' ? '1px solid rgba(214,178,94,0.06)' : 'none',
+    outlineOffset: theme.palette.mode === 'dark' ? '-1px' : undefined,
   },
 }));
 
@@ -66,12 +69,15 @@ const MobileDrawer = styled(Drawer)(({ theme }) => ({
     backgroundColor: 'transparent',
     backgroundImage: theme.palette.mode === 'light'
       ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 248, 255, 0.78))'
-      : 'linear-gradient(180deg, rgba(20, 24, 34, 0.92), rgba(20, 24, 34, 0.76))',
+      : 'linear-gradient(180deg, rgba(20, 19, 18, 0.92), rgba(20, 19, 18, 0.76))',
     backdropFilter: 'blur(18px)',
     position: 'relative',
     boxShadow: theme.palette.mode === 'light'
       ? '0 14px 40px rgba(13, 34, 80, 0.14)'
       : '0 20px 44px rgba(0, 0, 0, 0.45)',
+    border: theme.palette.mode === 'dark' ? '1px solid rgba(255,255,255,0.10)' : 'none',
+    outline: theme.palette.mode === 'dark' ? '1px solid rgba(214,178,94,0.06)' : 'none',
+    outlineOffset: theme.palette.mode === 'dark' ? '-1px' : undefined,
   },
 }));
 
@@ -132,7 +138,7 @@ const Sidebar = ({
     height: 34,
     background: muiTheme.palette.mode === 'light'
       ? 'linear-gradient(180deg, rgba(255,255,255,0.76), rgba(210,224,255,0.52))'
-      : 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(118,144,214,0.22))',
+      : 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(214,178,94,0.18))',
     boxShadow: muiTheme.palette.mode === 'light'
       ? '0 2px 8px rgba(93, 52, 27, 0.14)'
       : '0 2px 8px rgba(0, 0, 0, 0.32)',
@@ -140,7 +146,7 @@ const Sidebar = ({
     '&:hover': {
       background: muiTheme.palette.mode === 'light'
         ? 'linear-gradient(180deg, rgba(255,255,255,0.88), rgba(210,224,255,0.66))'
-        : 'linear-gradient(180deg, rgba(255,255,255,0.2), rgba(118,144,214,0.3))',
+        : 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(214,178,94,0.26))',
       boxShadow: muiTheme.palette.mode === 'light'
         ? '0 5px 14px rgba(93, 52, 27, 0.12)'
         : '0 5px 14px rgba(0, 0, 0, 0.3)',
@@ -155,15 +161,15 @@ const Sidebar = ({
     borderRadius: 999,
     py: 1.05,
     border: 'none',
-    backgroundColor: muiTheme.palette.mode === 'light' ? '#2f5dff' : '#9cb6ff',
-    color: muiTheme.palette.mode === 'light' ? '#f6f9ff' : '#0f1a33',
+    backgroundColor: muiTheme.palette.primary.main,
+    color: muiTheme.palette.primary.contrastText,
     boxShadow: muiTheme.palette.mode === 'light'
       ? '0 4px 12px rgba(95, 45, 22, 0.2)'
       : '0 4px 12px rgba(0, 0, 0, 0.32)',
     letterSpacing: 0.3,
     transition: 'transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease',
     '&:hover': {
-      backgroundColor: muiTheme.palette.mode === 'light' ? '#406bff' : '#adc3ff',
+      backgroundColor: muiTheme.palette.primary.light,
       boxShadow: muiTheme.palette.mode === 'light'
         ? '0 6px 16px rgba(95, 45, 22, 0.24)'
         : '0 6px 16px rgba(0, 0, 0, 0.38)',
