@@ -20,12 +20,21 @@ api.interceptors.response.use(
 // 发送聊天消息（普通方式）
 export const sendChatMessage = async (messages, userRole, assistantRole, conversationId = null) => {
   try {
-    const response = await api.post('/api/chat', {
-      messages,
-      userRole,
-      assistantRole,
-      conversationId,
-    });
+    const token = localStorage.getItem('accessToken');
+    const response = await api.post(
+      '/api/chat',
+      {
+        messages,
+        userRole,
+        assistantRole,
+        conversationId,
+      },
+      {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }
+    );
     return response.data;
   } catch (error) {
     throw error;
