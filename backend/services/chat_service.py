@@ -95,8 +95,9 @@ def preprocess_message(
             user_message += f"{message.role}：{message.content}\n"
     wlwz_messages.append({"role": "user", "content": user_message.strip()})
 
-    logger.info(
-        "chat_messages_preprocessed",
+    logger.debug(
+        "[service]chat_messages",
+        message=wlwz_messages,
         message_count=len(wlwz_messages),
         user_role=user_role,
         assistant_role=assistant_role,
