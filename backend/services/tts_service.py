@@ -1,6 +1,6 @@
 import io
-import logging
 import struct
+import time
 import wave
 from functools import lru_cache
 from typing import List
@@ -8,8 +8,9 @@ from typing import List
 import requests
 
 from config import settings
+from logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _build_tts_payload(text: str, speaker_id: str) -> dict:
@@ -86,11 +87,11 @@ def _extract_audio_data(audio_data) -> List[float]:
     min_v = min(values)
     max_v = max(values)
     logger.info(
-        "TTS waveform stats before normalize: len=%d min=%.6f max=%.6f max_abs=%.6f",
-        len(values),
-        min_v,
-        max_v,
-        max_abs,
+        "tts_waveform_stats",
+        len=len(values),
+        min=min_v,
+        max=max_v,
+        max_abs=max_abs,
     )
     return values
 
@@ -98,7 +99,15 @@ def _extract_audio_data(audio_data) -> List[float]:
 @lru_cache(maxsize=16)
 def _is_decoupled_model(triton_url: str, model_name: str) -> bool:
     config_url = f"{triton_url}/v2/models/{model_name}/config"
+    t0 = time.monotonic()
+    logger.info("tts_config_request", url=config_url)
     resp = requests.get(config_url, timeout=settings.TTS_REQUEST_TIMEOUT, verify=False)
+    logger.info(
+        "tts_upstream_response",
+        url=config_url,
+        status_code=resp.status_code,
+        duration_s=round(time.monotonic() - t0, 3),
+    )
     resp.raise_for_status()
     config = resp.json()
     return bool(config.get("model_transaction_policy", {}).get("decoupled", False))
@@ -116,12 +125,13 @@ def synthesize_role_voice(text: str, speaker_id: str) -> bytes:
     payload = _build_tts_payload(text.strip(), speaker_id)
 
     try:
+        t0 = time.monotonic()
         logger.info(
-            "TTS upstream request: model=%s url=%s speaker_id=%s text_len=%d",
-            model_name,
-            infer_url,
-            speaker_id,
-            len(text.strip()),
+            "tts_upstream_request",
+            model=model_name,
+            url=infer_url,
+            speaker_id=speaker_id,
+            text_len=len(text.strip()),
         )
         if _is_decoupled_model(triton_url, model_name):
             raise ValueError(
@@ -138,13 +148,20 @@ def synthesize_role_voice(text: str, speaker_id: str) -> bytes:
             timeout=settings.TTS_REQUEST_TIMEOUT,
             verify=False,
         )
+        logger.info(
+            "tts_upstream_response",
+            model=model_name,
+            url=infer_url,
+            status_code=resp.status_code,
+            duration_s=round(time.monotonic() - t0, 3),
+        )
         if resp.status_code >= 400:
             detail = resp.text.strip()
             logger.error(
-                "TTS upstream error: model=%s status=%s detail=%s",
-                model_name,
-                resp.status_code,
-                detail,
+                "tts_upstream_error",
+                model=model_name,
+                status_code=resp.status_code,
+                detail=detail[:2000],
             )
             if "speech_token" in detail:
                 raise RuntimeError(
@@ -159,8 +176,8 @@ def synthesize_role_voice(text: str, speaker_id: str) -> bytes:
         audio_f32 = _extract_audio_data(audio_raw)
         return _build_wav_bytes(audio_f32, _get_sample_rate(model_name))
     except requests.RequestException as exc:
-        logger.exception("TTS Triton 请求失败")
+        logger.exception("tts_request_failed")
         raise RuntimeError(f"TTS 请求失败: {exc}") from exc
     except (KeyError, TypeError, ValueError) as exc:
-        logger.exception("TTS 响应解析失败")
+        logger.exception("tts_parse_failed")
         raise RuntimeError(f"TTS 响应解析失败: {exc}") from exc

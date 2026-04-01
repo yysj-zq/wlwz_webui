@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { createTheme, ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 
 const ThemeContext = createContext();
@@ -23,23 +23,22 @@ export const ThemeProvider = ({ children }) => {
         palette: {
           mode,
           primary: {
-            main: mode === 'light' ? '#A0522D' : '#D2B48C', // 更柔和的褐色
+            main: mode === 'light' ? '#3B5CCC' : '#9EB4FF',
           },
           secondary: {
-            main: mode === 'light' ? '#CD853F' : '#DEB887', // 珊瑚色
+            main: mode === 'light' ? '#5E76BD' : '#BFD0FF',
           },
           background: {
-            default: mode === 'light' ? '#F5F0E6' : '#2C2213', // 更柔和的小麦色/深褐色背景
-            paper: mode === 'light' ? '#FFFDF8' : '#3D2F19', // 更柔和的纸张色
-            sidebar: mode === 'light' ? '#F8F4EC' : '#352A18', // 更柔和的侧边栏
-            chat: mode === 'light' ? '#F8F4EC' : '#352A18', // 更柔和的聊天区
+            default: mode === 'light' ? '#EFF3FA' : '#0D111B',
+            paper: mode === 'light' ? '#FFFFFF' : '#171C2A',
+            sidebar: mode === 'light' ? '#F5F8FF' : '#121827',
+            chat: mode === 'light' ? '#F4F7FE' : '#121827',
           },
           text: {
-            primary: mode === 'light' ? '#5D4037' : '#F5E9D2', // 更柔和的深褐色/米色文字
-            secondary: mode === 'light' ? '#8D6E63' : '#DCC9A8', // 更柔和的次要文字
+            primary: mode === 'light' ? '#131C2E' : '#E8EEFF',
+            secondary: mode === 'light' ? '#62708E' : '#A7B5D5',
           },
-          divider: mode === 'light' ? '#D7CCC8' : '#5D4E44', // 更柔和的分隔线
-          // 武林外传角色颜色 (更柔和的版本)
+          divider: mode === 'light' ? '#DEE6F6' : '#2A334A',
           tongxiangyu: '#B71C1C', // 佟湘玉 - 深红色
           baizhantang: '#1565C0', // 白展堂 - 皇家蓝
           guofurong: '#C2185B', // 郭芙蓉 - 玫瑰红
@@ -52,16 +51,13 @@ export const ThemeProvider = ({ children }) => {
         },
         typography: {
           fontFamily: [
-            '"Microsoft YaHei"',
-            '"SimHei"',
-            '"KaiTi"',
-            'STKaiti',
+            '"Instrument Sans"',
+            '"Noto Sans SC"',
             'serif',
           ].join(','),
-          // 武林外传特色字体样式
           h6: {
-            fontFamily: '"KaiTi", "STKaiti", serif',
-            fontWeight: 'bold',
+            fontFamily: '"Instrument Sans", "Noto Sans SC", sans-serif',
+            fontWeight: 700,
           },
         },
         components: {
@@ -85,14 +81,13 @@ export const ThemeProvider = ({ children }) => {
               },
             },
           },
-          // 武林外传风格按钮
           MuiButton: {
             styleOverrides: {
               root: {
-                borderRadius: '20px',
+                borderRadius: '999px',
                 textTransform: 'none',
-                fontFamily: '"KaiTi", "STKaiti", serif',
-                fontWeight: 'bold',
+                fontFamily: '"Manrope", "Noto Sans SC", sans-serif',
+                fontWeight: 600,
               },
               contained: {
                 boxShadow: 'none',
@@ -102,25 +97,57 @@ export const ThemeProvider = ({ children }) => {
               },
             },
           },
-          // 武林外传风格输入框
           MuiTextField: {
             styleOverrides: {
               root: {
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '20px',
+                  borderRadius: '16px',
+                  '& fieldset': {
+                    border: 'none',
+                  },
                 },
               },
             },
           },
-          // 武林外传风格卡片
+          MuiOutlinedInput: {
+            styleOverrides: {
+              root: {
+                '& fieldset': {
+                  border: 'none',
+                },
+              },
+            },
+          },
           MuiPaper: {
             styleOverrides: {
               root: {
-                borderRadius: '12px',
-                backgroundImage: mode === 'light' 
-                  ? 'linear-gradient(135deg, rgba(255, 248, 220, 0.8) 0%, rgba(255, 228, 181, 0.8) 100%)'
-                  : 'linear-gradient(135deg, rgba(160, 82, 45, 0.8) 0%, rgba(139, 69, 19, 0.8) 100%)',
-                border: `1px solid ${mode === 'light' ? '#D2B48C' : '#CD853F'}`,
+                borderRadius: '16px',
+                backgroundImage: 'none',
+                border: 'none',
+              },
+            },
+          },
+          MuiAppBar: {
+            styleOverrides: {
+              root: {
+                borderRadius: 0,
+                backgroundImage: 'none',
+              },
+            },
+          },
+          MuiDrawer: {
+            styleOverrides: {
+              paper: {
+                borderRadius: 0,
+                backgroundImage: 'none',
+                border: 'none',
+              },
+            },
+          },
+          MuiDialog: {
+            styleOverrides: {
+              paper: {
+                border: 'none',
               },
             },
           },
@@ -128,6 +155,11 @@ export const ThemeProvider = ({ children }) => {
       }),
     [mode],
   );
+
+  useEffect(() => {
+    document.body.classList.toggle('dark-theme', mode === 'dark');
+    document.documentElement.style.colorScheme = mode;
+  }, [mode]);
 
   return (
     <ThemeContext.Provider value={{ mode, toggleMode, theme }}>

@@ -1,8 +1,12 @@
-import logging
-from typing import List, AsyncIterator,Dict
+from typing import AsyncIterator, Dict, List
+
+from logging_config import get_logger
+
 from .models import Message
 from utils.model_client import call_model_api
 from utils.prompt import SYSTEM_PROMPT_TEMPLATE
+
+logger = get_logger(__name__)
 
 async def generate_response(
     messages: List[Message],
@@ -90,8 +94,14 @@ def preprocess_message(
         else:
             user_message += f"{message.role}：{message.content}\n"
     wlwz_messages.append({"role": "user", "content": user_message.strip()})
-    
-    logging.info(f"Processed messages: {wlwz_messages}")
+
+    logger.debug(
+        "[service]chat_messages",
+        message=wlwz_messages,
+        message_count=len(wlwz_messages),
+        user_role=user_role,
+        assistant_role=assistant_role,
+    )
     return wlwz_messages
 
 

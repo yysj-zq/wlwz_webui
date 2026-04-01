@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button } from '@mui/material';
+import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Typography, Drawer, Tabs, Tab } from '@mui/material';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
 import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import Chat from './components/Chat';
-import RolesConfig from './components/RolesConfig';
+import ChatPage from './pages/ChatPage';
+import SettingsPage from './pages/SettingsPage';
+import RolesPage from './pages/RolesPage';
 import { v4 as uuidv4 } from 'uuid';
 import { sendChatMessage, sendStreamMessage, requestTTS, login, register, getCurrentUser, setAuthToken, listConversations, getConversationMessages, deleteConversationApi, renameConversationApi, getRoles } from './services/api';
 
 function App() {
   const { theme } = useTheme();
+  const location = useLocation();
   const isMobile = useMediaQuery('(max-width:900px)');
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState(() => {
     const saved = localStorage.getItem('conversations');
     return saved ? JSON.parse(saved) : [{
@@ -47,7 +49,18 @@ function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [rolesConfig, setRolesConfig] = useState(null);
-  const [rolesConfigOpen, setRolesConfigOpen] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [controlCenterOpen, setControlCenterOpen] = useState(false);
+  const [controlCenterTab, setControlCenterTab] = useState(() => localStorage.getItem('controlCenterTab') || 'settings');
+  const [zenPinned, setZenPinned] = useState(false);
+  const [leftPeek, setLeftPeek] = useState(false);
+  const [sidebarPreviewActive, setSidebarPreviewActive] = useState(false);
+  const [topbarCondensed, setTopbarCondensed] = useState(false);
+  const leftEnterTimerRef = useRef(null);
+  const leftLeaveTimerRef = useRef(null);
+  const zenMode = zenPinned;
+  const effectiveSidebarOpen = sidebarOpen || sidebarPreviewActive;
 
   const loadRoles = () => {
     getRoles()
@@ -115,7 +128,13 @@ function App() {
   }, [streamingEnabled]);
 
   useEffect(() => {
+    localStorage.setItem('controlCenterTab', controlCenterTab);
+  }, [controlCenterTab]);
+
+  useEffect(() => {
     return () => {
+      if (leftEnterTimerRef.current) clearTimeout(leftEnterTimerRef.current);
+      if (leftLeaveTimerRef.current) clearTimeout(leftLeaveTimerRef.current);
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
@@ -124,7 +143,34 @@ function App() {
   }, []);
 
   const handleSidebarToggle = () => {
+    setSidebarPreviewActive(false);
     setSidebarOpen(!sidebarOpen);
+  };
+
+  const activateZenMode = () => {
+    setZenPinned(true);
+  };
+
+  const handleZenLeftEnter = () => {
+    if (!zenPinned) return;
+    if (leftLeaveTimerRef.current) clearTimeout(leftLeaveTimerRef.current);
+    if (leftEnterTimerRef.current) clearTimeout(leftEnterTimerRef.current);
+    leftEnterTimerRef.current = setTimeout(() => {
+      setLeftPeek(true);
+      if (!sidebarOpen) {
+        setSidebarPreviewActive(true);
+      }
+    }, 90);
+  };
+
+  const handleZenLeftLeave = () => {
+    if (!zenPinned) return;
+    if (leftEnterTimerRef.current) clearTimeout(leftEnterTimerRef.current);
+    if (leftLeaveTimerRef.current) clearTimeout(leftLeaveTimerRef.current);
+    leftLeaveTimerRef.current = setTimeout(() => {
+      setLeftPeek(false);
+      setSidebarPreviewActive(false);
+    }, 160);
   };
 
   const currentConversation = conversations.find(conv => conv.id === currentConversationId) || conversations[0];
@@ -138,7 +184,7 @@ function App() {
     if (shouldCreateNewChat) {
       const newConversation = {
         id: uuidv4(),
-        title: sceneInput ? sceneInput.substring(0, 30) + (sceneInput.length > 30 ? '...' : '') : '新的对话',
+        title: sceneInput ? sceneInput.substring(0, 30) + (sceneInput.length > 30 ? '…' : '') : '新的对话',
         messages: sceneInput ? [{ 
           id: uuidv4(),
           role: 'scene',
@@ -153,9 +199,7 @@ function App() {
     setSceneDialogOpen(false);
     setSceneInput('');
     setShouldCreateNewChat(false);
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
+    setSidebarOpen(false);
   };
 
   const handleSceneCancel = () => {
@@ -346,7 +390,7 @@ function App() {
         // 如果是第一条消息，更新标题
         let updatedTitle = conv.title;
         if (conv.messages.length === 0) {
-          updatedTitle = message.substring(0, 30) + (message.length > 30 ? '...' : '');
+          updatedTitle = message.substring(0, 30) + (message.length > 30 ? '…' : '');
         }
 
         return {
@@ -457,83 +501,268 @@ function App() {
     }
   };
 
+  const isChatPage = location.pathname === '/';
+
+  const openControlCenter = (tab) => {
+    if (tab) {
+      setControlCenterTab(tab);
+    }
+    setControlCenterOpen(true);
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: theme.palette.background.default }}>
       <CssBaseline />
-      <Header
-        onSidebarToggle={handleSidebarToggle}
-        onNewChat={handleCreateNewChat}
-        userRole={userRole}
-        setUserRole={setUserRole}
-        assistantRole={assistantRole}
-        setAssistantRole={setAssistantRole}
-        streamingEnabled={streamingEnabled}
-        setStreamingEnabled={setStreamingEnabled}
-        currentUser={currentUser}
-        onLoginClick={() => setAuthDialogOpen(true)}
-        onLogout={() => {
-          localStorage.removeItem('accessToken');
-          setAuthToken(null);
-          setCurrentUser(null);
+      <a href="#main-content" className="skip-link">
+        跳到主内容
+      </a>
+      <Box
+        onMouseEnter={handleZenLeftEnter}
+        onMouseLeave={handleZenLeftLeave}
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: leftPeek ? 308 : 14,
+          zIndex: (muiTheme) => muiTheme.zIndex.drawer + 6,
+          pointerEvents: zenPinned ? 'auto' : 'none',
+          transition: 'width 160ms ease',
         }}
-        rolesConfig={rolesConfig}
-        onOpenRolesConfig={() => setRolesConfigOpen(true)}
       />
-      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {sidebarOpen || isMobile ? (
-          <Sidebar
-            open={sidebarOpen}
-            conversations={conversations}
-            currentConversationId={currentConversationId}
-            onSelectConversation={handleSelectConversation}
-            onNewChat={handleCreateNewChat}
-            onDeleteConversation={handleDeleteConversation}
-            onUpdateTitle={handleUpdateConversationTitle}
-            isMobile={isMobile}
-          />
-        ) : null}
-        <Chat
-          conversation={currentConversation}
-          onSendMessage={handleSendMessage}
-          onPlayMessageAudio={handlePlayMessageAudio}
-          onRetryMessageAudio={handleRetryMessageAudio}
-          userRole={userRole}
-          assistantRole={assistantRole}
-          setUserRole={setUserRole}
-          sidebarOpen={sidebarOpen}
-          rolesConfig={rolesConfig}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: (muiTheme) => muiTheme.zIndex.appBar + 4,
+          pointerEvents: 'auto',
+        }}
+      >
+        <Header
+          zenMode={false}
+          condensed={topbarCondensed}
+          onSidebarToggle={isChatPage ? handleSidebarToggle : undefined}
+          onNewChat={isChatPage ? handleCreateNewChat : undefined}
+          onOpenControlCenter={openControlCenter}
         />
       </Box>
+      <Box component="main" id="main-content" sx={{ display: 'flex', flex: 1, minHeight: 0, pb: 0 }}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ChatPage
+                sidebarOpen={effectiveSidebarOpen}
+                isMobile={isMobile}
+                zenMode={zenMode}
+                conversations={conversations}
+                currentConversationId={currentConversationId}
+                onSelectConversation={handleSelectConversation}
+                onNewChat={handleCreateNewChat}
+                onDeleteConversation={handleDeleteConversation}
+                onUpdateTitle={handleUpdateConversationTitle}
+                onCloseSidebar={() => {
+                  setSidebarPreviewActive(false);
+                  setLeftPeek(false);
+                  setSidebarOpen(false);
+                }}
+                conversation={currentConversation}
+                onSendMessage={handleSendMessage}
+                onPlayMessageAudio={handlePlayMessageAudio}
+                onRetryMessageAudio={handleRetryMessageAudio}
+                userRole={userRole}
+                assistantRole={assistantRole}
+                setUserRole={setUserRole}
+                setAssistantRole={setAssistantRole}
+                rolesConfig={rolesConfig}
+                onZenActivate={activateZenMode}
+                onTopbarCondenseChange={setTopbarCondensed}
+              />
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Box>
+
+      <Drawer
+        anchor="right"
+        open={controlCenterOpen}
+        onClose={() => setControlCenterOpen(false)}
+        sx={{ zIndex: (muiTheme) => muiTheme.zIndex.drawer + 3 }}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 520 },
+            backgroundColor: 'transparent',
+            backdropFilter: 'blur(20px)',
+            background: theme.palette.mode === 'light'
+              ? 'linear-gradient(180deg, rgba(249, 251, 255, 0.94), rgba(245, 248, 255, 0.86))'
+              : 'linear-gradient(180deg, rgba(18, 22, 32, 0.95), rgba(18, 22, 32, 0.84))',
+            '@keyframes controlCenterIn': {
+              from: { opacity: 0, transform: 'translateX(12px)' },
+              to: { opacity: 1, transform: 'translateX(0)' },
+            },
+            animation: 'controlCenterIn 220ms ease-out',
+          },
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Box>
+              <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: 1.1 }}>
+                Control Center
+              </Typography>
+              <Typography variant="h6">控制中心</Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              按 Esc 关闭
+            </Typography>
+          </Box>
+          <Tabs
+            value={controlCenterTab}
+            onChange={(_, value) => setControlCenterTab(value)}
+            sx={{ mt: 1 }}
+          >
+            <Tab value="settings" label="偏好设置" />
+            <Tab value="roles" label="角色配置" />
+          </Tabs>
+        </Box>
+
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          {controlCenterTab === 'settings' ? (
+            <SettingsPage
+              embedded
+              currentUser={currentUser}
+              onLoginClick={() => {
+                setAuthError('');
+                setAuthDialogOpen(true);
+              }}
+              onLogout={() => {
+                localStorage.removeItem('accessToken');
+                setAuthToken(null);
+                setCurrentUser(null);
+              }}
+              userRole={userRole}
+              setUserRole={setUserRole}
+              assistantRole={assistantRole}
+              setAssistantRole={setAssistantRole}
+              streamingEnabled={streamingEnabled}
+              setStreamingEnabled={setStreamingEnabled}
+              rolesConfig={rolesConfig}
+            />
+          ) : (
+            <RolesPage
+              embedded
+              rolesConfig={rolesConfig}
+              currentUser={currentUser}
+              onSaved={loadRoles}
+            />
+          )}
+        </Box>
+      </Drawer>
 
       {/* 场景输入对话框 */}
-      <Dialog open={sceneDialogOpen} onClose={handleSceneCancel}>
-        <DialogTitle>设置场景</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={sceneDialogOpen}
+        onClose={handleSceneCancel}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            width: { xs: 'calc(100% - 24px)', sm: 760 },
+            maxWidth: 760,
+            borderRadius: 4,
+            background: theme.palette.mode === 'light'
+              ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,249,255,0.92))'
+              : 'linear-gradient(180deg, rgba(26,30,44,0.95), rgba(17,21,33,0.95))',
+            boxShadow: theme.palette.mode === 'light'
+              ? '0 20px 60px rgba(12, 32, 78, 0.18)'
+              : '0 20px 60px rgba(0, 0, 0, 0.48)',
+            backdropFilter: 'blur(16px)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="overline" sx={{ opacity: 0.75, letterSpacing: 1.1 }}>
+            Scene Setup
+          </Typography>
+          <Typography variant="h6">设置场景</Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
           <TextField
             autoFocus
             margin="dense"
             type="text"
             fullWidth
             variant="outlined"
+            name="scene-description"
+            inputProps={{ 'aria-label': '场景描述输入框' }}
             value={sceneInput}
             onChange={(e) => setSceneInput(e.target.value)}
             multiline
             rows={5}
-            placeholder="请输入场景描述，例如：【大堂，昼】（老白趴在桌上睡觉，小郭在擦桌子）"
+            placeholder="请输入场景描述，例如：【大堂，昼】（老白趴在桌上睡觉，小郭在擦桌子）…"
+            autoComplete="off"
+            sx={{
+              mt: 0.5,
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.68)' : 'rgba(255,255,255,0.06)',
+              },
+            }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleSceneCancel}>取消</Button>
-          <Button onClick={handleSceneSubmit} variant="contained" color="primary">
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5 }}>
+          <Button
+            onClick={handleSceneCancel}
+            sx={{
+              borderRadius: 999,
+              px: 2,
+            }}
+          >
+            取消
+          </Button>
+          <Button
+            onClick={handleSceneSubmit}
+            variant="contained"
+            color="primary"
+            sx={{
+              borderRadius: 999,
+              px: 2.5,
+            }}
+          >
             确认
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 登录/注册对话框 */}
-      <Dialog open={authDialogOpen} onClose={() => setAuthDialogOpen(false)}>
+      <Dialog
+        open={authDialogOpen}
+        onClose={() => {
+          if (!authLoading) {
+            setAuthError('');
+            setAuthDialogOpen(false);
+          }
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            background: theme.palette.mode === 'light'
+              ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,249,255,0.92))'
+              : 'linear-gradient(180deg, rgba(26,30,44,0.95), rgba(17,21,33,0.95))',
+            backdropFilter: 'blur(16px)',
+            boxShadow: theme.palette.mode === 'light'
+              ? '0 20px 60px rgba(12, 32, 78, 0.18)'
+              : '0 20px 60px rgba(0, 0, 0, 0.48)',
+          },
+        }}
+      >
         <DialogTitle>{authMode === 'login' ? '登录' : '注册'}</DialogTitle>
         <DialogContent>
+          <Typography role="status" aria-live="polite" color="error" variant="body2" sx={{ minHeight: 24 }}>
+            {authError}
+          </Typography>
           <TextField
             autoFocus
             margin="dense"
@@ -541,6 +770,9 @@ function App() {
             type="email"
             fullWidth
             variant="outlined"
+            name="email"
+            autoComplete="email"
+            inputProps={{ inputMode: 'email', spellCheck: false }}
             value={authEmail}
             onChange={(e) => setAuthEmail(e.target.value)}
           />
@@ -550,17 +782,29 @@ function App() {
             type="password"
             fullWidth
             variant="outlined"
+            name="password"
+            autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
             value={authPassword}
             onChange={(e) => setAuthPassword(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAuthDialogOpen(false)}>取消</Button>
-          <Button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+          <Button onClick={() => setAuthDialogOpen(false)} disabled={authLoading}>
+            取消
+          </Button>
+          <Button
+            onClick={() => {
+              setAuthError('');
+              setAuthMode(authMode === 'login' ? 'register' : 'login');
+            }}
+            disabled={authLoading}
+          >
             {authMode === 'login' ? '去注册' : '去登录'}
           </Button>
           <Button
             onClick={async () => {
+              setAuthError('');
+              setAuthLoading(true);
               try {
                 if (authMode === 'login') {
                   const tokenResp = await login(authEmail, authPassword);
@@ -585,22 +829,17 @@ function App() {
                 setAuthDialogOpen(false);
               } catch (e) {
                 console.error('Auth error', e);
+                setAuthError(authMode === 'login' ? '登录失败，请检查邮箱和密码后重试。' : '注册失败，请稍后重试。');
+              } finally {
+                setAuthLoading(false);
               }
             }}
+            disabled={authLoading}
           >
-            {authMode === 'login' ? '登录' : '注册'}
+            {authLoading ? (authMode === 'login' ? '登录中…' : '注册中…') : (authMode === 'login' ? '登录' : '注册')}
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* 角色配置对话框 */}
-      <RolesConfig
-        open={rolesConfigOpen}
-        onClose={() => setRolesConfigOpen(false)}
-        rolesConfig={rolesConfig}
-        currentUser={currentUser}
-        onSaved={loadRoles}
-      />
     </Box>
   );
 }

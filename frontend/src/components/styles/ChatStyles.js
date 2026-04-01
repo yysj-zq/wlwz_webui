@@ -1,57 +1,132 @@
 import { styled } from '@mui/material/styles';
 import { Box, Avatar } from '@mui/material';
 
+export const StageShell = styled(Box)(({ theme }) => ({
+  flex: 1,
+  width: '100%',
+  minWidth: 0,
+  minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  maxWidth: 1260,
+  margin: '0 auto',
+  padding: theme.spacing(1.2, 2, 1.4),
+  borderRadius: theme.spacing(3),
+  background: 'transparent',
+  boxShadow: 'none',
+  [theme.breakpoints.down('md')]: {
+    borderRadius: 0,
+    padding: theme.spacing(0.8, 0.35, 0.35),
+  },
+}));
+
+export const ScriptColumn = styled(Box)(({ theme }) => ({
+  minWidth: 0,
+  flex: 1,
+  minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column',
+}));
+
+export const DirectorPanel = styled(Box)(({ theme }) => ({
+  borderRadius: theme.spacing(2),
+  padding: theme.spacing(1.3),
+  background:
+    theme.palette.mode === 'light'
+      ? 'rgba(255,255,255,0.7)'
+      : 'rgba(30,35,50,0.54)',
+  backdropFilter: 'blur(12px)',
+  marginTop: theme.spacing(1.2),
+}));
+
+export const RoleBioCard = styled(Box)(({ theme }) => ({
+  borderRadius: theme.spacing(1.2),
+  padding: theme.spacing(1.1, 1.2),
+  background:
+    theme.palette.mode === 'light'
+      ? 'rgba(245,248,255,0.72)'
+      : 'rgba(18,22,34,0.54)',
+  transition: 'opacity 140ms ease',
+  '&:hover': {
+    opacity: 0.96,
+  },
+}));
+
+export const ComposerCard = styled(Box)(({ theme }) => ({
+  marginTop: theme.spacing(1),
+  borderRadius: theme.spacing(2),
+  padding: theme.spacing(1.2),
+  background: 'transparent',
+  backdropFilter: 'none',
+  position: 'sticky',
+  bottom: 0,
+  zIndex: 5,
+  boxShadow: 'none',
+  transition: 'background-color 160ms ease',
+  '&:hover': {
+    background: theme.palette.mode === 'light' ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.04)',
+  },
+}));
+
+export const SceneBanner = styled(Box)(({ theme }) => ({
+  marginBottom: theme.spacing(0.9),
+  padding: theme.spacing(1.25, 1.8),
+  borderRadius: theme.spacing(1.8),
+  background: 'transparent',
+  boxShadow: 'none',
+}));
+
 export const MessageContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
-  marginBottom: theme.spacing(2),
-  padding: theme.spacing(1.5),
-  borderRadius: theme.spacing(2),
+  width: 'fit-content',
+  maxWidth: 'min(760px, 88%)',
+  marginBottom: theme.spacing(0.65),
+  padding: theme.spacing(0.2, 0.3),
+  borderRadius: 0,
   backgroundColor: 'transparent',
   position: 'relative',
-  // 移除 overflow: 'hidden' 以允许内容正常显示
-  boxShadow: theme.palette.mode === 'light' 
-    ? `0 2px 8px ${theme.palette.divider}30`
-    : `0 2px 8px ${theme.palette.divider}50`,
-  '&.user': {
-    backgroundColor: theme.palette.mode === 'light' 
-      ? `${theme.palette.background.paper}D0` 
-      : `${theme.palette.background.paper}B0`,
-    border: `1px solid ${theme.palette.mode === 'light' 
-      ? theme.palette.primary.main + '40' 
-      : theme.palette.primary.main + '60'}`,
-    // 添加纹理背景
-    backgroundImage: theme.palette.mode === 'light' 
-      ? `repeating-linear-gradient(45deg, ${theme.palette.primary.main}15 0px, ${theme.palette.primary.main}15 2px, transparent 2px, transparent 8px)`
-      : `repeating-linear-gradient(45deg, ${theme.palette.primary.main}20 0px, ${theme.palette.primary.main}20 2px, transparent 2px, transparent 8px)`,
+  boxShadow: 'none',
+  transition: 'opacity 120ms ease',
+  '&:hover': {
+    opacity: 0.985,
   },
-  '&.assistant': {
-    backgroundColor: theme.palette.mode === 'light' 
-      ? `${theme.palette.background.default}D0` 
-      : `${theme.palette.background.default}B0`,
-    border: `1px solid ${theme.palette.mode === 'light' 
-      ? theme.palette.secondary.main + '40' 
-      : theme.palette.secondary.main + '60'}`,
-    // 添加纹理背景
-    backgroundImage: theme.palette.mode === 'light' 
-      ? `repeating-linear-gradient(-45deg, ${theme.palette.secondary.main}15 0px, ${theme.palette.secondary.main}15 2px, transparent 2px, transparent 8px)`
-      : `repeating-linear-gradient(-45deg, ${theme.palette.secondary.main}20 0px, ${theme.palette.secondary.main}20 2px, transparent 2px, transparent 8px)`,
+  '& .MuiAvatar-root': {
+    marginRight: theme.spacing(0.6),
   },
-  // 添加装饰性边角
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: theme.spacing(2),
-    pointerEvents: 'none',
-    border: `1px solid ${theme.palette.divider}30`,
-  }
+  '&.message-user': {
+    alignSelf: 'flex-end',
+    marginRight: 'clamp(10px, 3vw, 42px)',
+    flexDirection: 'row-reverse',
+    textAlign: 'right',
+    '& .MuiAvatar-root': {
+      marginRight: 0,
+      marginLeft: theme.spacing(0.6),
+    },
+  },
+  '&.message-assistant': {
+    alignSelf: 'flex-start',
+    marginLeft: 'clamp(10px, 3vw, 42px)',
+  },
+  '&.message-scene': {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 980,
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    boxShadow: 'none',
+  },
 }));
 
 export const StyledAvatar = styled(Avatar)(({ theme }) => ({
-  backgroundColor: theme.palette.primary.main,
+  width: 42,
+  height: 42,
+  background: theme.palette.mode === 'light'
+    ? 'linear-gradient(180deg, rgba(255,255,255,0.66), rgba(209,224,255,0.3))'
+    : 'linear-gradient(180deg, rgba(255,255,255,0.2), rgba(108,136,214,0.2))',
   color: theme.palette.primary.contrastText,
-  marginRight: theme.spacing(2),
+  backdropFilter: 'blur(6px)',
+  boxShadow: theme.palette.mode === 'light'
+    ? '0 6px 16px rgba(12, 32, 78, 0.14)'
+    : '0 6px 16px rgba(0, 0, 0, 0.36)',
 }));

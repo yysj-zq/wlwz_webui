@@ -19,9 +19,11 @@ class Settings(BaseSettings):
     # CORS设置
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "*")
 
-    # 日志配置
+    # 日志配置（structlog + stdlib；见 logging_config.configure_logging）
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FILE: Optional[str] = os.getenv("LOG_FILE", './logs/app.log')
+    LOG_FILE: str = os.getenv("LOG_FILE", "./logs/app.log")
+    LOG_JSON: bool = os.getenv("LOG_JSON", "false").lower() == "true"
+    LOG_ENABLE_FILE: bool = os.getenv("LOG_ENABLE_FILE", "true").lower() == "true"
 
     # 大模型配置
     MODEL_BASE_URL: str = os.getenv("MODEL_BASE_URL", "http://localhost:8080")
@@ -41,6 +43,8 @@ class Settings(BaseSettings):
         "DATABASE_URL",
         "sqlite+aiosqlite:///./app.db"
     )
+    # SQL 语句 echo 到日志；默认关闭，与 DEBUG 解耦（调 SQL 时可单独设为 true）
+    SQLALCHEMY_ECHO: bool = os.getenv("SQLALCHEMY_ECHO", "false").lower() == "true"
 
     # 认证 / JWT 配置
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "change-this-in-production")

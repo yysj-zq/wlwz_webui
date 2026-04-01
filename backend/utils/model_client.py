@@ -1,8 +1,13 @@
 import json
+import time
+from typing import Any, AsyncIterator, Dict, List
+
 import aiohttp
-import asyncio
-from typing import List, Dict, Any, AsyncIterator, Optional
+
 from config import settings
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 async def call_model_api(
     messages: List[Dict[str, str]],
@@ -40,6 +45,12 @@ async def call_model_api(
 
 async def get_full_response(url: str, headers: Dict[str, str], payload: Dict[str, Any]) -> str:
     """获取完整的响应文本"""
+    logger.info(
+        "[http] out",
+        url=url,
+        headers=headers,
+        payload=payload,
+    )
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=payload) as response:
@@ -48,13 +59,31 @@ async def get_full_response(url: str, headers: Dict[str, str], payload: Dict[str
                     raise Exception(f"API调用失败: {response.status}, {error_text}")
 
                 data = await response.json()
-                return data["choices"][0]["message"]["content"]
+                logger.info(
+                    "[http] out-done",
+                    status=response.status,
+                    data=data,
+                )
+                content = data["choices"][0]["message"]["content"]
+                return content
     except Exception as e:
-        # 在实际应用中，应该进行更详细的错误处理和日志记录
-        raise Exception(f"调用模型API时出错: {str(e)}")
+        logger.exception(
+            "[http] out-error",
+            url=url,
+            headers=headers,
+            payload=payload,
+        )
+        raise Exception(f"调用模型API时出错: {str(e)}") from e
 
 async def stream_response(url: str, headers: Dict[str, str], payload: Dict[str, Any]) -> AsyncIterator[str]:
     """流式获取响应文本"""
+    t0 = time.monotonic()
+    logger.info(
+        "[http] out_stream",
+        url=url,
+        headers=headers,
+        payload=payload,
+    )
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=payload) as response:
@@ -62,8 +91,16 @@ async def stream_response(url: str, headers: Dict[str, str], payload: Dict[str, 
                     error_text = await response.text()
                     raise Exception(f"API调用失败: {response.status}, {error_text}")
 
+                logger.info(
+                    "[http] out_stream",
+                    status=response.status,
+                    ttfb_s=round(time.monotonic() - t0, 3),
+                )
+
                 # 兼容 OpenAI 风格 SSE：event/data 可能在同一网络分块中，也可能被拆分
                 buffer = ""
+                chunk_index = 0
+                full_content_parts: list[str] = []
                 async for chunk in response.content:
                     buffer += chunk.decode("utf-8", errors="ignore")
                     lines = buffer.split("\n")
@@ -78,13 +115,28 @@ async def stream_response(url: str, headers: Dict[str, str], payload: Dict[str, 
                         if not data_str or data_str == "[DONE]":
                             continue
 
+                        logger.debug(
+                            "[http] out_stream",
+                            data=data_str,
+                        )
                         try:
                             json_data = json.loads(data_str)
                         except json.JSONDecodeError:
+                            logger.exception(
+                                "[http] out_stream: json解析失败",
+                                data=data_str,
+                            )
                             continue
 
                         content = json_data.get("choices", [{}])[0].get("delta", {}).get("content", "")
                         if content:
+                            chunk_index += 1
+                            full_content_parts.append(content)
+                            logger.info(
+                                "[http] out_stream",
+                                delta_index=chunk_index,
+                                content=content,
+                            )
                             yield content
 
                 # 处理最后残留的一行
@@ -92,13 +144,40 @@ async def stream_response(url: str, headers: Dict[str, str], payload: Dict[str, 
                 if tail.startswith("data:"):
                     data_str = tail[5:].strip()
                     if data_str and data_str != "[DONE]":
+                        logger.debug(
+                            "[http] out_stream",
+                            data=data_str,
+                        )
                         try:
                             json_data = json.loads(data_str)
                             content = json_data.get("choices", [{}])[0].get("delta", {}).get("content", "")
                             if content:
+                                chunk_index += 1
+                                full_content_parts.append(content)
+                                logger.info(
+                                    "[http] out_stream",
+                                    delta_index=chunk_index,
+                                    content=content,
+                                )
                                 yield content
                         except json.JSONDecodeError:
-                            pass
+                            logger.exception(
+                                "[http] out_stream: json解析失败",
+                                data=data_str,
+                            )
+
+                full_content = "".join(full_content_parts)
+                logger.info(
+                    "[http] out_stream-done",
+                    delta_chunks=chunk_index,
+                    full_content=full_content,
+                    full_content_chars=len(full_content),
+                )
     except Exception as e:
-        # 在实际应用中，应该进行更详细的错误处理和日志记录
-        raise Exception(f"流式调用模型API时出错: {str(e)}")
+        logger.exception(
+            "[http] out_stream-error",
+            url=url,
+            headers=headers,
+            payload=payload,
+        )
+        raise Exception(f"流式调用模型API时出错: {str(e)}") from e
