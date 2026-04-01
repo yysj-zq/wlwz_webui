@@ -1,9 +1,9 @@
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
+from app.api.schemas.chat import MessageIn
 from app.common.prompt import SYSTEM_PROMPT_TEMPLATE
 from app.core.logging import get_logger
 from app.infra.model_client import call_model_api
-from app.api.schemas.chat import MessageIn
 
 logger = get_logger(__name__)
 
@@ -31,6 +31,7 @@ def preprocess_messages(messages: list[MessageIn], user_role: str, assistant_rol
 
 
 async def generate_response(messages: list[MessageIn], user_role: str, assistant_role: str) -> str:
+    """生成非流式响应文本。"""
     processed_messages = preprocess_messages(messages, user_role, assistant_role)
     return await call_model_api(messages=processed_messages, stream=False)
 
@@ -40,6 +41,7 @@ async def generate_response_stream(
     user_role: str,
     assistant_role: str,
 ) -> AsyncIterator[str]:
+    """生成流式响应文本片段。"""
     processed_messages = preprocess_messages(messages, user_role, assistant_role)
     stream_generator = await call_model_api(messages=processed_messages, stream=True)
     async for chunk in stream_generator:

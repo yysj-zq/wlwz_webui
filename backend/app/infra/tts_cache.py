@@ -1,18 +1,17 @@
 import hashlib
-from typing import Optional
 
 from redis.asyncio import Redis
 
 from app.core.settings import settings
 
 
-def _make_key(user_id: int, text: str, speaker_id: Optional[str]) -> str:
-    payload = f"{user_id}:{speaker_id or ''}:{text}".encode("utf-8")
+def _make_key(user_id: int, text: str, speaker_id: str | None) -> str:
+    payload = f"{user_id}:{speaker_id or ''}:{text}".encode()
     digest = hashlib.sha256(payload).hexdigest()
     return f"tts:{digest}"
 
 
-_redis_client: Optional[Redis] = None
+_redis_client: Redis | None = None
 
 
 def get_redis_client() -> Redis:
@@ -22,13 +21,17 @@ def get_redis_client() -> Redis:
     return _redis_client
 
 
-async def get_tts_cache(user_id: int, text: str, speaker_id: Optional[str]) -> Optional[bytes]:
+async def get_tts_cache(user_id: int, text: str, speaker_id: str | None) -> bytes | None:
+    """从 Redis 读取 TTS 缓存（若存在）。"""
     client = get_redis_client()
     key = _make_key(user_id, text, speaker_id)
-    return await client.get(key)
+    cached = await client.get(key)
+    if cached is None:
+        return None
+    return bytes(cached)
 
 
-async def set_tts_cache(user_id: int, text: str, speaker_id: Optional[str], data: bytes) -> None:
+async def set_tts_cache(user_id: int, text: str, speaker_id: str | None, data: bytes) -> None:
     client = get_redis_client()
     key = _make_key(user_id, text, speaker_id)
     await client.setex(key, settings.TTS_CACHE_TTL_SECONDS, data)

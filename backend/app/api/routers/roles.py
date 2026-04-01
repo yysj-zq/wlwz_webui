@@ -5,10 +5,10 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.api.dependencies import get_current_user, get_current_user_optional
-from app.db.models import RoleProfile, User
 from app.api.schemas.roles import RoleCreate, RoleOut, RoleUpdate
+from app.db.models import RoleProfile, User
+from app.db.session import get_db
 from app.services.roles_service import (
     avatar_api_path,
     create_custom_role,
@@ -26,6 +26,7 @@ async def get_roles(
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ) -> dict[str, Any]:
+    """获取可用角色列表（内置 + 当前用户自定义）。"""
     return await get_available_roles_for_user(db, current_user)
 
 
@@ -34,7 +35,8 @@ async def create_my_role(
     payload: RoleCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> RoleOut:
+    """创建当前用户的自定义角色。"""
     try:
         r = await create_custom_role(
             db,
@@ -43,9 +45,9 @@ async def create_my_role(
             system_prompt=payload.system_prompt,
             default_speaker_id=payload.default_speaker_id,
         )
-    except Exception as e:
-        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
-            raise HTTPException(status_code=400, detail="角色名已存在")
+    except Exception as exc:
+        if "unique" in str(exc).lower() or "duplicate" in str(exc).lower():
+            raise HTTPException(status_code=400, detail="角色名已存在") from exc
         raise
     return RoleOut(
         id=r.id,
@@ -64,7 +66,8 @@ async def update_my_role(
     payload: RoleUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> RoleOut:
+    """更新当前用户的自定义角色。"""
     r = await update_custom_role(
         db,
         current_user,
@@ -91,7 +94,8 @@ async def delete_my_role(
     role_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> None:
+    """删除当前用户的自定义角色。"""
     ok = await delete_custom_role(db, current_user, role_id)
     if not ok:
         raise HTTPException(status_code=404, detail="角色不存在或无权删除")
@@ -103,7 +107,8 @@ async def upload_role_avatar(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> RoleOut:
+    """上传并更新指定自定义角色的头像。"""
     r = await get_my_role(db, current_user, role_id)
     if r is None:
         raise HTTPException(status_code=404, detail="角色不存在或无权修改")
@@ -127,6 +132,7 @@ async def upload_role_avatar(
 
 @router.get("/roles/{role_id}/avatar")
 async def get_role_avatar(role_id: int, db: AsyncSession = Depends(get_db)) -> Response:
+    """获取角色头像图片。"""
     row = await db.execute(select(RoleProfile).where(RoleProfile.id == role_id))
     r = row.scalar_one_or_none()
     if r is None or not r.avatar_blob or not r.avatar_mime_type:

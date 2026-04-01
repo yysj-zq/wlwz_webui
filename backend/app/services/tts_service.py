@@ -3,6 +3,7 @@ import struct
 import time
 import wave
 from functools import lru_cache
+from typing import Any
 
 import requests
 
@@ -12,7 +13,7 @@ from app.core.settings import settings
 logger = get_logger(__name__)
 
 
-def _build_tts_payload(text: str, speaker_id: str) -> dict:
+def _build_tts_payload(text: str, speaker_id: str) -> dict[str, Any]:
     return {
         "inputs": [
             {"name": "target_text", "shape": [1, 1], "datatype": "BYTES", "data": [text]},
@@ -44,7 +45,7 @@ def _get_sample_rate(model_name: str) -> int:
     return 16000 if model_name == "spark_tts" else 24000
 
 
-def _extract_audio_data(audio_data) -> list[float]:
+def _extract_audio_data(audio_data: Any) -> list[float]:
     if isinstance(audio_data, list) and audio_data and isinstance(audio_data[0], list):
         if len(audio_data) == 1:
             audio_data = audio_data[0]

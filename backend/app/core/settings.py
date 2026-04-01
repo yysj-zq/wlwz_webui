@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,7 +19,7 @@ class Settings(BaseSettings):
     LOG_ENABLE_FILE: bool = Field(default=True)
 
     MODEL_BASE_URL: str = Field(default="http://localhost:8080")
-    MODEL_API_KEY: Optional[str] = Field(default=None)
+    MODEL_API_KEY: str | None = Field(default=None)
     MODEL_NAME: str = Field(default="default-model")
     STREAM_DELAY: float = Field(default=0.02)
 

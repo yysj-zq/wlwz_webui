@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -7,8 +6,8 @@ from pydantic import BaseModel
 class ConversationOut(BaseModel):
     id: int
     title: str
-    description: Optional[str] = None
-    model_name: Optional[str] = None
+    description: str | None = None
+    model_name: str | None = None
     created_at: datetime
     updated_at: datetime
 

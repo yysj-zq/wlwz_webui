@@ -21,6 +21,25 @@ uv run main.py
 
 服务默认在 **http://localhost:8081** 运行。API 文档：http://localhost:8081/docs 。
 
+## 代码风格与质量检查
+
+本项目使用 `ruff`（格式化 + lint）与 `mypy`（strict）做质量门禁。
+
+在 `backend/` 目录下执行：
+
+```bash
+uv run ruff format .
+uv run ruff check .
+uv run mypy .
+```
+
+也可以在仓库根目录启用提交前自动检查（需要安装开发依赖组）：
+
+```bash
+uv sync --group dev
+uv run pre-commit install
+```
+
 ## 环境变量
 
 复制 `.env.example` 为 `.env` 后按需修改，主要项如下：

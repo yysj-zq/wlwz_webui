@@ -1,6 +1,7 @@
 import json
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any, Literal, cast, overload
 
 import aiohttp
 
@@ -10,7 +11,24 @@ from app.core.settings import settings
 logger = get_logger(__name__)
 
 
+@overload
+async def call_model_api(messages: list[dict[str, str]], stream: Literal[False] = False) -> str: ...
+
+
+@overload
+async def call_model_api(messages: list[dict[str, str]], stream: Literal[True]) -> AsyncIterator[str]: ...
+
+
 async def call_model_api(messages: list[dict[str, str]], stream: bool = False) -> Any:
+    """调用兼容 OpenAI Chat Completions 的模型 API。
+
+    Args:
+        messages: Chat Completions messages 列表。
+        stream: 是否启用流式返回。
+
+    Returns:
+        stream=False 时返回完整文本；stream=True 时返回异步迭代器，逐段产出文本。
+    """
     url = f"{settings.MODEL_BASE_URL}/v1/chat/completions"
     headers: dict[str, str] = {"Content-Type": "application/json"}
     if settings.MODEL_API_KEY:
@@ -25,14 +43,14 @@ async def call_model_api(messages: list[dict[str, str]], stream: bool = False) -
 async def get_full_response(url: str, headers: dict[str, str], payload: dict[str, Any]) -> str:
     logger.info("[http] out", url=url, headers=headers, payload=payload)
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    raise Exception(f"API调用失败: {response.status}, {error_text}")
-                data = await response.json()
-                logger.info("[http] out-done", status=response.status, data=data)
-                return data["choices"][0]["message"]["content"]
+        async with aiohttp.ClientSession() as session, session.post(url, headers=headers, json=payload) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise Exception(f"API调用失败: {response.status}, {error_text}")
+            data = await response.json()
+            logger.info("[http] out-done", status=response.status, data=data)
+            content = data["choices"][0]["message"]["content"]
+            return cast(str, content)
     except Exception as e:
         logger.exception("[http] out-error", url=url, headers=headers, payload=payload)
         raise Exception(f"调用模型API时出错: {str(e)}") from e
@@ -42,63 +60,62 @@ async def stream_response(url: str, headers: dict[str, str], payload: dict[str, 
     t0 = time.monotonic()
     logger.info("[http] out_stream", url=url, headers=headers, payload=payload)
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    raise Exception(f"API调用失败: {response.status}, {error_text}")
-                logger.info("[http] out_stream", status=response.status, ttfb_s=round(time.monotonic() - t0, 3))
+        async with aiohttp.ClientSession() as session, session.post(url, headers=headers, json=payload) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise Exception(f"API调用失败: {response.status}, {error_text}")
+            logger.info("[http] out_stream", status=response.status, ttfb_s=round(time.monotonic() - t0, 3))
 
-                buffer = ""
-                chunk_index = 0
-                full_content_parts: list[str] = []
-                async for chunk in response.content:
-                    buffer += chunk.decode("utf-8", errors="ignore")
-                    lines = buffer.split("\n")
-                    buffer = lines.pop() if lines else ""
+            buffer = ""
+            chunk_index = 0
+            full_content_parts: list[str] = []
+            async for chunk in response.content:
+                buffer += chunk.decode("utf-8", errors="ignore")
+                lines = buffer.split("\n")
+                buffer = lines.pop() if lines else ""
 
-                    for raw_line in lines:
-                        line = raw_line.strip()
-                        if not line or not line.startswith("data:"):
-                            continue
-                        data_str = line[5:].strip()
-                        if not data_str or data_str == "[DONE]":
-                            continue
-                        logger.debug("[http] out_stream", data=data_str)
-                        try:
-                            json_data = json.loads(data_str)
-                        except json.JSONDecodeError:
-                            logger.exception("[http] out_stream: json解析失败", data=data_str)
-                            continue
+                for raw_line in lines:
+                    line = raw_line.strip()
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data_str = line[5:].strip()
+                    if not data_str or data_str == "[DONE]":
+                        continue
+                    logger.debug("[http] out_stream", data=data_str)
+                    try:
+                        json_data = json.loads(data_str)
+                    except json.JSONDecodeError:
+                        logger.exception("[http] out_stream: json解析失败", data=data_str)
+                        continue
+                    content = json_data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    if content:
+                        chunk_index += 1
+                        full_content_parts.append(content)
+                        logger.info("[http] out_stream", delta_index=chunk_index, content=content)
+                        yield content
+
+            tail = buffer.strip()
+            if tail.startswith("data:"):
+                data_str = tail[5:].strip()
+                if data_str and data_str != "[DONE]":
+                    try:
+                        json_data = json.loads(data_str)
                         content = json_data.get("choices", [{}])[0].get("delta", {}).get("content", "")
                         if content:
                             chunk_index += 1
                             full_content_parts.append(content)
                             logger.info("[http] out_stream", delta_index=chunk_index, content=content)
                             yield content
+                    except json.JSONDecodeError:
+                        logger.exception("[http] out_stream: json解析失败", data=data_str)
 
-                tail = buffer.strip()
-                if tail.startswith("data:"):
-                    data_str = tail[5:].strip()
-                    if data_str and data_str != "[DONE]":
-                        try:
-                            json_data = json.loads(data_str)
-                            content = json_data.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                            if content:
-                                chunk_index += 1
-                                full_content_parts.append(content)
-                                logger.info("[http] out_stream", delta_index=chunk_index, content=content)
-                                yield content
-                        except json.JSONDecodeError:
-                            logger.exception("[http] out_stream: json解析失败", data=data_str)
-
-                full_content = "".join(full_content_parts)
-                logger.info(
-                    "[http] out_stream-done",
-                    delta_chunks=chunk_index,
-                    full_content=full_content,
-                    full_content_chars=len(full_content),
-                )
+            full_content = "".join(full_content_parts)
+            logger.info(
+                "[http] out_stream-done",
+                delta_chunks=chunk_index,
+                full_content=full_content,
+                full_content_chars=len(full_content),
+            )
     except Exception as e:
         logger.exception("[http] out_stream-error", url=url, headers=headers, payload=payload)
         raise Exception(f"流式调用模型API时出错: {str(e)}") from e

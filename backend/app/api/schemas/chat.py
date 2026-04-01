@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 
@@ -9,7 +7,7 @@ class MessageIn(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    messages: List[MessageIn]
+    messages: list[MessageIn]
     userRole: str
     assistantRole: str
-    conversationId: Optional[int] = None
+    conversationId: int | None = None

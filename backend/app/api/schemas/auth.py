@@ -1,12 +1,10 @@
-from typing import Optional
-
 from pydantic import BaseModel, EmailStr
 
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    username: Optional[str] = None
+    username: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -22,7 +20,7 @@ class Token(BaseModel):
 class UserOut(BaseModel):
     id: int
     email: EmailStr
-    username: Optional[str] = None
+    username: str | None = None
     is_admin: bool
 
     class Config:

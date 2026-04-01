@@ -1,7 +1,7 @@
-from pathlib import Path
-from typing import Any, Optional
-
 import mimetypes
+from pathlib import Path
+from typing import Any
+
 import yaml
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,15 +42,16 @@ def _load_roles_config() -> list[dict[str, Any]]:
     if not path.exists():
         logger.warning("roles_config_missing", path=str(path))
         return []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     return data.get("builtin_roles") or []
 
 
 async def init_builtin_roles_if_enabled(db: AsyncSession) -> None:
+    """按配置初始化内置角色数据。"""
     if not settings.INIT_BUILTIN_ROLES_ON_START:
         return
-    await db.execute(delete(RoleProfile).where(RoleProfile.is_builtin == True))
+    await db.execute(delete(RoleProfile).where(RoleProfile.is_builtin.is_(True)))
     await db.commit()
     roles_data = _load_roles_config()
     config_dir = _resolve_roles_config_path().parent
@@ -81,12 +82,13 @@ async def init_builtin_roles_if_enabled(db: AsyncSession) -> None:
     logger.info("builtin_roles_initialized", count=len(roles_data))
 
 
-async def get_available_roles_for_user(db: AsyncSession, user: Optional[User]) -> dict[str, Any]:
-    stmt = select(RoleProfile).where(RoleProfile.is_builtin == True)
+async def get_available_roles_for_user(db: AsyncSession, user: User | None) -> dict[str, Any]:
+    """获取当前用户可用的角色列表与辅助映射信息。"""
+    stmt = select(RoleProfile).where(RoleProfile.is_builtin.is_(True))
     if user is not None:
         from sqlalchemy import or_
 
-        stmt = select(RoleProfile).where(or_(RoleProfile.is_builtin == True, RoleProfile.user_id == user.id))
+        stmt = select(RoleProfile).where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user.id))
     result = await db.execute(stmt)
     roles = list(result.scalars().unique().all())
     names = [r.name for r in roles]
@@ -112,14 +114,15 @@ async def get_available_roles_for_user(db: AsyncSession, user: Optional[User]) -
     }
 
 
-async def get_speaker_id_for_role(db: AsyncSession, role_name: str, user: Optional[User]) -> Optional[str]:
+async def get_speaker_id_for_role(db: AsyncSession, role_name: str, user: User | None) -> str | None:
+    """根据角色名获取对应的默认 speaker_id（如有）。"""
     from sqlalchemy import or_
 
     stmt = select(RoleProfile).where(RoleProfile.name == role_name)
     if user is not None:
-        stmt = stmt.where(or_(RoleProfile.is_builtin == True, RoleProfile.user_id == user.id))
+        stmt = stmt.where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user.id))
     else:
-        stmt = stmt.where(RoleProfile.is_builtin == True)
+        stmt = stmt.where(RoleProfile.is_builtin.is_(True))
     result = await db.execute(stmt)
     row = result.scalar_one_or_none()
     if row and row.default_speaker_id:
@@ -131,8 +134,8 @@ async def create_custom_role(
     db: AsyncSession,
     user: User,
     name: str,
-    system_prompt: Optional[str] = None,
-    default_speaker_id: Optional[str] = None,
+    system_prompt: str | None = None,
+    default_speaker_id: str | None = None,
 ) -> RoleProfile:
     r = RoleProfile(
         user_id=user.id,
@@ -147,12 +150,13 @@ async def create_custom_role(
     return r
 
 
-async def get_my_role(db: AsyncSession, user: User, role_id: int) -> Optional[RoleProfile]:
+async def get_my_role(db: AsyncSession, user: User, role_id: int) -> RoleProfile | None:
+    """获取当前用户的自定义角色（非内置）。"""
     result = await db.execute(
         select(RoleProfile).where(
             RoleProfile.id == role_id,
             RoleProfile.user_id == user.id,
-            RoleProfile.is_builtin == False,
+            RoleProfile.is_builtin.is_(False),
         )
     )
     return result.scalar_one_or_none()
@@ -162,10 +166,10 @@ async def update_custom_role(
     db: AsyncSession,
     user: User,
     role_id: int,
-    name: Optional[str] = None,
-    system_prompt: Optional[str] = None,
-    default_speaker_id: Optional[str] = None,
-) -> Optional[RoleProfile]:
+    name: str | None = None,
+    system_prompt: str | None = None,
+    default_speaker_id: str | None = None,
+) -> RoleProfile | None:
     r = await get_my_role(db, user, role_id)
     if not r:
         return None

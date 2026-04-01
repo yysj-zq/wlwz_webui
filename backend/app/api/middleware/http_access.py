@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -14,7 +14,9 @@ logger = get_logger(__name__)
 
 
 class HttpAccessMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    """记录 HTTP 访问信息并为请求设置 request_id。"""
+
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         set_request_id(new_request_id())
         start_time = time.perf_counter()
         method = request.method
@@ -23,7 +25,8 @@ class HttpAccessMiddleware(BaseHTTPMiddleware):
         if method in ("POST", "PUT", "PATCH"):
             body = await request.body()
             if body:
-                async def receive():
+
+                async def receive() -> dict[str, object]:
                     return {"type": "http.request", "body": body}
 
                 request._receive = receive
@@ -68,12 +71,15 @@ class HttpAccessMiddleware(BaseHTTPMiddleware):
         media_type = response.media_type or ""
         is_sse = media_type.startswith("text/event-stream")
 
-        async def log_and_stream():
+        async def log_and_stream() -> AsyncIterator[bytes]:
             chunk_count = 0
             try:
                 async for chunk in response.body_iterator:
                     chunk_count += 1
-                    yield chunk
+                    if isinstance(chunk, str):
+                        yield chunk.encode()
+                    else:
+                        yield bytes(chunk)
                 duration_s = time.perf_counter() - start_time
                 logger.info(
                     "http_access",

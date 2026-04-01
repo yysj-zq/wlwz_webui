@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from typing import Optional
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -10,8 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
-from app.db.session import get_db
 from app.db.models.entities import User
+from app.db.session import get_db
 
 _password_hasher = PasswordHasher()
 
@@ -22,6 +21,15 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
+    """校验明文密码是否匹配已存储的哈希值。
+
+    Args:
+        plain_password: 用户输入的明文密码。
+        password_hash: 数据库中存储的密码哈希。
+
+    Returns:
+        密码匹配返回 True，否则返回 False。
+    """
     try:
         _password_hasher.verify(password_hash, plain_password)
         return True
@@ -30,10 +38,20 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
+    """对明文密码进行哈希并返回结果。"""
     return _password_hasher.hash(password)
 
 
-def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
+    """创建 JWT access token。
+
+    Args:
+        subject: Token 主题（当前实现使用用户 email）。
+        expires_delta: 可选的过期时长；为空则使用配置默认值。
+
+    Returns:
+        JWT 字符串。
+    """
     if expires_delta is None:
         expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     expire = datetime.utcnow() + expires_delta
@@ -42,9 +60,21 @@ def create_access_token(subject: str, expires_delta: Optional[timedelta] = None)
 
 
 async def get_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
+    token: str | None = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    """解析并校验当前请求的用户身份。
+
+    Args:
+        token: OAuth2 Bearer token。
+        db: 数据库会话（依赖注入）。
+
+    Returns:
+        当前登录用户。
+
+    Raises:
+        HTTPException: 当 token 缺失/无效、用户不存在或已禁用时抛出 401。
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="无法验证凭证",
@@ -57,8 +87,8 @@ async def get_current_user(
         subject: str | None = payload.get("sub")
         if subject is None:
             raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+    except JWTError as exc:
+        raise credentials_exception from exc
 
     result = await db.execute(select(User).where(User.email == subject))
     user = result.scalar_one_or_none()
@@ -68,9 +98,10 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    token: Optional[str] = Depends(oauth2_scheme),
+    token: str | None = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
-) -> Optional[User]:
+) -> User | None:
+    """可选鉴权：若未登录则返回 None。"""
     if not token:
         return None
     try:

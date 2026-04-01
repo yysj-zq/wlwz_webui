@@ -1,14 +1,12 @@
-from typing import Optional
-
 from pydantic import BaseModel
 
 
 class RoleOut(BaseModel):
     id: int
     name: str
-    system_prompt: Optional[str] = None
-    default_speaker_id: Optional[str] = None
-    avatar_url: Optional[str] = None
+    system_prompt: str | None = None
+    default_speaker_id: str | None = None
+    avatar_url: str | None = None
     is_builtin: bool
     is_mine: bool = False
 
@@ -18,11 +16,11 @@ class RoleOut(BaseModel):
 
 class RoleCreate(BaseModel):
     name: str
-    system_prompt: Optional[str] = None
-    default_speaker_id: Optional[str] = None
+    system_prompt: str | None = None
+    default_speaker_id: str | None = None
 
 
 class RoleUpdate(BaseModel):
-    name: Optional[str] = None
-    system_prompt: Optional[str] = None
-    default_speaker_id: Optional[str] = None
+    name: str | None = None
+    system_prompt: str | None = None
+    default_speaker_id: str | None = None

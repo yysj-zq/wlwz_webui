@@ -1,5 +1,3 @@
-from typing import Optional
-
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +23,7 @@ async def create_conversation(
     db: AsyncSession,
     user: User,
     title: str,
-    description: Optional[str] = None,
+    description: str | None = None,
 ) -> Conversation:
     convo = Conversation(user_id=user.id, title=title or "新的对话", description=description)
     db.add(convo)
@@ -48,7 +46,8 @@ async def rename_conversation(db: AsyncSession, user: User, conversation_id: int
     return convo
 
 
-async def append_messages(db: AsyncSession, conversation: Conversation, messages: list[dict]) -> None:
+async def append_messages(db: AsyncSession, conversation: Conversation, messages: list[dict[str, str]]) -> None:
+    """向会话追加消息并按 sequence 递增持久化。"""
     stmt = select(func.max(Message.sequence)).where(Message.conversation_id == conversation.id)
     result = await db.execute(stmt)
     max_seq = result.scalar_one()

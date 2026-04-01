@@ -2,16 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.api.dependencies import create_access_token, get_current_user, get_password_hash, verify_password
-from app.db.models import User
 from app.api.schemas.auth import Token, UserCreate, UserLogin, UserOut
+from app.db.models import User
+from app.db.session import get_db
 
 router = APIRouter()
 
 
 @router.post("/auth/register", response_model=UserOut)
 async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> UserOut:
+    """注册新用户。"""
     result = await db.execute(select(User).where(User.email == payload.email))
     existing = result.scalar_one_or_none()
     if existing:
@@ -25,6 +26,7 @@ async def register(payload: UserCreate, db: AsyncSession = Depends(get_db)) -> U
 
 @router.post("/auth/login", response_model=Token)
 async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)) -> Token:
+    """用户登录并返回 JWT token。"""
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(payload.password, user.password_hash):
@@ -36,4 +38,5 @@ async def login(payload: UserLogin, db: AsyncSession = Depends(get_db)) -> Token
 
 @router.get("/auth/me", response_model=UserOut)
 async def read_me(current_user: User = Depends(get_current_user)) -> UserOut:
+    """获取当前登录用户信息。"""
     return UserOut.model_validate(current_user)
