@@ -41,22 +41,23 @@ uv run main.py
 
 ```
 backend/
+├── app/
+│   ├── api/
+│   │   ├── router.py            # API 聚合路由
+│   │   └── routers/             # 各业务路由（协议层）
+│   ├── common/                  # 通用常量与上下文工具
+│   ├── core/                    # 配置与日志
+│   ├── db/                      # 数据库会话与初始化
+│   ├── dependencies/            # FastAPI 依赖注入（认证等）
+│   ├── infra/                   # 外部系统适配（LLM/TTS 缓存）
+│   ├── middleware/              # 中间件
+│   ├── models/                  # ORM 实体模型
+│   ├── schemas/                 # Pydantic 请求/响应模型
+│   ├── services/                # 业务服务层
+│   └── main.py                  # 应用工厂与 lifespan
 ├── config/
-│   └── roles.yaml       # 内置角色与 TTS 说话人配置
-├── models/
-│   └── db_models.py     # SQLAlchemy 模型
-├── routers/
-│   ├── auth_router.py           # 认证（登录/注册）
-│   ├── conversation_router.py  # 会话 CRUD
-│   ├── chat_router.py           # 聊天（/api/chat、/api/chat/stream）
-│   ├── roles_router.py          # 角色列表
-│   └── tts_router.py            # 文本转语音
-├── services/            # 业务逻辑
-├── utils/               # 安全、TTS 缓存、模型客户端等
-├── static/              # 静态资源（如角色头像）
-├── config.py            # 配置加载（Pydantic Settings）
-├── db.py                # 数据库初始化
-└── main.py              # 应用入口
+│   └── roles.yaml               # 内置角色与头像 seed 配置
+└── main.py                      # 运行入口（uvicorn）
 ```
 
 ## 主要 API
