@@ -47,3 +47,6 @@ jobs:
 
       - name: Mypy (strict)
         run: uv run mypy .
+
+      - name: Pytest
+        run: uv run pytest

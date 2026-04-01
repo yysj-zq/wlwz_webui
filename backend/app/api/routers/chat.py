@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from app.api.dependencies import get_current_user_optional
-from app.api.schemas.chat import ChatRequest
+from app.api.schemas import ChatRequest
 from app.core.logging import get_logger
 from app.db.models import User
 from app.db.session import get_db

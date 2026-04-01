@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
-from app.db.models.entities import User
+from app.db.models import User
 from app.db.session import get_db
 
 _password_hasher = PasswordHasher()

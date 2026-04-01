@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator
 
-from app.api.schemas.chat import MessageIn
-from app.common.prompt import SYSTEM_PROMPT_TEMPLATE
+from app.api.schemas import MessageIn
+from app.common import SYSTEM_PROMPT_TEMPLATE
 from app.core.logging import get_logger
 from app.infra.model_client import call_model_api
 

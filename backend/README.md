@@ -23,7 +23,7 @@ uv run main.py
 
 ## 代码风格与质量检查
 
-本项目使用 `ruff`（格式化 + lint）与 `mypy`（strict）做质量门禁。
+本项目使用 `ruff`（格式化 + lint）、`mypy`（strict）与 `pytest`（测试）做质量门禁。
 
 在 `backend/` 目录下执行：
 
@@ -31,6 +31,7 @@ uv run main.py
 uv run ruff format .
 uv run ruff check .
 uv run mypy .
+uv run pytest
 ```
 
 也可以在仓库根目录启用提交前自动检查（需要安装开发依赖组）：
@@ -38,6 +39,19 @@ uv run mypy .
 ```bash
 uv sync --group dev
 uv run pre-commit install
+```
+
+## 测试约定
+
+本项目采用 **平行 tests 目录**（Option B）：
+
+- `tests/api/`：API 契约测试（认证、会话、聊天等）
+- `tests/services/`：服务层纯逻辑/数据库交互测试
+
+执行：
+
+```bash
+uv run pytest
 ```
 
 ## 环境变量
@@ -62,22 +76,44 @@ uv run pre-commit install
 backend/
 ├── app/
 │   ├── api/
-│   │   ├── router.py            # API 聚合路由
-│   │   └── routers/             # 各业务路由（协议层）
+│   │   ├── dependencies/        # FastAPI 依赖注入（认证等）
+│   │   ├── middleware/          # HTTP 中间件
+│   │   ├── routers/             # 各业务路由（协议层）
+│   │   ├── schemas/             # Pydantic 请求/响应模型
+│   │   └── router.py            # API 聚合路由
 │   ├── common/                  # 通用常量与上下文工具
 │   ├── core/                    # 配置与日志
-│   ├── db/                      # 数据库会话与初始化
-│   ├── dependencies/            # FastAPI 依赖注入（认证等）
+│   ├── db/                      # 数据库会话与 ORM 模型
+│   │   ├── models/
+│   │   └── session.py
 │   ├── infra/                   # 外部系统适配（LLM/TTS 缓存）
-│   ├── middleware/              # 中间件
-│   ├── models/                  # ORM 实体模型
-│   ├── schemas/                 # Pydantic 请求/响应模型
 │   ├── services/                # 业务服务层
 │   └── main.py                  # 应用工厂与 lifespan
 ├── config/
 │   └── roles.yaml               # 内置角色与头像 seed 配置
+├── tests/
+│   ├── api/                     # API 契约测试
+│   └── services/                # 服务层测试
 └── main.py                      # 运行入口（uvicorn）
 ```
+
+## 导入与包公开接口约定
+
+- 统一使用绝对导入（`from app...`），不使用相对导入。
+- 优先从包级公开接口导入（例如 `app.api.schemas`、`app.db.models`）。
+- 聚合包通过 `__init__.py` + `__all__` 提供稳定公开面：
+  - `app.api`
+  - `app.api.schemas`
+  - `app.api.routers`
+  - `app.api.dependencies`
+  - `app.api.middleware`
+  - `app.db.models`
+  - `app.core`
+  - `app.common`
+  - `app.db`
+  - `app.infra`
+  - `app.services`
+- `app` 顶层包作为命名空间入口，不承载业务聚合导出。
 
 ## 主要 API
 

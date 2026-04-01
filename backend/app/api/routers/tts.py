@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.api.schemas.tts import TTSRequest
+from app.api.schemas import TTSRequest
 from app.core.logging import get_logger
 from app.db.models import User
 from app.db.session import get_db

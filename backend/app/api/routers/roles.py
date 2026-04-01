@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_current_user_optional
-from app.api.schemas.roles import RoleCreate, RoleOut, RoleUpdate
+from app.api.schemas import RoleCreate, RoleOut, RoleUpdate
 from app.db.models import RoleProfile, User
 from app.db.session import get_db
 from app.services.roles_service import (

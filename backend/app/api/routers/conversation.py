@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.api.schemas.conversation import ConversationOut, ConversationRename, MessageOut
+from app.api.schemas import ConversationOut, ConversationRename, MessageOut
 from app.db.models import Message, User
 from app.db.session import get_db
 from app.services.conversation_service import (
