@@ -4,6 +4,7 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import mimetypes
 import yaml
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,19 @@ from logging_config import get_logger
 from models.db_models import RoleProfile, User
 
 logger = get_logger(__name__)
+
+
+def _guess_avatar_mime_type(filename: str) -> str:
+    mt, _ = mimetypes.guess_type(filename)
+    if mt:
+        return mt
+    if filename.lower().endswith(".svg"):
+        return "image/svg+xml"
+    return "application/octet-stream"
+
+
+def _avatar_api_path(role_id: int) -> str:
+    return f"{settings.API_PREFIX}/roles/{role_id}/avatar"
 
 
 def _load_roles_config() -> List[Dict[str, Any]]:
@@ -38,7 +52,21 @@ async def init_builtin_roles_if_enabled(db: AsyncSession) -> None:
     await db.execute(delete(RoleProfile).where(RoleProfile.is_builtin == True))
     await db.commit()
     roles_data = _load_roles_config()
+    config_path = Path(settings.ROLES_CONFIG_PATH)
+    if not config_path.is_absolute():
+        config_path = Path(__file__).resolve().parent.parent / config_path
+    config_dir = config_path.parent
     for item in roles_data:
+        seed_path_raw = (item.get("avatar_seed_path") or "").strip()
+        avatar_blob = None
+        avatar_mime_type = None
+        if seed_path_raw:
+            seed_path = Path(seed_path_raw)
+            avatar_path = seed_path if seed_path.is_absolute() else (config_dir / seed_path)
+            if not avatar_path.exists():
+                raise RuntimeError(f"builtin_avatar_seed_missing: {seed_path_raw}")
+            avatar_blob = avatar_path.read_bytes()
+            avatar_mime_type = _guess_avatar_mime_type(avatar_path.name)
         r = RoleProfile(
             user_id=None,
             name=item.get("name", "").strip(),
@@ -46,7 +74,8 @@ async def init_builtin_roles_if_enabled(db: AsyncSession) -> None:
             default_speaker_id=item.get("default_speaker_id") or None,
             config_json=None,
             is_builtin=True,
-            avatar_url=item.get("avatar_url"),
+            avatar_blob=avatar_blob,
+            avatar_mime_type=avatar_mime_type,
         )
         db.add(r)
     await db.commit()
@@ -77,7 +106,7 @@ async def get_available_roles_for_user(
             "name": r.name,
             "system_prompt": r.system_prompt,
             "default_speaker_id": r.default_speaker_id,
-            "avatar_url": r.avatar_url,
+            "avatar_url": _avatar_api_path(r.id) if r.avatar_blob else None,
             "is_builtin": r.is_builtin,
             "is_mine": user is not None and r.user_id == user.id,
         }

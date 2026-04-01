@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -116,7 +117,8 @@ class RoleProfile(Base):
         nullable=True,
     )
     is_builtin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    avatar_blob: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+    avatar_mime_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
     user: Mapped[Optional["User"]] = relationship(back_populates="role_profiles")

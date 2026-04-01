@@ -1,10 +1,13 @@
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
+from config import settings
 from db import get_db
-from models.db_models import User
+from models.db_models import RoleProfile, User
 from services.models import RoleCreate, RoleOut, RoleUpdate
 from services.roles_service import (
     create_custom_role,
@@ -13,14 +16,12 @@ from services.roles_service import (
     get_my_role,
     update_custom_role,
 )
-from pathlib import Path
 from utils.security import get_current_user, get_current_user_optional
 
 router = APIRouter()
 
-# 与 main 中挂载的 static 一致：backend/static/role-avatars
-_ROLE_AVATAR_DIR = Path(__file__).resolve().parent.parent / "static" / "role-avatars"
-AVATAR_URL_PREFIX = "/static/role-avatars"
+def _avatar_api_path(role_id: int) -> str:
+    return f"{settings.API_PREFIX}/roles/{role_id}/avatar"
 
 
 @router.get("/roles", response_model=Dict[str, Any])
@@ -59,7 +60,7 @@ async def create_my_role(
         name=r.name,
         system_prompt=r.system_prompt,
         default_speaker_id=r.default_speaker_id,
-        avatar_url=r.avatar_url,
+        avatar_url=_avatar_api_path(r.id) if r.avatar_blob else None,
         is_builtin=False,
         is_mine=True,
     )
@@ -88,7 +89,7 @@ async def update_my_role(
         name=r.name,
         system_prompt=r.system_prompt,
         default_speaker_id=r.default_speaker_id,
-        avatar_url=r.avatar_url,
+        avatar_url=_avatar_api_path(r.id) if r.avatar_blob else None,
         is_builtin=False,
         is_mine=True,
     )
@@ -119,19 +120,9 @@ async def upload_role_avatar(
         raise HTTPException(status_code=404, detail="角色不存在或无权修改")
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="请上传图片文件")
-    import uuid
-    ext = ".png"
-    if file.filename and "." in file.filename:
-        ext = "." + file.filename.rsplit(".", 1)[-1].lower()
-    if ext not in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
-        ext = ".png"
-    _ROLE_AVATAR_DIR.mkdir(parents=True, exist_ok=True)
-    filename = f"role_{role_id}_{uuid.uuid4().hex[:8]}{ext}"
-    path = _ROLE_AVATAR_DIR / filename
     content = await file.read()
-    path.write_bytes(content)
-    avatar_url = f"{AVATAR_URL_PREFIX}/{filename}"
-    r.avatar_url = avatar_url
+    r.avatar_blob = content
+    r.avatar_mime_type = file.content_type
     await db.commit()
     await db.refresh(r)
     return RoleOut(
@@ -139,7 +130,20 @@ async def upload_role_avatar(
         name=r.name,
         system_prompt=r.system_prompt,
         default_speaker_id=r.default_speaker_id,
-        avatar_url=r.avatar_url,
+        avatar_url=_avatar_api_path(r.id) if r.avatar_blob else None,
         is_builtin=False,
         is_mine=True,
     )
+
+
+@router.get("/roles/{role_id}/avatar")
+async def get_role_avatar(
+    role_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    # 直接查 role_profiles，避免依赖 avatar_url，且不做任何兜底。
+    row = await db.execute(select(RoleProfile).where(RoleProfile.id == role_id))
+    r = row.scalar_one_or_none()
+    if r is None or not r.avatar_blob or not r.avatar_mime_type:
+        raise HTTPException(status_code=404, detail="头像不存在")
+    return Response(content=r.avatar_blob, media_type=r.avatar_mime_type)
