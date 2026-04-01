@@ -598,7 +598,7 @@ function App() {
             backdropFilter: 'blur(20px)',
             background: theme.palette.mode === 'light'
               ? 'linear-gradient(180deg, rgba(249, 251, 255, 0.94), rgba(245, 248, 255, 0.86))'
-              : 'linear-gradient(180deg, rgba(18, 22, 32, 0.95), rgba(18, 22, 32, 0.84))',
+              : 'linear-gradient(180deg, rgba(16, 15, 14, 0.95), rgba(16, 15, 14, 0.84))',
             '@keyframes controlCenterIn': {
               from: { opacity: 0, transform: 'translateX(12px)' },
               to: { opacity: 1, transform: 'translateX(0)' },
@@ -675,7 +675,7 @@ function App() {
             borderRadius: 4,
             background: theme.palette.mode === 'light'
               ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,249,255,0.92))'
-              : 'linear-gradient(180deg, rgba(26,30,44,0.95), rgba(17,21,33,0.95))',
+              : 'linear-gradient(180deg, rgba(20,19,18,0.95), rgba(14,13,12,0.95))',
             boxShadow: theme.palette.mode === 'light'
               ? '0 20px 60px rgba(12, 32, 78, 0.18)'
               : '0 20px 60px rgba(0, 0, 0, 0.48)',
@@ -750,7 +750,7 @@ function App() {
             borderRadius: 4,
             background: theme.palette.mode === 'light'
               ? 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,249,255,0.92))'
-              : 'linear-gradient(180deg, rgba(26,30,44,0.95), rgba(17,21,33,0.95))',
+              : 'linear-gradient(180deg, rgba(20,19,18,0.95), rgba(14,13,12,0.95))',
             backdropFilter: 'blur(16px)',
             boxShadow: theme.palette.mode === 'light'
               ? '0 20px 60px rgba(12, 32, 78, 0.18)'

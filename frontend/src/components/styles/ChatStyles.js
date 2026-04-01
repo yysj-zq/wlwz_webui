@@ -35,7 +35,7 @@ export const DirectorPanel = styled(Box)(({ theme }) => ({
   background:
     theme.palette.mode === 'light'
       ? 'rgba(255,255,255,0.7)'
-      : 'rgba(30,35,50,0.54)',
+      : 'rgba(20,19,18,0.56)',
   backdropFilter: 'blur(12px)',
   marginTop: theme.spacing(1.2),
 }));
@@ -46,7 +46,7 @@ export const RoleBioCard = styled(Box)(({ theme }) => ({
   background:
     theme.palette.mode === 'light'
       ? 'rgba(245,248,255,0.72)'
-      : 'rgba(18,22,34,0.54)',
+      : 'rgba(16,15,14,0.56)',
   transition: 'opacity 140ms ease',
   '&:hover': {
     opacity: 0.96,
@@ -123,7 +123,7 @@ export const StyledAvatar = styled(Avatar)(({ theme }) => ({
   height: 42,
   background: theme.palette.mode === 'light'
     ? 'linear-gradient(180deg, rgba(255,255,255,0.66), rgba(209,224,255,0.3))'
-    : 'linear-gradient(180deg, rgba(255,255,255,0.2), rgba(108,136,214,0.2))',
+    : 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(214,178,94,0.18))',
   color: theme.palette.primary.contrastText,
   backdropFilter: 'blur(6px)',
   boxShadow: theme.palette.mode === 'light'
