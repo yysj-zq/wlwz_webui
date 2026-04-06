@@ -1,6 +1,5 @@
 """每个用例独立库：默认临时 SQLite。指定库仅认 ``TEST_DATABASE_URL``（勿用 ``DATABASE_URL``，避免误连开发库）。"""
 
-import os
 from collections.abc import AsyncIterator
 from functools import lru_cache
 from pathlib import Path
@@ -20,11 +19,13 @@ from app.db import session as db_session
 
 
 def _test_database_url(tmp_path_db: Path) -> str:
-    return os.environ.get("TEST_DATABASE_URL") or f"sqlite+aiosqlite:///{tmp_path_db}"
+    if settings.TEST_DATABASE_URL:
+        return settings.TEST_DATABASE_URL
+    return f"sqlite+aiosqlite:///{tmp_path_db}"
 
 
 def _uses_explicit_test_database_url() -> bool:
-    return bool(os.environ.get("TEST_DATABASE_URL"))
+    return bool(settings.TEST_DATABASE_URL)
 
 
 @lru_cache(maxsize=1)

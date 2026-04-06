@@ -29,8 +29,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = Field(default="sqlite+aiosqlite:///./app.db")
     SQLALCHEMY_ECHO: bool = Field(default=False)
-    # 仅 pytest/CI 使用（见 tests/conftest）；应用运行时不读取，但 .env 中若存在须声明以免 extra_forbidden
-    TEST_DATABASE_URL: str | None = Field(default=None)
+    TEST_DATABASE_URL: str | None = Field(default=None)  # 仅 tests/conftest；应用连库用 DATABASE_URL
 
     JWT_SECRET_KEY: str = Field(default="change-this-in-production")
     JWT_ALGORITHM: str = Field(default="HS256")

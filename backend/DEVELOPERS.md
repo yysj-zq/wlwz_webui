@@ -40,7 +40,7 @@ make dev
 | **本地 `pytest`** | **不**要求验双库；默认使用**临时 SQLite 文件**（`tmp_path`），只验证**业务与 ORM 逻辑**。 | 迁移脚本与模型在 **CI 已验证**；本地不重复承担方言/迁移门禁。 |
 | **CI** | **实际**跑 **SQLite** 与 **PostgreSQL** 两个并行 job；SQLite job 仅设 `DATABASE_URL`（alembic 用），pytest 用独立临时文件；Postgres job 设 `DATABASE_URL` 与 `TEST_DATABASE_URL`（同值），再依次执行质量检查、`alembic upgrade head`、`alembic check`、`pytest`。 | 双库 + Alembic 门禁是 **CI 责任**；合并前以 CI 全部通过为准。 |
 
-可选：本地设置 `TEST_DATABASE_URL` 可让 pytest 连指定库（**非默认**，不强制每人装 Postgres）。**不要**用 `DATABASE_URL` 跑测试，以免加载 `.env` 时误连开发库。
+可选：设置 `TEST_DATABASE_URL` 可让 pytest 连指定库（**非默认**，不强制每人装 Postgres）。**不要**用 `DATABASE_URL` 跑测试，以免误连开发库。
 
 ### pytest 与 Alembic 的分工
 
@@ -82,7 +82,7 @@ uv run pytest
 
 ### 测试数据库（SQLite / PostgreSQL）
 
-pytest **只**读取 **`TEST_DATABASE_URL`** 指定测试库；未设置时使用**临时 SQLite 文件**，无需额外配置、**无需**本地先建库或验双库。
+pytest **只**认 **`TEST_DATABASE_URL`**（可选）；未设置时使用**临时 SQLite 文件**，无需额外配置、**无需**本地先建库或验双库。
 
 指定环境变量时，fixture 会在每次用例前重置 schema（`drop_all` + `create_all`），以便在 PostgreSQL 或共享 SQLite 文件上安全重复跑用例。
 
