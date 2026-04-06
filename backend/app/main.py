@@ -8,7 +8,7 @@ from app.api.middleware import HttpAccessMiddleware
 from app.api.router import api_router
 from app.core.logging import configure_logging
 from app.core.settings import settings
-from app.db.session import AsyncSessionLocal, init_db
+from app.db.session import AsyncSessionLocal, check_db_health, ping_db
 from app.services.roles_service import init_builtin_roles_if_enabled
 
 configure_logging()
@@ -16,8 +16,8 @@ configure_logging()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """应用生命周期钩子：初始化数据库并（可选）初始化内置角色。"""
-    await init_db()
+    """应用生命周期钩子：验证数据库连接并（可选）初始化内置角色。"""
+    await check_db_health()
     async with AsyncSessionLocal() as db:
         await init_builtin_roles_if_enabled(db)
     yield
@@ -43,8 +43,12 @@ def create_app() -> FastAPI:
 
     @app.get("/")
     async def root() -> dict[str, str]:
-        """健康检查接口。"""
-        return {"status": "ok", "message": "服务正常运行"}
+        """健康检查接口：验证数据库连接。"""
+        try:
+            await ping_db()
+            return {"status": "ok", "message": "服务正常运行"}
+        except RuntimeError as e:
+            return {"status": "error", "message": str(e)}
 
     return app
 

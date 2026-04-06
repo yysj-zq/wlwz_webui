@@ -1,0 +1,50 @@
+name: Backend quality
+description: Ruff, Mypy, Alembic, pytest（DATABASE_URL 由 job env 提供）
+runs:
+  using: composite
+  steps:
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: |
+          backend/uv.lock
+          backend/pyproject.toml
+
+    - name: Sync dependencies (incl. dev)
+      run: uv sync --group dev
+      shell: bash
+      working-directory: backend
+
+    - name: Ruff format (check)
+      run: uv run ruff format --check .
+      shell: bash
+      working-directory: backend
+
+    - name: Ruff lint
+      run: uv run ruff check .
+      shell: bash
+      working-directory: backend
+
+    - name: Mypy (strict)
+      run: uv run mypy .
+      shell: bash
+      working-directory: backend
+
+    - name: Alembic upgrade and check
+      run: |
+        uv run alembic upgrade head
+        uv run alembic check
+      shell: bash
+      working-directory: backend
+
+    - name: Pytest
+      run: uv run pytest
+      shell: bash
+      working-directory: backend

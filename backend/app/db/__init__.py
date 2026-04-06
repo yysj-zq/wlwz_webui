@@ -1,7 +1,7 @@
 """Database setup and session utilities."""
 
-from app.db.models import Conversation, Message, RoleProfile, User
-from app.db.session import AsyncSessionLocal, Base, engine, get_db, init_db
+from app.db.models import Conversation, Message, RoleProfile, TTSVoiceCache, User, UserSetting
+from app.db.session import AsyncSessionLocal, Base, get_db
 
 __all__ = [
     "AsyncSessionLocal",
@@ -9,8 +9,8 @@ __all__ = [
     "Conversation",
     "Message",
     "RoleProfile",
+    "TTSVoiceCache",
     "User",
-    "engine",
+    "UserSetting",
     "get_db",
-    "init_db",
 ]

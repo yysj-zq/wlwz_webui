@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
@@ -86,8 +86,6 @@ async def get_available_roles_for_user(db: AsyncSession, user: User | None) -> d
     """获取当前用户可用的角色列表与辅助映射信息。"""
     stmt = select(RoleProfile).where(RoleProfile.is_builtin.is_(True))
     if user is not None:
-        from sqlalchemy import or_
-
         stmt = select(RoleProfile).where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user.id))
     result = await db.execute(stmt)
     roles = list(result.scalars().unique().all())
@@ -116,8 +114,6 @@ async def get_available_roles_for_user(db: AsyncSession, user: User | None) -> d
 
 async def get_speaker_id_for_role(db: AsyncSession, role_name: str, user: User | None) -> str | None:
     """根据角色名获取对应的默认 speaker_id（如有）。"""
-    from sqlalchemy import or_
-
     stmt = select(RoleProfile).where(RoleProfile.name == role_name)
     if user is not None:
         stmt = stmt.where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user.id))

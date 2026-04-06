@@ -5,48 +5,51 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/backend-quality.yml"
+      - ".github/actions/backend-quality/**"
   push:
     branches:
       - master
     paths:
       - "backend/**"
       - ".github/workflows/backend-quality.yml"
+      - ".github/actions/backend-quality/**"
 
 jobs:
-  backend-quality:
+  backend-quality-sqlite:
+    name: backend-quality (SQLite)
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite+aiosqlite:///./ci.sqlite
     defaults:
       run:
         working-directory: backend
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/backend-quality
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: |
-            backend/uv.lock
-            backend/pyproject.toml
-
-      - name: Sync dependencies (incl. dev)
-        run: uv sync --group dev
-
-      - name: Ruff format (check)
-        run: uv run ruff format --check .
-
-      - name: Ruff lint
-        run: uv run ruff check .
-
-      - name: Mypy (strict)
-        run: uv run mypy .
-
-      - name: Pytest
-        run: uv run pytest
+  backend-quality-postgres:
+    name: backend-quality (PostgreSQL)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+asyncpg://ci:ci@127.0.0.1:5432/ci
+      TEST_DATABASE_URL: postgresql+asyncpg://ci:ci@127.0.0.1:5432/ci
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/backend-quality
