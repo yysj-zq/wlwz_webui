@@ -4,12 +4,13 @@ import os
 from collections.abc import AsyncIterator
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, cast
 
+import httpx
 import pytest
 import pytest_asyncio
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
@@ -69,7 +70,12 @@ async def _prepare_schema(engine: AsyncEngine) -> None:
 
 
 @pytest_asyncio.fixture
-async def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[TestClient]:
+async def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[httpx.AsyncClient]:
+    """使用 ``httpx.AsyncClient`` + ``ASGITransport``，与 asyncpg/SQLAlchemy 共用同一事件循环。
+
+    ``fastapi.testclient.TestClient`` 在子线程经 ``BlockingPortal`` 跑 ASGI，与在 pytest-asyncio
+    主循环里创建的 ``AsyncEngine`` 不在同一线程，asyncpg 会报 *Future attached to a different loop*。
+    """
     db_file = tmp_path / "api_test.db"
     url = _test_database_url(db_file)
     test_engine = create_async_engine(url, future=True, echo=False)
@@ -82,8 +88,11 @@ async def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterat
     monkeypatch.setattr(settings, "INIT_BUILTIN_ROLES_ON_START", False)
 
     await _prepare_schema(test_engine)
+    await db_session.check_db_health()
 
-    with TestClient(app_main.create_app()) as test_client:
+    app = app_main.create_app()
+    transport = httpx.ASGITransport(app=cast(Any, app))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as test_client:
         yield test_client
 
     await test_engine.dispose()
