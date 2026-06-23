@@ -7,7 +7,16 @@ import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';
 import RolesPage from './pages/RolesPage';
 import { v4 as uuidv4 } from 'uuid';
-import { sendChatMessage, sendStreamMessage, requestTTS, login, register, getCurrentUser, setAuthToken, listConversations, getConversationMessages, deleteConversationApi, renameConversationApi, getRoles } from './services/api';
+import { sendChatMessage, sendStreamMessage, requestTTS, login, register, getCurrentUser, setAuthToken, listConversations, getConversationMessages, deleteConversationApi, renameConversationApi, getRoles, ensureConversation, sendPlayerAction } from './services/api';
+import { applyTimelineDelta } from './game/worldState'; // eslint-disable-line no-unused-vars
+
+// chat 路径需要把 assistantRole（中文展示名）映射到 world_state 里的 actor_id。
+// 后端会校验 targetActorId 必须存在于 entities 内。
+const ROLE_NAME_TO_ACTOR_ID = {
+  '佟湘玉': 'tongxiangyu',
+  '白展堂': 'baizhantang',
+  '郭芙蓉': 'guofurong',
+};
 
 function App() {
   const { theme } = useTheme();
@@ -57,6 +66,11 @@ function App() {
   const [leftPeek, setLeftPeek] = useState(false);
   const [sidebarPreviewActive, setSidebarPreviewActive] = useState(false);
   const [topbarCondensed, setTopbarCondensed] = useState(false);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('viewMode') || 'chat');
+  const [conversationWorlds, setConversationWorlds] = useState({});
+  const [gameDialogueLines, setGameDialogueLines] = useState([]);
+  const [gameLoading, setGameLoading] = useState(false);
+  const currentConversationWorldStateRef = useRef(null);
   const leftEnterTimerRef = useRef(null);
   const leftLeaveTimerRef = useRef(null);
   const zenMode = zenPinned;
@@ -132,6 +146,10 @@ function App() {
   }, [controlCenterTab]);
 
   useEffect(() => {
+    localStorage.setItem('viewMode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
     return () => {
       if (leftEnterTimerRef.current) clearTimeout(leftEnterTimerRef.current);
       if (leftLeaveTimerRef.current) clearTimeout(leftLeaveTimerRef.current);
@@ -141,6 +159,15 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (viewMode === 'game' && currentConversation) {
+      ensureCurrentConversationWorld().catch((error) => {
+        console.error('Ensure game session error', error);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, currentConversationId]);
 
   const handleSidebarToggle = () => {
     setSidebarPreviewActive(false);
@@ -174,6 +201,73 @@ function App() {
   };
 
   const currentConversation = conversations.find(conv => conv.id === currentConversationId) || conversations[0];
+  const currentConversationWorld = currentConversation ? conversationWorlds[currentConversation.id] : null;
+  const currentConversationWorldState = currentConversationWorld?.world_state || null;
+
+  useEffect(() => {
+    currentConversationWorldStateRef.current = currentConversationWorldState;
+  }, [currentConversationWorldState]);
+
+  const getEntityName = (worldState, actorId) => (
+    worldState?.entities?.[actorId]?.name || actorId || 'scene'
+  );
+
+  const requireLoginForGame = () => {
+    if (currentUser) {
+      return true;
+    }
+    setAuthMode('login');
+    setAuthError('请先登录后进入游戏模式，游戏状态需要绑定到你的会话。');
+    setAuthDialogOpen(true);
+    return false;
+  };
+
+  const handleViewModeChange = (nextMode) => {
+    if (nextMode === 'game' && !requireLoginForGame()) {
+      return;
+    }
+    setViewMode(nextMode);
+  };
+
+  const patchCurrentConversation = (patcher) => {
+    setConversations(prev =>
+      prev.map(conv => (
+        conv.id === currentConversationId ? patcher(conv) : conv
+      ))
+    );
+  };
+
+  const ensureCurrentConversationWorld = async () => {
+    if (!currentConversation) {
+      return null;
+    }
+    if (!requireLoginForGame()) {
+      return null;
+    }
+    const existing = conversationWorlds[currentConversation.id];
+    if (existing?.world_state) {
+      return existing;
+    }
+    setGameLoading(true);
+    try {
+      const data = await ensureConversation({
+        conversationId: currentConversation.backendConversationId || null,
+        title: currentConversation.title,
+      });
+      // 仅在拿到 backend conversation_id 后才把 game session 写入 map，避免
+      // 离线/异常路径产生只有 UI key 的幽灵条目。
+      if (data?.id) {
+        setConversationWorlds(prev => ({ ...prev, [currentConversation.id]: data }));
+        currentConversationWorldStateRef.current = data.world_state;
+        if (!currentConversation.backendConversationId) {
+          patchCurrentConversation(conv => ({ ...conv, backendConversationId: data.id }));
+        }
+      }
+      return data;
+    } finally {
+      setGameLoading(false);
+    }
+  };
 
   const handleCreateNewChat = () => {
     setShouldCreateNewChat(true);
@@ -216,13 +310,21 @@ function App() {
     const conv = conversations.find(c => c.id === id);
     if (currentUser && conv && conv.backendConversationId && (!conv.messages || conv.messages.length === 0)) {
       getConversationMessages(conv.backendConversationId)
-        .then(msgs => {
-          const uiMessages = msgs.map(m => ({
-            id: uuidv4(),
-            role: m.role,
-            content: m.content,
-            timestamp: m.created_at,
-          }));
+        .then(entries => {
+          // 端点已改为 /timeline，按 (kind, actor_id) 映射成 UI 消息：
+          // - speak: 普通对话气泡，role 取 actor_id（玩家保持 "player" 显示）
+          // - scene: 旁白
+          // - act/speak_and_act: 暂只显示 speak 部分
+          const uiMessages = entries
+            .filter((m) => m.speak)
+            .map((m) => ({
+              id: uuidv4(),
+              role: m.kind === 'scene' ? 'scene' : m.actor_id,
+              content: m.speak,
+              kind: m.kind === 'scene' ? 'narration' : (m.actor_id === 'player' ? 'player_action' : 'npc_line'),
+              metadata_json: m,
+              timestamp: m.created_at,
+            }));
           setConversations(prev =>
             prev.map(c =>
               c.id === id ? { ...c, messages: uiMessages } : c
@@ -366,7 +468,7 @@ function App() {
     return cleaned.trim();
   };
 
-  const handleSendMessage = (message) => {
+  const handleSendMessage = async (message) => {
     // 找到当前对话
     const updatedConversations = conversations.map(conv => {
       if (conv.id === currentConversationId) {
@@ -409,63 +511,49 @@ function App() {
     const lastMessageId = currentConv.messages[currentConv.messages.length - 1].id;
 
     // 准备发送到API的消息数组，去掉UI相关字段
-    const apiMessages = currentConv.messages
-      .filter(msg => msg.id !== lastMessageId) // 排除刚刚添加的空助手消息
-      .map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
+    const lastUserMessage = currentConv.messages
+      .filter(msg => msg.id !== lastMessageId && msg.role === userRole)
+      .pop();
+    const content = lastUserMessage?.content || '';
+    const targetActorId = ROLE_NAME_TO_ACTOR_ID[assistantRole] || 'tongxiangyu';
+    // 确保 conversation 已在后端创建（自带世界）；chat / game action 共用同一 conversation。
+    const ensured = await ensureConversation({
+      conversationId: currentConv.backendConversationId || null,
+      title: currentConv.title,
+    });
+    const backendConversationId = ensured.id;
+    if (backendConversationId && !currentConv.backendConversationId) {
+      setConversations(prev =>
+        prev.map(conv =>
+          conv.id === currentConversationId
+            ? { ...conv, backendConversationId }
+            : conv,
+        ),
+      );
+    }
 
-    console.log(apiMessages);
-    // 根据是否启用流式响应选择合适的API调用方法
+    console.log('[chat] sending', { content, targetActorId, backendConversationId });
     if (streamingEnabled) {
-      // 使用流式API
       let responseContent = '';
-
       sendStreamMessage(
-        apiMessages,
-        userRole,
-        assistantRole,
-        currentConv.backendConversationId || null,
-        (chunk, conversationIdFromServer) => {
-          // 收到数据块时回调
+        { conversationId: backendConversationId, targetActorId, content },
+        (chunk) => {
           responseContent += chunk;
-          console.log('got'+chunk);
           updateAssistantMessage(lastMessageId, responseContent, false);
-          if (conversationIdFromServer && !currentConv.backendConversationId) {
-            setConversations(prev =>
-              prev.map(conv =>
-                conv.id === currentConversationId
-                  ? { ...conv, backendConversationId: conversationIdFromServer }
-                  : conv
-              )
-            );
-          }
         },
-        () => {
-          // 完成时回调
-          updateAssistantMessage(lastMessageId, responseContent, true);
-        },
+        () => updateAssistantMessage(lastMessageId, responseContent, true),
         (error) => {
-          // 错误时回调
           console.error('Stream API Error:', error);
           updateAssistantMessage(lastMessageId, '抱歉，发生了错误，请稍后再试。', true);
-        }
+        },
       );
     } else {
-      // 使用普通API（非流式）
-      sendChatMessage(apiMessages, userRole, assistantRole, currentConv.backendConversationId || null)
-        .then(response => {
-          if (response.conversationId && !currentConv.backendConversationId) {
-            setConversations(prev =>
-              prev.map(conv =>
-                conv.id === currentConversationId
-                  ? { ...conv, backendConversationId: response.conversationId }
-                  : conv
-              )
-            );
-          }
-          updateAssistantMessage(lastMessageId, response.content || '抱歉，没有收到有效回复。', true);
+      sendChatMessage({ conversationId: backendConversationId, targetActorId, content })
+        .then(data => {
+          const reply = (data.timeline_delta || []).find(
+            (e) => e.actor_id === targetActorId && e.speak,
+          );
+          updateAssistantMessage(lastMessageId, reply?.speak || '（沉默）', true);
         })
         .catch(error => {
           console.error('Chat API Error:', error);
@@ -498,6 +586,105 @@ function App() {
 
     if (done && processedContent) {
       autoplayMessageAudio(messageId, processedContent);
+    }
+  };
+
+  const handleGameAction = async (actionPayload) => {
+    if (!currentConversation) return;
+    if (!requireLoginForGame()) return;
+    // move（只有 act_patch 无 speak）走快路径，不展示 blocking loading：
+    // 键盘连按时 spinner 闪烁会很难看，且后端有 stateVersion 乐观锁兜底。
+    const shouldShowBlockingLoading = Boolean(actionPayload.speak);
+    if (shouldShowBlockingLoading) {
+      setGameLoading(true);
+    }
+    try {
+      const ensured = await ensureCurrentConversationWorld();
+      const worldState = currentConversationWorldStateRef.current || ensured?.world_state;
+      const backendConversationId = ensured?.id || currentConversation.backendConversationId;
+      const response = await sendPlayerAction(backendConversationId || 0, {
+        ...actionPayload,
+        conversationId: backendConversationId || null,
+        stateVersion: worldState?.state_version || null,
+      });
+
+      setConversationWorlds(prev => ({
+        ...prev,
+        [currentConversation.id]: {
+          ...(ensured || {}),
+          id: response.conversationId,
+          state_version: response.stateVersion,
+          world_state: response.world_state,
+        },
+      }));
+      currentConversationWorldStateRef.current = response.world_state;
+
+      if (response.conversationId && !currentConversation.backendConversationId) {
+        patchCurrentConversation(conv => ({ ...conv, backendConversationId: response.conversationId }));
+      }
+
+      const newMessages = [];
+      if (actionPayload.speak) {
+        newMessages.push({
+          id: uuidv4(),
+          role: userRole || '玩家',
+          content: actionPayload.speak,
+          timestamp: new Date().toISOString(),
+          kind: 'player_action',
+        });
+      }
+      if (response.narration) {
+        newMessages.push({
+          id: uuidv4(),
+          role: 'scene',
+          content: response.narration,
+          timestamp: new Date().toISOString(),
+          kind: 'narration',
+        });
+      }
+      // timeline_delta 是后端权威事件流；过滤掉 player 自身条目，剩下的就是 NPC speak / scene
+      const npcDialogueLines = [];
+      (response.timeline_delta || []).forEach((entry) => {
+        if (entry.actor_id === 'player') return;
+        if (entry.kind === 'scene') {
+          newMessages.push({
+            id: uuidv4(),
+            role: 'scene',
+            content: entry.speak,
+            timestamp: entry.created_at || new Date().toISOString(),
+            kind: 'narration',
+          });
+          return;
+        }
+        if (entry.speak) {
+          newMessages.push({
+            id: uuidv4(),
+            role: getEntityName(response.world_state, entry.actor_id),
+            content: entry.speak,
+            timestamp: entry.created_at || new Date().toISOString(),
+            kind: 'npc_line',
+            metadata_json: entry,
+          });
+          npcDialogueLines.push({ actor_id: entry.actor_id, text: entry.speak });
+        }
+      });
+      if (newMessages.length) {
+        patchCurrentConversation(conv => ({
+          ...conv,
+          messages: [...(conv.messages || []), ...newMessages],
+        }));
+      }
+      if (npcDialogueLines.length) {
+        setGameDialogueLines(prev => [...prev, ...npcDialogueLines]);
+      }
+      return response;
+    } catch (error) {
+      console.error('Game action error', error);
+      throw error;
+    } finally {
+      if (shouldShowBlockingLoading) {
+        setGameLoading(false);
+      }
     }
   };
 
@@ -546,6 +733,8 @@ function App() {
           onSidebarToggle={isChatPage ? handleSidebarToggle : undefined}
           onNewChat={isChatPage ? handleCreateNewChat : undefined}
           onOpenControlCenter={openControlCenter}
+          viewMode={viewMode}
+          onViewModeChange={isChatPage ? handleViewModeChange : undefined}
         />
       </Box>
       <Box component="main" id="main-content" sx={{ display: 'flex', flex: 1, minHeight: 0, pb: 0 }}>
@@ -579,6 +768,11 @@ function App() {
                 rolesConfig={rolesConfig}
                 onZenActivate={activateZenMode}
                 onTopbarCondenseChange={setTopbarCondensed}
+                viewMode={viewMode}
+                gameWorldState={currentConversationWorldState}
+                gameLoading={gameLoading}
+                gameDialogueLines={gameDialogueLines}
+                onGameAction={handleGameAction}
               />
             }
           />

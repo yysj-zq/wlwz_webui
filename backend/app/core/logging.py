@@ -10,7 +10,7 @@ import structlog
 from structlog.contextvars import merge_contextvars
 from structlog.typing import Processor
 
-from app.core.settings import settings
+from app.core.config import settings
 
 
 def _parse_log_level(name: str) -> int:

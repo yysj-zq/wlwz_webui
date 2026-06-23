@@ -7,8 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.middleware import HttpAccessMiddleware
 from app.api.router import api_router
 from app.core.logging import configure_logging
-from app.core.settings import settings
-from app.db.session import AsyncSessionLocal, check_db_health, ping_db
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal, check_db_health, ping_db
 from app.services.roles_service import init_builtin_roles_if_enabled
 
 configure_logging()

@@ -1,3 +1,4 @@
+import hashlib
 import io
 import struct
 import time
@@ -6,9 +7,10 @@ from functools import lru_cache
 from typing import Any
 
 import requests
+from redis.asyncio import Redis
 
+from app.core.config import settings
 from app.core.logging import get_logger
-from app.core.settings import settings
 
 logger = get_logger(__name__)
 
@@ -120,3 +122,37 @@ def synthesize_role_voice(text: str, speaker_id: str) -> bytes:
         raise RuntimeError(f"TTS 请求失败: {exc}") from exc
     except (KeyError, TypeError, ValueError) as exc:
         raise RuntimeError(f"TTS 响应解析失败: {exc}") from exc
+
+
+# ---- TTS Redis Cache ----
+
+_redis_client: Redis | None = None
+
+
+def _get_redis_client() -> Redis:
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = Redis.from_url(settings.REDIS_URL)
+    return _redis_client
+
+
+def _make_cache_key(user_id: int, text: str, speaker_id: str | None) -> str:
+    payload = f"{user_id}:{speaker_id or ''}:{text}".encode()
+    digest = hashlib.sha256(payload).hexdigest()
+    return f"tts:{digest}"
+
+
+async def get_tts_cache(user_id: int, text: str, speaker_id: str | None) -> bytes | None:
+    client = _get_redis_client()
+    key = _make_cache_key(user_id, text, speaker_id)
+    cached = await client.get(key)
+    if cached is None:
+        return None
+    return bytes(cached)
+
+
+async def set_tts_cache(user_id: int, text: str, speaker_id: str | None, data: bytes) -> None:
+    client = _get_redis_client()
+    key = _make_cache_key(user_id, text, speaker_id)
+    await client.setex(key, settings.TTS_CACHE_TTL_SECONDS, data)
+

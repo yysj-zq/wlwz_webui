@@ -1,9 +1,34 @@
+"""认证、会话列表、chat 路径端到端测试。
+
+chat 现在走 TurnGraph：发请求时 mock director + npc 的 get_chat_model。
+"""
+
 from typing import Any, cast
 
 import httpx
 import pytest
+from langchain_core.messages import AIMessage
 
-import app.api.routers.chat as chat_router
+import app.graph.nodes.director as director_node
+import app.graph.nodes.npc_subgraph as npc_node
+
+
+class _StubBoundLLM:
+    def __init__(self, name: str, args: dict[str, Any]) -> None:
+        self.name = name
+        self.args = args
+
+    async def ainvoke(self, _msgs):
+        return AIMessage(content="", tool_calls=[{"name": self.name, "args": self.args, "id": "tc1"}])
+
+
+class _StubChat:
+    def __init__(self, name: str, args: dict[str, Any]) -> None:
+        self.name = name
+        self.args = args
+
+    def bind_tools(self, _tools):
+        return _StubBoundLLM(self.name, self.args)
 
 
 async def _register_and_login(client: httpx.AsyncClient) -> str:
@@ -12,7 +37,6 @@ async def _register_and_login(client: httpx.AsyncClient) -> str:
         json={"email": "tester@example.com", "password": "pwd123456", "username": "tester"},
     )
     assert register_resp.status_code == 200
-
     login_resp = await client.post(
         "/api/auth/login",
         json={"email": "tester@example.com", "password": "pwd123456"},
@@ -24,43 +48,54 @@ async def _register_and_login(client: httpx.AsyncClient) -> str:
 
 async def test_auth_register_login_me(client: httpx.AsyncClient) -> None:
     token = await _register_and_login(client)
-    me_resp = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    me_resp = await client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
     assert me_resp.status_code == 200
     data = me_resp.json()
     assert data["email"] == "tester@example.com"
     assert data["is_admin"] is False
 
 
-async def test_chat_creates_and_renames_conversation(
+async def test_chat_runs_through_unified_turn_graph(
     client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def _fake_generate_response(**_: object) -> str:
-        return "mock-reply"
+    # chat 不走 director；patch 成 explode 验证
+    def _explode(**_: object) -> object:
+        raise AssertionError("chat 模式不应触达 director")
 
-    monkeypatch.setattr(chat_router, "generate_response", _fake_generate_response)
+    monkeypatch.setattr(director_node, "get_chat_model", _explode)
+    monkeypatch.setattr(
+        npc_node, "get_chat_model",
+        lambda **_: _StubChat("submit_response", {"speak": "我滴个神啊。"}),
+    )
     token = await _register_and_login(client)
     headers = {"Authorization": f"Bearer {token}"}
 
+    # 创建 conversation（自带世界）
+    sess_resp = await client.post(
+        "/api/conversations", headers=headers, json={"title": "同福客栈"}
+    )
+    conversation_id = sess_resp.json()["id"]
+
     chat_resp = await client.post(
-        "/api/chat",
-        json={
-            "messages": [{"role": "郭芙蓉", "content": "今天生意如何？"}],
-            "userRole": "郭芙蓉",
-            "assistantRole": "佟湘玉",
-            "conversationId": None,
-        },
+        f"/api/conversations/{conversation_id}/chat",
+        json={"targetActorId": "tongxiangyu", "content": "掌柜的"},
         headers=headers,
     )
     assert chat_resp.status_code == 200
-    chat_data = chat_resp.json()
-    assert chat_data["content"] == "mock-reply"
-    assert isinstance(chat_data["conversationId"], int)
-    conversation_id = chat_data["conversationId"]
+    delta = chat_resp.json()["timeline_delta"]
+    assert any(
+        e["actor_id"] == "tongxiangyu" and e["speak"] == "我滴个神啊。" for e in delta
+    )
 
-    list_resp = await client.get("/api/conversations", headers=headers)
-    assert list_resp.status_code == 200
-    conversations = list_resp.json()
-    assert any(item["id"] == conversation_id for item in conversations)
+    timeline_resp = await client.get(
+        f"/api/conversations/{conversation_id}/timeline", headers=headers
+    )
+    entries = timeline_resp.json()
+    # 应同时含玩家 speak + NPC speak（外加 turn 0 scene）
+    assert any(e["actor_id"] == "player" and e["speak"] == "掌柜的" for e in entries)
+    assert any(e["actor_id"] == "tongxiangyu" for e in entries)
 
     rename_resp = await client.post(
         f"/api/conversations/{conversation_id}/rename",

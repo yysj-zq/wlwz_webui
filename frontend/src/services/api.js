@@ -17,110 +17,40 @@ api.interceptors.response.use(
   }
 );
 
-// 发送聊天消息（普通方式）
-export const sendChatMessage = async (messages, userRole, assistantRole, conversationId = null) => {
-  try {
-    const token = localStorage.getItem('accessToken');
-    const response = await api.post(
-      '/api/chat',
-      {
-        messages,
-        userRole,
-        assistantRole,
-        conversationId,
-      },
-      {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+// chat 走与 game 共用的 TurnGraph：跳过 Director、直接指定 targetActorId 应答。
+// 返回 TurnResponse（含 timeline_delta）。前端按 kind=speak 渲染对话气泡。
+export const sendChatMessage = async ({ conversationId, targetActorId, content }) => {
+  const token = localStorage.getItem('accessToken');
+  const response = await api.post(
+    `/api/conversations/${conversationId}/chat`,
+    { targetActorId, content },
+    {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    },
+  );
+  return response.data;
 };
 
-// 发送聊天消息（流式响应）
-export const sendStreamMessage = (messages, userRole, assistantRole, conversationId = null, onChunk, onDone, onError) => {
-  const fetchSSE = async () => {
-    try {
-      // 使用fetch发送POST请求
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch((process.env.REACT_APP_API_URL || 'http://localhost:8081') + '/api/chat/stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          messages,
-          userRole,
-          assistantRole,
-          conversationId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+// 流式：后端 chat 路径暂未提供 SSE；降级为非流式，单段回调。
+export const sendStreamMessage = (
+  { conversationId, targetActorId, content },
+  onChunk,
+  onDone,
+  onError,
+) => {
+  sendChatMessage({ conversationId, targetActorId, content })
+    .then((data) => {
+      const replyEntry = (data.timeline_delta || []).find(
+        (e) => e.actor_id === targetActorId && e.speak,
+      );
+      if (replyEntry) {
+        onChunk(replyEntry.speak, data.conversationId);
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      const readChunk = async () => {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          onDone();
-          return;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // 处理SSE格式数据
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const normalizedLine = line.trim();
-          if (normalizedLine.startsWith('data:')) {
-            try {
-              const data = JSON.parse(normalizedLine.substring(5).trim());
-              if (data.error) {
-                onError(new Error(data.error));
-                reader.cancel();
-                return;
-              }
-              if (data.content) {
-                onChunk(data.content, data.conversationId);
-              }
-            } catch (e) {
-              console.error('Error parsing SSE data:', e);
-            }
-          } else if (normalizedLine.startsWith('event: error')) {
-            onError(new Error('流式响应异常'));
-            reader.cancel();
-            return;
-          } else if (normalizedLine.startsWith('event: done')) {
-            onDone();
-            reader.cancel();
-            return;
-          }
-        }
-
-        readChunk();
-      };
-
-      readChunk().catch(onError);
-    } catch (error) {
-      onError(error);
-      throw error;
-    }
-  };
-
-  fetchSSE();
+      onDone();
+    })
+    .catch((err) => {
+      onError(err);
+    });
 };
 
 // 获取可用角色列表（未登录返回内置，已登录返回内置+自定义）
@@ -183,7 +113,8 @@ export const listConversations = async () => {
 };
 
 export const getConversationMessages = async (conversationId) => {
-  const response = await api.get(`/api/conversations/${conversationId}/messages`);
+  // 终态：messages 表已删，统一走 timeline。前端按 kind=speak 过滤渲染对话。
+  const response = await api.get(`/api/conversations/${conversationId}/timeline`);
   return response.data;
 };
 
@@ -193,6 +124,36 @@ export const deleteConversationApi = async (conversationId) => {
 
 export const renameConversationApi = async (conversationId, title) => {
   const response = await api.post(`/api/conversations/${conversationId}/rename`, { title });
+  return response.data;
+};
+
+// Conversation 即世界：每条 conversation 自带 world_state / timeline / actor_minds。
+// 没有"纯聊天 vs 游戏会话"的二分；chat 与 /actions 共用同一份 conversation。
+
+// 创建或加载 conversation（首次创建时同步播种 NPC 心智 + 开场旁白）。
+export const ensureConversation = async ({ conversationId = null, title = null } = {}) => {
+  const response = await api.post('/api/conversations', { conversationId, title });
+  return response.data;
+};
+
+// 获取 conversation 的世界状态视图。
+export const getConversationWorld = async (conversationId) => {
+  const response = await api.get(`/api/conversations/${conversationId}/world`);
+  return response.data;
+};
+
+// 拉取 conversation 的统一时间线（chat speak / game act / scene）。
+export const getConversationTimeline = async (conversationId, { afterId = null, limit = null } = {}) => {
+  const params = {};
+  if (afterId != null) params.after_id = afterId;
+  if (limit != null) params.limit = limit;
+  const response = await api.get(`/api/conversations/${conversationId}/timeline`, { params });
+  return response.data;
+};
+
+// 玩家动作（game 模式入口）：经 TurnGraph 走完 director → fan_out_npcs → commit。
+export const sendPlayerAction = async (conversationId, payload) => {
+  const response = await api.post(`/api/conversations/${conversationId}/actions`, payload);
   return response.data;
 };
 

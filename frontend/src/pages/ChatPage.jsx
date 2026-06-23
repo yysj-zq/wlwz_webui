@@ -2,6 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import Sidebar from '../components/Sidebar';
 import Chat from '../components/Chat';
+import GameView from '../game/GameView';
 
 const ChatPage = ({
   sidebarOpen,
@@ -25,6 +26,11 @@ const ChatPage = ({
   rolesConfig,
   onZenActivate,
   onTopbarCondenseChange,
+  viewMode,
+  gameWorldState,
+  gameLoading,
+  gameDialogueLines,
+  onGameAction,
 }) => {
   return (
     <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
@@ -41,21 +47,30 @@ const ChatPage = ({
           isMobile={isMobile}
         />
       ) : null}
-      <Chat
-        conversation={conversation}
-        onSendMessage={onSendMessage}
-        onPlayMessageAudio={onPlayMessageAudio}
-        onRetryMessageAudio={onRetryMessageAudio}
-        userRole={userRole}
-        assistantRole={assistantRole}
-        setUserRole={setUserRole}
-        setAssistantRole={setAssistantRole}
-        sidebarOpen={sidebarOpen}
-        rolesConfig={rolesConfig}
-        zenMode={zenMode}
-        onZenActivate={onZenActivate}
-        onTopbarCondenseChange={onTopbarCondenseChange}
-      />
+      {viewMode === 'game' ? (
+        <GameView
+          worldState={gameWorldState}
+          loading={gameLoading}
+          dialogueLines={gameDialogueLines}
+          onGameAction={onGameAction}
+        />
+      ) : (
+        <Chat
+          conversation={conversation}
+          onSendMessage={onSendMessage}
+          onPlayMessageAudio={onPlayMessageAudio}
+          onRetryMessageAudio={onRetryMessageAudio}
+          userRole={userRole}
+          assistantRole={assistantRole}
+          setUserRole={setUserRole}
+          setAssistantRole={setAssistantRole}
+          sidebarOpen={sidebarOpen}
+          rolesConfig={rolesConfig}
+          zenMode={zenMode}
+          onZenActivate={onZenActivate}
+          onTopbarCondenseChange={onTopbarCondenseChange}
+        />
+      )}
     </Box>
   );
 };

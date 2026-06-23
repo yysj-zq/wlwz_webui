@@ -4,10 +4,13 @@ import {
   Box,
   Typography,
   IconButton,
+  Button,
 } from '@mui/material';
 import { useTheme } from '../contexts/ThemeContext';
 import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
+import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
+import SportsEsportsRoundedIcon from '@mui/icons-material/SportsEsportsRounded';
 import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded';
 import React from 'react';
 
@@ -17,6 +20,8 @@ const Header = ({
   onSidebarToggle,
   onNewChat,
   onOpenControlCenter,
+  viewMode = 'chat',
+  onViewModeChange,
 }) => {
   const { mode } = useTheme();
 
@@ -119,6 +124,24 @@ const Header = ({
             >
               <AddIcon />
             </IconButton>
+          ) : null}
+          {onViewModeChange ? (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={viewMode === 'game' ? <ChatBubbleOutlineRoundedIcon /> : <SportsEsportsRoundedIcon />}
+              onClick={() => onViewModeChange(viewMode === 'game' ? 'chat' : 'game')}
+              sx={{
+                ml: 0.8,
+                borderRadius: '12px',
+                textTransform: 'none',
+                color: mode === 'light' ? '#2f3c5a' : '#d7deef',
+                borderColor: mode === 'light' ? 'rgba(47,60,90,0.24)' : 'rgba(215,222,239,0.24)',
+                background: mode === 'light' ? 'rgba(255,255,255,0.42)' : 'rgba(255,255,255,0.05)',
+              }}
+            >
+              {viewMode === 'game' ? '对话' : '游戏'}
+            </Button>
           ) : null}
           <IconButton
             color="inherit"

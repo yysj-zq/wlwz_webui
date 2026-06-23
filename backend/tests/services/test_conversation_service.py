@@ -1,13 +1,13 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import User
+from app.models import User
 from app.services.conversation_service import (
-    create_conversation,
     get_conversation,
     list_conversations,
     rename_conversation,
 )
+from app.services.world_service import ensure_conversation_world
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,12 @@ async def test_conversation_crud_flow(async_db_session: AsyncSession) -> None:
     await async_db_session.commit()
     await async_db_session.refresh(user)
 
-    created = await create_conversation(async_db_session, user, "初始标题")
+    # 创建走 ensure_conversation_world——它是 conversation 的统一入口
+    # （同步播种 world_state + actor_minds + 开场旁白）。
+    created, _world = await ensure_conversation_world(
+        async_db_session, user, conversation_id=None, title="初始标题"
+    )
+    assert created is not None
     assert created.title == "初始标题"
 
     listed = await list_conversations(async_db_session, user)

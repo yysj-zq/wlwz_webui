@@ -3,12 +3,12 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.logging import get_logger
-from app.core.settings import settings
-from app.db.models import RoleProfile, User
+from app.models import RoleProfile, User
+from app.repositories.role_repository import role_repository
 
 logger = get_logger(__name__)
 
@@ -48,10 +48,9 @@ def _load_roles_config() -> list[dict[str, Any]]:
 
 
 async def init_builtin_roles_if_enabled(db: AsyncSession) -> None:
-    """按配置初始化内置角色数据。"""
     if not settings.INIT_BUILTIN_ROLES_ON_START:
         return
-    await db.execute(delete(RoleProfile).where(RoleProfile.is_builtin.is_(True)))
+    await role_repository.delete_all_builtin(db)
     await db.commit()
     roles_data = _load_roles_config()
     config_dir = _resolve_roles_config_path().parent
@@ -83,12 +82,7 @@ async def init_builtin_roles_if_enabled(db: AsyncSession) -> None:
 
 
 async def get_available_roles_for_user(db: AsyncSession, user: User | None) -> dict[str, Any]:
-    """获取当前用户可用的角色列表与辅助映射信息。"""
-    stmt = select(RoleProfile).where(RoleProfile.is_builtin.is_(True))
-    if user is not None:
-        stmt = select(RoleProfile).where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user.id))
-    result = await db.execute(stmt)
-    roles = list(result.scalars().unique().all())
+    roles = await role_repository.get_builtin_and_user_roles(db, user.id if user else None)
     names = [r.name for r in roles]
     voice_map = {r.name: (r.default_speaker_id or "") for r in roles}
     role_list = [
@@ -113,14 +107,7 @@ async def get_available_roles_for_user(db: AsyncSession, user: User | None) -> d
 
 
 async def get_speaker_id_for_role(db: AsyncSession, role_name: str, user: User | None) -> str | None:
-    """根据角色名获取对应的默认 speaker_id（如有）。"""
-    stmt = select(RoleProfile).where(RoleProfile.name == role_name)
-    if user is not None:
-        stmt = stmt.where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user.id))
-    else:
-        stmt = stmt.where(RoleProfile.is_builtin.is_(True))
-    result = await db.execute(stmt)
-    row = result.scalar_one_or_none()
+    row = await role_repository.get_by_name(db, role_name, user_id=user.id if user else None)
     if row and row.default_speaker_id:
         return row.default_speaker_id
     return None
@@ -147,15 +134,7 @@ async def create_custom_role(
 
 
 async def get_my_role(db: AsyncSession, user: User, role_id: int) -> RoleProfile | None:
-    """获取当前用户的自定义角色（非内置）。"""
-    result = await db.execute(
-        select(RoleProfile).where(
-            RoleProfile.id == role_id,
-            RoleProfile.user_id == user.id,
-            RoleProfile.is_builtin.is_(False),
-        )
-    )
-    return result.scalar_one_or_none()
+    return await role_repository.get_user_role(db, user.id, role_id)
 
 
 async def update_custom_role(

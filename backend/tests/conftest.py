@@ -14,8 +14,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 import app.main as app_main
-from app.core.settings import settings
-from app.db import session as db_session
+from app.core.config import settings
+from app.core import database as db_module
 
 
 def _test_database_url(tmp_path_db: Path) -> str:
@@ -65,8 +65,8 @@ async def _stamp_alembic_version(engine: AsyncEngine) -> None:
 async def _prepare_schema(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         if _uses_explicit_test_database_url():
-            await conn.run_sync(db_session.Base.metadata.drop_all)
-        await conn.run_sync(db_session.Base.metadata.create_all)
+            await conn.run_sync(db_module.Base.metadata.drop_all)
+        await conn.run_sync(db_module.Base.metadata.create_all)
     await _stamp_alembic_version(engine)
 
 
@@ -82,14 +82,14 @@ async def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterat
     test_engine = create_async_engine(url, future=True, echo=False)
     test_session_maker = async_sessionmaker(bind=test_engine, expire_on_commit=False, class_=AsyncSession)
 
-    monkeypatch.setattr(db_session, "engine", test_engine)
-    monkeypatch.setattr(db_session, "AsyncSessionLocal", test_session_maker)
+    monkeypatch.setattr(db_module, "engine", test_engine)
+    monkeypatch.setattr(db_module, "AsyncSessionLocal", test_session_maker)
     monkeypatch.setattr(app_main, "AsyncSessionLocal", test_session_maker)
     monkeypatch.setattr(settings, "LOG_ENABLE_FILE", False)
     monkeypatch.setattr(settings, "INIT_BUILTIN_ROLES_ON_START", False)
 
     await _prepare_schema(test_engine)
-    await db_session.check_db_health()
+    await db_module.check_db_health()
 
     app = app_main.create_app()
     transport = httpx.ASGITransport(app=cast(Any, app))
