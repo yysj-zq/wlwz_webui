@@ -23,7 +23,7 @@ from app.services.conversation_service import create_conversation, get_conversat
 
 DEFAULT_MAP_ID = "tongfu_inn"
 INITIAL_SCENE_NOTE = (
-    "你推开同福客栈的门，午后阳光斜斜洒在木地板上。柜台后佟掌柜抱着账本嘀咕，"
+    "同福客栈屋内，午后阳光斜斜洒在木地板上。柜台后佟掌柜抱着账本嘀咕，"
     "老白手里抹布转得飞起，小郭蹲在桌边擦着木椅。"
 )
 

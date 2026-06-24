@@ -53,9 +53,10 @@ def _patch_director_dispatch(monkeypatch: pytest.MonkeyPatch, dispatch: dict) ->
 
 
 def _patch_npc_response(monkeypatch: pytest.MonkeyPatch, response: dict) -> None:
+    full = {"act_patch": [], "memory_writes": [], "inventory_ops": [], **response}
     monkeypatch.setattr(
         npc_node, "get_chat_model",
-        lambda **_: _StubChat("submit_response", response),
+        lambda **_: _StubChat("submit_response", full),
     )
 
 

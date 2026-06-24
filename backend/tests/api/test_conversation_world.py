@@ -82,7 +82,7 @@ async def test_player_action_writes_npc_speak_to_timeline(
     )
     monkeypatch.setattr(
         npc_node, "get_chat_model",
-        lambda **_: _StubChat("submit_response", {"speak": "客官您吩咐。"}),
+        lambda **_: _StubChat("submit_response", {"speak": "客官您吩咐。", "act_patch": [], "memory_writes": [], "inventory_ops": []}),
     )
     token = await _register_and_login(client)
     headers = {"Authorization": f"Bearer {token}"}

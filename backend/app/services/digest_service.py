@@ -27,7 +27,7 @@ async def should_refresh(
     last_version = row.at_version if row else 0
     if world_state.state_version - last_version >= _REFRESH_VERSION_DELTA:
         return True
-    if any(r[1].speak is not None or r[1].act_patch is not None for r in npc_responses):
+    if any(r[1].speak is not None or r[1].act_patch for r in npc_responses):
         return True
     return bool(director_writes)
 

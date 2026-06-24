@@ -25,7 +25,7 @@ from app.schemas.world import (
 
 @tool
 def query_entity(actor_id: str, config: RunnableConfig) -> dict[str, Any]:
-    """查询一个实体的完整状态（位置、朝向、公开属性等）。传入实体 id，返回其当前数据。"""
+    """查询一个实体的完整状态。传入实体 id（如 baizhantang、player、table），返回其位置、朝向、public_state 等全部字段。用于了解某个角色或物件的当前情况。"""
     controller = config["configurable"]["controller"]
     ws = controller.world_state
     if actor_id not in ws.entities:
@@ -35,7 +35,7 @@ def query_entity(actor_id: str, config: RunnableConfig) -> dict[str, Any]:
 
 @tool
 def query_neighbors(actor_id: str, radius: int = 3, *, config: RunnableConfig) -> list[str]:
-    """查询某实体周围 radius 格内有哪些实体。返回 id 列表。"""
+    """查询某实体周围 radius 格（曼哈顿距离）内有哪些实体。返回 id 列表（含自身）。用于判断谁在附近、能否听见对话。"""
     controller = config["configurable"]["controller"]
     ws = controller.world_state
     if actor_id not in ws.entities:
@@ -50,7 +50,7 @@ def query_neighbors(actor_id: str, radius: int = 3, *, config: RunnableConfig) -
 
 @tool
 def query_timeline(limit: int = 6, *, config: RunnableConfig) -> list[dict[str, Any]]:
-    """查询最近的时间线事件。返回最近 limit 条，含 actor_id、kind、speak 等。"""
+    """查询最近的时间线事件。返回最近 limit 条记录，每条含 actor_id、kind、speak、act_patch。用于了解刚才发生了什么。"""
     controller = config["configurable"]["controller"]
     timeline = controller._last_loaded_timeline
     if timeline is None:
@@ -73,26 +73,26 @@ def submit_dispatch(
     world_writes: list[WorldEntityPatch],
     perceivers: list[Perceiver],
 ) -> str:
-    """结束导演回合。world_writes 填本回合的实体状态变更（无变更传 []）；perceivers 填需要响应的 NPC 列表（无人需响应传 []）。必须调用此工具来结束回合。"""
+    """结束导演回合，提交本回合决策。world_writes 填实体状态变更列表（如玩家移动、物件状态改变），无变更传 []。perceivers 填因本次事件需要做出响应的 NPC 列表，每项含 actor_id 和 perception_reason（说明为何得知此事），无人需响应传 []。必须调用此工具来结束回合。"""
     dispatch = DirectorDispatch(world_writes=world_writes, perceivers=perceivers)
     return dispatch.model_dump_json()
 
 
 @tool
 def submit_response(
+    act_patch: list[WorldEntityPatch],
+    memory_writes: list[MemoryWrite],
+    inventory_ops: list[InventoryOp],
     speak: str | None = None,
-    act_patch: list[WorldEntityPatch] | None = None,
-    memory_writes: list[MemoryWrite] | None = None,
     goal_update: GoalPatch | None = None,
-    inventory_ops: list[InventoryOp] | None = None,
 ) -> str:
-    """结束 NPC 回合。speak 填你要说的台词文本；act_patch 填你的动作导致的实体状态变化；都不填表示本回合沉默。必须调用此工具来结束回合。"""
+    """结束扮演回合，提交你的响应。speak 填你说出口的台词原文（不说话就不传）。act_patch 填你的动作引起的世界实体状态变化（如自己移动、情绪变化），无变化传 []。memory_writes 填你要记住的新事实，无新记忆传 []。inventory_ops 填物品增减，无变化传 []。必须调用此工具来结束回合。"""
     response = NPCResponse(
         speak=speak,
-        act_patch=act_patch or [],
-        memory_writes=memory_writes or [],
+        act_patch=act_patch,
+        memory_writes=memory_writes,
         goal_update=goal_update,
-        inventory_ops=inventory_ops or [],
+        inventory_ops=inventory_ops,
     )
     return response.model_dump_json()
 

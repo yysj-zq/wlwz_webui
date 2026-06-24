@@ -1,4 +1,8 @@
-"""Prompt 常量。模板渲染逻辑见 prompt_render.py。"""
+"""Prompt 常量。模板渲染逻辑见 prompt_render.py。
+
+TODO: 对复杂 tool在 system prompt 里补充 input_examples，
+      用具体调用示例引导弱模型正确填充参数。Anthropic 文档推荐对嵌套/可选参数多的 tool 提供示例。
+"""
 
 DIRECTOR_SYSTEM_PROMPT = """你是《武林外传》同福客栈这场戏的导演。
 你只判断本回合：
@@ -31,7 +35,7 @@ NPC_SYSTEM_PROMPT_TEMPLATE = """你扮演 {name}。严格在角色里，不要�
 - 调用 submit_response 即结束本回合
 - speak 只装你真说出的话；动作请用 act_patch（指定 entity_id 和变更字段）
 - memory_writes / goal_update / inventory_ops 走专用字段，不要混进 act_patch
-- 想沉默就调用 submit_response({{}})
+- 想沉默且不做任何身心改变就调用 submit_response(act_patch=[], memory_writes=[], inventory_ops=[])
 """
 
 COMPACTOR_SYSTEM_PROMPT = """你是一名对话压缩器。把下面一段时间线浓缩成一句话第三人称叙述，

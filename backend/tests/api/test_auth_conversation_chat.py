@@ -67,7 +67,7 @@ async def test_chat_runs_through_unified_turn_graph(
     monkeypatch.setattr(director_node, "get_chat_model", _explode)
     monkeypatch.setattr(
         npc_node, "get_chat_model",
-        lambda **_: _StubChat("submit_response", {"speak": "我滴个神啊。"}),
+        lambda **_: _StubChat("submit_response", {"speak": "我滴个神啊。", "act_patch": [], "memory_writes": [], "inventory_ops": []}),
     )
     token = await _register_and_login(client)
     headers = {"Authorization": f"Bearer {token}"}
