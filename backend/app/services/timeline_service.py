@@ -132,8 +132,8 @@ class Compactor:
     async def _summarize(self, head: list[TimelineEntry]) -> str:
         from langchain_core.messages import HumanMessage, SystemMessage
 
+        from app.core.llm import get_chat_model, strip_think
         from app.graph.prompts import COMPACTOR_SYSTEM_PROMPT
-        from app.core.llm import get_chat_model
 
         rendered = render_timeline_for_messages(head)
         body = "\n".join(f"- {m['content']}" for m in rendered)
@@ -144,4 +144,4 @@ class Compactor:
         content = result.content
         if isinstance(content, list):
             content = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in content)
-        return str(content or "").strip()
+        return strip_think(str(content or ""))

@@ -51,8 +51,8 @@ async def _refresh_digest_job(conversation_id: int) -> None:
 async def _refresh_digest(db: AsyncSession, conversation_id: int) -> None:
     from langchain_core.messages import HumanMessage, SystemMessage
 
+    from app.core.llm import get_chat_model, strip_think
     from app.graph.prompts import SUMMARIZER_SYSTEM_PROMPT
-    from app.core.llm import get_chat_model
     from app.services import timeline_service
     from app.services.world_service import deserialize_world_state
 
@@ -75,7 +75,7 @@ async def _refresh_digest(db: AsyncSession, conversation_id: int) -> None:
     content = result.content
     if isinstance(content, list):
         content = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in content)
-    summary = str(content or "").strip()
+    summary = strip_think(str(content or ""))
 
     await world_digest_repository.upsert(
         db, conversation_id, world_state.state_version, summary
