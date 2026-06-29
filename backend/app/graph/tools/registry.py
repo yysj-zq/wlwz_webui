@@ -7,10 +7,11 @@ submit 类纯验证+序列化，不依赖外部状态。
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
+from pydantic import Field
 
 from app.schemas.world import (
     DirectorDispatch,
@@ -24,8 +25,16 @@ from app.schemas.world import (
 
 
 @tool
-def query_entity(actor_id: str, config: RunnableConfig) -> dict[str, Any]:
-    """查询一个实体的完整状态。传入实体 id（如 baizhantang、player、table），返回其位置、朝向、public_state 等全部字段。用于了解某个角色或物件的当前情况。"""
+def query_entity(
+    actor_id: Annotated[str, Field(description="要查询的实体 id，取自当前世界状态中存在的实体")],
+    config: RunnableConfig,
+) -> dict[str, Any]:
+    """查询一个实体的完整状态。用于了解某个角色或物件的当前情况。
+
+    返回该实体的全部字段：id、name、kind、position {x, y}、direction（朝向，可能为 null）、
+    public_state（公开状态字典，如 mood）、interactable（是否可交互）。
+    若实体不存在，返回 {"error": "未知实体: <id>"}。
+    """
     controller = config["configurable"]["controller"]
     ws = controller.world_state
     if actor_id not in ws.entities:
@@ -34,23 +43,38 @@ def query_entity(actor_id: str, config: RunnableConfig) -> dict[str, Any]:
 
 
 @tool
-def query_neighbors(actor_id: str, radius: int = 3, *, config: RunnableConfig) -> list[str]:
-    """查询某实体周围 radius 格（曼哈顿距离）内有哪些实体。返回 id 列表（含自身）。用于判断谁在附近、能否听见对话。"""
+def query_neighbors(
+    actor_id: Annotated[str, Field(description="作为中心的实体 id，取自当前世界状态中存在的实体")],
+    radius: Annotated[int, Field(description="搜索半径，单位为格（曼哈顿距离）")] = 3,
+    *,
+    config: RunnableConfig,
+) -> list[str]:
+    """查询某实体周围 radius 格（曼哈顿距离）内有哪些实体。用于判断谁在附近、能否听见对话。
+
+    返回实体 id 的字符串列表（含中心实体自身）。若中心实体不存在，返回 []。
+    """
     controller = config["configurable"]["controller"]
     ws = controller.world_state
     if actor_id not in ws.entities:
         return []
     center = ws.entities[actor_id].position
     return [
-        eid
-        for eid, e in ws.entities.items()
-        if abs(e.position.x - center.x) + abs(e.position.y - center.y) <= radius
+        eid for eid, e in ws.entities.items() if abs(e.position.x - center.x) + abs(e.position.y - center.y) <= radius
     ]
 
 
 @tool
-def query_timeline(limit: int = 6, *, config: RunnableConfig) -> list[dict[str, Any]]:
-    """查询最近的时间线事件。返回最近 limit 条记录，每条含 actor_id、kind、speak、act_patch。用于了解刚才发生了什么。"""
+def query_timeline(
+    limit: Annotated[int, Field(description="返回最近多少条时间线记录")] = 6,
+    *,
+    config: RunnableConfig,
+) -> list[dict[str, Any]]:
+    """查询最近的时间线事件，用于了解刚才发生了什么。
+
+    返回按时间正序排列的记录列表（最多 limit 条），每条含：actor_id（行动者，可能为 null）、
+    kind（事件类型）、speak（台词，可能为 null）、act_patch（实体状态变更列表，可能为 null）。
+    无时间线时返回 []。
+    """
     controller = config["configurable"]["controller"]
     timeline = controller._last_loaded_timeline
     if timeline is None:
@@ -86,7 +110,7 @@ def submit_response(
     speak: str | None = None,
     goal_update: GoalPatch | None = None,
 ) -> str:
-    """结束扮演回合，提交你的响应。speak 填你说出口的台词原文（不说话就不传）。act_patch 填你的动作引起的世界实体状态变化（如自己移动、情绪变化），无变化传 []。memory_writes 填你要记住的新事实，无新记忆传 []。inventory_ops 填物品增减，无变化传 []。必须调用此工具来结束回合。"""
+    """结束扮演回合，提交你的响应。speak 填你说出口的台词原文（不说话就不传）。act_patch 填你的动作引起的世界实体状态变化（如自己移动、情绪变化），其中 entity_id 通常应是你自己；除非你的动作直接作用于某物件（如开门、拿起桌上的东西），否则不要修改其他角色的状态，无变化传 []。memory_writes 填你要记住的新事实，无新记忆传 []。inventory_ops 填物品增减，无变化传 []。必须调用此工具来结束回合。"""
     response = NPCResponse(
         speak=speak,
         act_patch=act_patch,
