@@ -18,7 +18,7 @@ class TimelineRepository(BaseRepository[Timeline]):
         stmt = select(Timeline).where(Timeline.conversation_id == conversation_id)
         if after_id is not None:
             stmt = stmt.where(Timeline.id > after_id)
-        stmt = stmt.order_by(Timeline.turn_id, Timeline.intra_turn_seq)
+        stmt = stmt.order_by(Timeline.id)
         if limit is not None:
             stmt = stmt.limit(limit)
         rows = (await db.execute(stmt)).scalars().all()
