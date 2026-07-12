@@ -43,7 +43,7 @@ def render_npc_messages(
     )
     messages: list[BaseMessage] = [SystemMessage(content=system)]
     for m in render_timeline_for_messages(
-        context.timeline, viewer="npc", npc_name_lookup=npc_name_lookup
+        context.timeline, viewer="npc", npc_name_lookup=npc_name_lookup, self_actor_id=entity.id
     ):
         messages.append(_to_lc(m["role"], m["content"]))
     return messages

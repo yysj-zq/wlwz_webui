@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Timeline
 from app.repositories.timeline_repository import timeline_repository
 from app.schemas.enums import TimelineKind
-from app.schemas.world import PLAYER, TimelineEntry, WorldEntityPatch
+from app.schemas.world import TimelineEntry, WorldEntityPatch
 
 _RECENT_RAW_LIMIT = 8
 
@@ -37,6 +37,7 @@ def render_timeline_for_messages(
         *,
         viewer: str = "director",
         npc_name_lookup: dict[str, str] | None = None,
+        self_actor_id: str | None = None,
 ) -> list[dict[str, Any]]:
     # todo [1] 原生role、scece的chat-template训练兼容，不放到user/assistant下面？eg.
     # <|im_start|>system
@@ -60,22 +61,30 @@ def render_timeline_for_messages(
     # <|im_start|>assistant
     # 佟湘玉：好好天黑了<|im_end|>
 
-    _ = viewer
     lookup = npc_name_lookup or {}
     out: list[dict[str, Any]] = []
     for entry in entries:
-        # 旁白
+        # 旁白：对任何视角都是客观记录 → user
         if entry.kind == TimelineKind.SCENE:
             speak = entry.speak or ""
             if speak:
                 out.append({"role": "user", "content": f"【{speak}】"})
-        # npc或player
+        # npc 或 player
         else:
             if not entry.actor_id:
                 continue
             name = lookup.get(entry.actor_id, entry.actor_id)
             content = _render_persona(entry, name)
-            out.append({"role": "user" if entry.actor_id == PLAYER else "assistant", "content": content})
+            # role 取决于「这条发言对当前 viewer 是不是『我说的』」：
+            # - director：整条时间线都是供其判断的客观材料，没有一句是导演说的 → 全 user
+            #   （若标成 assistant，会与 system prompt「你不写台词、只 submit_dispatch」矛盾，
+            #    诱导导演续写台词而非调工具）
+            # - npc：仅该 NPC 自己的历史发言是「我说的」→ assistant；其余角色都是 user
+            if viewer == "npc":
+                role = "assistant" if entry.actor_id == self_actor_id else "user"
+            else:
+                role = "user"
+            out.append({"role": role, "content": content})
     return out
 
 
