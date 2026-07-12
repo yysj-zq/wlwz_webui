@@ -24,7 +24,7 @@ class _StubChat:
         self.name = name
         self.args = args
 
-    def bind_tools(self, _tools):
+    def bind_tools(self, _tools, **_kwargs):
         return _StubBoundLLM(self.name, self.args)
 
 

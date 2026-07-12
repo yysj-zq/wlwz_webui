@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.types import RunnableConfig
 
+from app.core.llm import get_chat_model
+from app.core.logging import get_logger
 from app.graph.prompt_render import render_director_messages
 from app.graph.state import TurnGraphState
 from app.graph.tools import DIRECTOR_TOOLS
-from app.schemas.world import DirectorDispatch
-from app.core.logging import get_logger
 from app.services.world_service import WorldController
-from app.core.llm import get_chat_model
 
 logger = get_logger(__name__)
 
@@ -32,24 +31,17 @@ async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict:
         name_lookup = _name_lookup(controller)
         new_msgs = render_director_messages(context, name_lookup)
         messages = new_msgs
+    elif isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:
+        # 上一轮 director 没调工具（违规）——补一条反馈让本次重试有效
+        feedback = HumanMessage(content="你必须调用 submit_dispatch 工具提交决策以结束回合。")
+        new_msgs.append(feedback)
+        messages.append(feedback)
 
-    llm = get_chat_model(temperature=0.7, streaming=False).bind_tools(DIRECTOR_TOOLS)
+    # tool_choice="any" 强制调工具，从源头杜绝"输出纯文本不调工具"的违规（对支持约束解码的模型生效；
+    # MiniMax-M3 实测忽略此参数，故仍需上面的无-tool_call 反馈重试兜底）。
+    llm = get_chat_model(temperature=0.7, streaming=False).bind_tools(DIRECTOR_TOOLS, tool_choice="any")
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("LLM 返回了非 AIMessage 类型: %s", type(ai_msg))
     new_msgs.append(ai_msg)
     return {"director_messages": new_msgs}
-
-
-def extract_dispatch_from_messages(messages: list[BaseMessage]) -> DirectorDispatch | None:
-    """从 director_messages 中解析最后一条成功的 submit_dispatch ToolMessage。"""
-    last_submit = next(
-        (m for m in reversed(messages)
-         if isinstance(m, ToolMessage)
-         and m.name == "submit_dispatch"
-         and not m.content.startswith("Error:")),
-        None,
-    )
-    if last_submit is None:
-        return None
-    return DirectorDispatch.model_validate_json(last_submit.content)

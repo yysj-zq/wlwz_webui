@@ -6,7 +6,8 @@ import uuid
 from typing import Any
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.errors import GraphRecursionError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from app.schemas.turn import ChatTurnRequest, GameActionRequest
 from app.schemas.world import Position, WorldEntityPatch
 from app.models import Timeline, User
 from app.services.world_service import WorldController, ensure_conversation_world
-from app.graph.turn_graph import run_game, run_chat
+from app.graph.runner import run_game, run_chat
 
 
 class _StubBoundLLM:
@@ -41,7 +42,7 @@ class _StubChat:
         self.tool_name = tool_name
         self.tool_args = tool_args
 
-    def bind_tools(self, _tools):
+    def bind_tools(self, _tools, **_kwargs):
         return _StubBoundLLM(self.tool_name, self.tool_args)
 
 
@@ -52,12 +53,67 @@ def _patch_director_dispatch(monkeypatch: pytest.MonkeyPatch, dispatch: dict) ->
     )
 
 
+class _SequencedBoundLLM:
+    """按序返回预设 AIMessage；跨多次 bind_tools 调用共享游标与调用记录。"""
+
+    def __init__(self, responses: list[AIMessage], calls: list[list[Any]]) -> None:
+        self._responses = responses
+        self._calls = calls
+
+    async def ainvoke(self, messages: list[Any]) -> AIMessage:
+        self._calls.append(list(messages))
+        idx = len(self._calls) - 1
+        return self._responses[min(idx, len(self._responses) - 1)]
+
+
+class _SequencedChat:
+    """伪 ChatOpenAI：每次 bind_tools 新建 bound LLM，但共享 responses/calls。"""
+
+    def __init__(self, responses: list[AIMessage], calls: list[list[Any]]) -> None:
+        self._responses = responses
+        self._calls = calls
+
+    def bind_tools(self, _tools, **_kwargs):
+        return _SequencedBoundLLM(self._responses, self._calls)
+
+
+def _patch_director_sequence(
+    monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]
+) -> list[list[Any]]:
+    """把 director 的 get_chat_model 换成按序返回 responses 的桩。
+
+    返回 calls 列表：每次 ainvoke 记一条（其内容是该次调用时的 messages 快照）。
+    director_step 每次必调 ainvoke 恰一次，故 len(calls) == director_step 调用次数。
+    """
+    calls: list[list[Any]] = []
+    monkeypatch.setattr(
+        director_node, "get_chat_model",
+        lambda **_: _SequencedChat(responses, calls),
+    )
+    return calls
+
+
 def _patch_npc_response(monkeypatch: pytest.MonkeyPatch, response: dict) -> None:
     full = {"act_patch": [], "memory_writes": [], "inventory_ops": [], **response}
     monkeypatch.setattr(
         npc_node, "get_chat_model",
         lambda **_: _StubChat("submit_response", full),
     )
+
+
+def _patch_npc_sequence(
+    monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]
+) -> list[list[Any]]:
+    """把 npc 的 get_chat_model 换成按序返回 responses 的桩（复用 _SequencedChat）。
+
+    返回 calls 列表：每次 npc LLM ainvoke 记一条（其内容是该次调用时的 messages 快照）。
+    """
+    calls: list[list[Any]] = []
+    monkeypatch.setattr(
+        npc_node, "get_chat_model",
+        lambda **_: _SequencedChat(responses, calls),
+    )
+    return calls
 
 
 async def _make_user(db: AsyncSession, email: str) -> User:
@@ -249,3 +305,143 @@ async def test_timeline_intra_turn_seq_monotonic(
     seqs = [r.intra_turn_seq for r in same_turn]
     assert seqs == sorted(seqs)
     assert same_turn[0].actor_id == "player"
+
+
+@pytest.mark.asyncio
+async def test_director_retry_on_missing_tool_call(
+    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """无 tool_call 违规 → 打回 director_step 重试，第 2 次合法 submit 正常收尾。"""
+    user = await _make_user(async_db_session, "retry@example.com")
+    calls = _patch_director_sequence(
+        monkeypatch,
+        [
+            AIMessage(content="我想想…", tool_calls=[]),  # 第 1 次：违规，无 tool_call
+            AIMessage(
+                content="",
+                tool_calls=[{
+                    "name": "submit_dispatch",
+                    "args": {
+                        "world_writes": [{"entity_id": "player", "direction": "north"}],
+                        "perceivers": [],
+                    },
+                    "id": uuid.uuid4().hex,
+                }],
+            ),
+        ],
+    )
+
+    response = await run_game(
+        await _make_controller(async_db_session, user),
+        GameActionRequest(actorId="player", targetId="baizhantang", speak="老白", stateVersion=1),
+    )
+
+    # director_step 被调 2 次（每次恰一次 ainvoke）
+    assert len(calls) == 2
+    # 第 2 次调用前 messages 含反馈消息
+    assert any(
+        isinstance(m, HumanMessage) and "submit_dispatch" in str(m.content)
+        for m in calls[1]
+    )
+    # 最终 commit 出的是第 2 次的 dispatch（direction 只可能来自 director world_writes）
+    assert response.world_state.entities["player"].direction == "north"
+
+
+@pytest.mark.asyncio
+async def test_director_query_then_submit(
+    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """护栏：query_entity → 结果回灌 → submit，那条回边行为不变。"""
+    user = await _make_user(async_db_session, "query@example.com")
+    calls = _patch_director_sequence(
+        monkeypatch,
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{
+                    "name": "query_entity",
+                    "args": {"actor_id": "baizhantang"},
+                    "id": uuid.uuid4().hex,
+                }],
+            ),
+            AIMessage(
+                content="",
+                tool_calls=[{
+                    "name": "submit_dispatch",
+                    "args": {
+                        "world_writes": [{"entity_id": "player", "direction": "south"}],
+                        "perceivers": [],
+                    },
+                    "id": uuid.uuid4().hex,
+                }],
+            ),
+        ],
+    )
+
+    response = await run_game(
+        await _make_controller(async_db_session, user),
+        GameActionRequest(actorId="player", targetId="baizhantang", speak="附近有谁", stateVersion=1),
+    )
+
+    assert len(calls) == 2
+    # 第 2 次调用前 messages 含 query_entity 的执行结果（证明 query 被执行并回灌）
+    assert any(
+        isinstance(m, ToolMessage) and m.name == "query_entity" for m in calls[1]
+    )
+    assert response.world_state.entities["player"].direction == "south"
+
+
+@pytest.mark.asyncio
+async def test_director_illegal_args_never_commit(
+    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """护栏：非法 args 的 submit 永不放行——循环到 recursion_limit 抛 GraphRecursionError，绝不 commit。"""
+    user = await _make_user(async_db_session, "illegal@example.com")
+    # 恒返回同一非法 submit（bogus_field 触发 WorldEntityPatch 的 extra="forbid"）
+    _patch_director_dispatch(
+        monkeypatch,
+        {
+            "world_writes": [{"entity_id": "player", "bogus_field": 1}],
+            "perceivers": [],
+        },
+    )
+
+    with pytest.raises(GraphRecursionError):
+        await run_game(
+            await _make_controller(async_db_session, user),
+            GameActionRequest(actorId="player", targetId="baizhantang", speak="x", stateVersion=1),
+        )
+
+
+@pytest.mark.asyncio
+async def test_npc_plaintext_without_submit_creates_no_timeline_entry(
+    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """路径 B：NPC 只吐纯文本、从不调 submit_response → _after_npc_step 直接 END，
+    不补写空响应，不报错，且该 NPC 无 timeline 条目。"""
+    user = await _make_user(async_db_session, "plaintext@example.com")
+    _patch_director_dispatch(
+        monkeypatch,
+        {
+            "world_writes": [],
+            "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被直接称呼"}],
+        },
+    )
+    # npc 桩：纯文本、无 tool_calls（从不 submit）
+    calls = _patch_npc_sequence(
+        monkeypatch,
+        [AIMessage(content="（沉默地擦着柜台，没有开口）", tool_calls=[])],
+    )
+
+    response = await run_game(await _make_controller(async_db_session, user), GameActionRequest(
+            actorId="player",
+            targetId="baizhantang",
+            speak="老白？",
+            stateVersion=1,
+        ))
+
+    # npc LLM 只被调一次（无 tool_call → _after_npc_step 直接 END，不回 npc_step 重试）
+    assert len(calls) == 1
+    # 该 NPC 无 timeline 条目（纯文本不落库）
+    npc_entries = [e for e in response.timeline_delta if e.actor_id == "baizhantang"]
+    assert npc_entries == []

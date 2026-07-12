@@ -2,15 +2,18 @@
 
 工具用 langchain @tool 装饰器定义为模块级单例。
 query 类通过 config["configurable"]["controller"] 读取 WorldController；
-submit 类纯验证+序列化，不依赖外部状态。
+submit 类返回 langgraph Command 直接把决策写入 graph state。
 """
 
 from __future__ import annotations
 
 from typing import Annotated, Any
 
+from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
+from langchain_core.tools import InjectedToolCallId, tool
+from langgraph.prebuilt import InjectedState
+from langgraph.types import Command
 from pydantic import Field
 
 from app.schemas.world import (
@@ -96,10 +99,16 @@ def query_timeline(
 def submit_dispatch(
     world_writes: list[WorldEntityPatch],
     perceivers: list[Perceiver],
-) -> str:
+    tool_call_id: Annotated[str, InjectedToolCallId],
+) -> Command[Any]:
     """结束导演回合，提交本回合决策。world_writes 填实体状态变更列表（如玩家移动、物件状态改变），无变更传 []。perceivers 填因本次事件需要做出响应的 NPC 列表，每项含 actor_id 和 perception_reason（说明为何得知此事），无人需响应传 []。必须调用此工具来结束回合。"""
     dispatch = DirectorDispatch(world_writes=world_writes, perceivers=perceivers)
-    return dispatch.model_dump_json()
+    # 必坑：director 的 ToolNode 用 messages_key="director_messages"，ToolMessage 必须落进该键，
+    # 否则 langgraph 抛 ValueError: Expected to have a matching ToolMessage。
+    return Command(update={
+        "dispatch": dispatch,
+        "director_messages": [ToolMessage("已提交导演决策。", tool_call_id=tool_call_id)],
+    })
 
 
 @tool
@@ -107,10 +116,15 @@ def submit_response(
     act_patch: list[WorldEntityPatch],
     memory_writes: list[MemoryWrite],
     inventory_ops: list[InventoryOp],
+    tool_call_id: Annotated[str, InjectedToolCallId],
+    perceiver: Annotated[Perceiver, InjectedState("npc_perceiver")],
     speak: str | None = None,
     goal_update: GoalPatch | None = None,
-) -> str:
+) -> Command[Any]:
     """结束扮演回合，提交你的响应。speak 填你说出口的台词原文（不说话就不传）。act_patch 填你的动作引起的世界实体状态变化（如自己移动、情绪变化），其中 entity_id 通常应是你自己；除非你的动作直接作用于某物件（如开门、拿起桌上的东西），否则不要修改其他角色的状态，无变化传 []。memory_writes 填你要记住的新事实，无新记忆传 []。inventory_ops 填物品增减，无变化传 []。必须调用此工具来结束回合。"""
+    # perceiver 经 InjectedState 从子图 state["npc_perceiver"] 注入，用来拿 actor_id；
+    # 依赖 NPC 子图 state 存在 npc_perceiver 键。tool_call_id / perceiver 无默认值，
+    # 故必须排在有默认值的 speak / goal_update 之前。
     response = NPCResponse(
         speak=speak,
         act_patch=act_patch,
@@ -118,7 +132,10 @@ def submit_response(
         goal_update=goal_update,
         inventory_ops=inventory_ops,
     )
-    return response.model_dump_json()
+    return Command(update={
+        "npc_responses": [(perceiver.actor_id, response)],
+        "messages": [ToolMessage("已提交扮演响应。", tool_call_id=tool_call_id)],
+    })
 
 
 DIRECTOR_TOOLS = [query_entity, query_neighbors, query_timeline, submit_dispatch]

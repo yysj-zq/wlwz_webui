@@ -34,7 +34,7 @@ from app.services.conversation_service import (
     list_conversations,
     rename_conversation,
 )
-from app.graph.turn_graph import run_game, run_chat
+from app.graph.runner import run_game, run_chat
 from app.services.world_service import (
     WorldController,
     deserialize_world_state,
