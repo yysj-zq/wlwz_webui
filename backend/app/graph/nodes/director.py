@@ -5,12 +5,11 @@ from __future__ import annotations
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langgraph.types import RunnableConfig
 
-from app.core.llm import get_chat_model
-from app.core.logging import get_logger
+from app.core import get_chat_model, get_logger
 from app.graph.prompt_render import render_director_messages
 from app.graph.state import TurnGraphState
 from app.graph.tools import DIRECTOR_TOOLS
-from app.services.world_service import WorldController
+from app.services import WorldController
 
 logger = get_logger(__name__)
 

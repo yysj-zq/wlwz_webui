@@ -6,8 +6,7 @@ from __future__ import annotations
 from langgraph.types import RunnableConfig
 
 from app.graph.state import TurnGraphState
-from app.services import digest_service
-from app.services.world_service import WorldController
+from app.services import WorldController, digest_service
 
 
 async def commit(state: TurnGraphState, config: RunnableConfig) -> dict:

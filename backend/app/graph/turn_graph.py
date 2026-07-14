@@ -29,7 +29,7 @@ from app.graph.nodes.commit import commit
 from app.graph.nodes.director import director_step
 from app.graph.nodes.ingest_player import ingest_player_input
 from app.graph.nodes.load_turn_context import load_turn_context
-from app.graph.nodes.npc_subgraph import build_npc_subgraph
+from app.graph.npc_subgraph import build_npc_subgraph
 from app.graph.state import TurnGraphState
 from app.graph.tools import DIRECTOR_TOOLS
 

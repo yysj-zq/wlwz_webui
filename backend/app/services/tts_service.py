@@ -9,8 +9,7 @@ from typing import Any
 import requests
 from redis.asyncio import Redis
 
-from app.core.config import settings
-from app.core.logging import get_logger
+from app.core import get_logger, settings
 
 logger = get_logger(__name__)
 

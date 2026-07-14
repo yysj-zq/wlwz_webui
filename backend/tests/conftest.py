@@ -14,8 +14,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 import app.main as app_main
-from app.core.config import settings
 from app.core import database as db_module
+from app.core import settings
 
 
 def _test_database_url(tmp_path_db: Path) -> str:

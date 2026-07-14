@@ -4,8 +4,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.actor_mind_repository import actor_mind_repository
-from app.schemas.world import NPCResponse
+from app.repositories import actor_mind_repository
+from app.schemas import NPCResponse
 
 NPC_SEEDS: dict[str, dict[str, Any]] = {
     "baizhantang": {

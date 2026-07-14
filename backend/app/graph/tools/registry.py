@@ -16,7 +16,7 @@ from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
 from pydantic import Field
 
-from app.schemas.world import (
+from app.schemas import (
     DirectorDispatch,
     GoalPatch,
     InventoryOp,

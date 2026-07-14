@@ -2,12 +2,12 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User
-from app.services.conversation_service import (
+from app.services import (
+    ensure_conversation_world,
     get_conversation,
     list_conversations,
     rename_conversation,
 )
-from app.services.world_service import ensure_conversation_world
 
 
 @pytest.mark.asyncio

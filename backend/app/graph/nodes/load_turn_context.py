@@ -5,7 +5,7 @@ from __future__ import annotations
 from langgraph.types import RunnableConfig
 
 from app.graph.state import TurnGraphState
-from app.services.world_service import WorldController
+from app.services import WorldController
 
 
 async def load_turn_context(state: TurnGraphState, config: RunnableConfig) -> dict:

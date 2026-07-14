@@ -13,9 +13,8 @@ from langchain_core.runnables import RunnableConfig
 
 from app.graph.state import TurnGraphState
 from app.graph.turn_graph import TURN_GRAPH
-from app.schemas.enums import TurnMode
-from app.schemas.turn import ChatTurnRequest, GameActionRequest, TurnResponse
-from app.services.world_service import WorldController
+from app.schemas import ChatTurnRequest, GameActionRequest, TurnMode, TurnResponse
+from app.services import WorldController
 
 
 async def run_game(controller: WorldController, request: GameActionRequest) -> TurnResponse:

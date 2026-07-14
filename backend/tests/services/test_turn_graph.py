@@ -12,12 +12,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.graph.nodes.director as director_node
-import app.graph.nodes.npc_subgraph as npc_node
+import app.graph.nodes.npc as npc_node
 from app.schemas.turn import ChatTurnRequest, GameActionRequest
 from app.schemas.world import Position, WorldEntityPatch
 from app.models import Timeline, User
-from app.services.world_service import WorldController, ensure_conversation_world
-from app.graph.runner import run_game, run_chat
+from app.services import WorldController, ensure_conversation_world
+from app.graph import run_game, run_chat
 
 
 class _StubBoundLLM:

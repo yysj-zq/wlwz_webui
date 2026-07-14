@@ -7,8 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 
-from app.core.request_context import clear_request_context, new_request_id, set_request_id
-from app.core.logging import get_logger
+from app.core import clear_request_context, get_logger, new_request_id, set_request_id
 
 logger = get_logger(__name__)
 

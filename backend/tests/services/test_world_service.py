@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.world import Position, WorldEntityPatch
 from app.models import ActorMind, Timeline, User
-from app.services.world_service import (
+from app.services import (
     apply_world_patches,
     build_default_world_state,
     ensure_conversation_world,

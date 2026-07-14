@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Timeline
 from app.repositories.base import BaseRepository
-from app.schemas.world import TimelineEntry, WorldEntityPatch
+from app.schemas import TimelineEntry, WorldEntityPatch
 
 
 class TimelineRepository(BaseRepository[Timeline]):

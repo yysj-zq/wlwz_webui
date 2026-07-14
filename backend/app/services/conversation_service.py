@@ -3,7 +3,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Conversation, User
-from app.repositories.conversation_repository import conversation_repository
+from app.repositories import conversation_repository
 
 
 async def list_conversations(db: AsyncSession, user: User) -> list[Conversation]:

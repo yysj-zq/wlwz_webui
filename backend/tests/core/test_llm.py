@@ -1,4 +1,4 @@
-from app.core.llm import strip_think
+from app.core import strip_think
 
 
 def test_strip_think_removes_reasoning_block() -> None:

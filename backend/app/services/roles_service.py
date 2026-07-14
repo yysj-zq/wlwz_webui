@@ -5,10 +5,9 @@ from typing import Any
 import yaml
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.logging import get_logger
+from app.core import get_logger, settings
 from app.models import RoleProfile, User
-from app.repositories.role_repository import role_repository
+from app.repositories import role_repository
 
 logger = get_logger(__name__)
 

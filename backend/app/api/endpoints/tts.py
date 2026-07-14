@@ -3,11 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.schemas import TTSRequest
-from app.core.logging import get_logger
+from app.core import get_db, get_logger
 from app.models import User
-from app.core.database import get_db
-from app.services.roles_service import get_speaker_id_for_role
-from app.services.tts_service import get_tts_cache, set_tts_cache, synthesize_role_voice
+from app.services import (
+    get_speaker_id_for_role,
+    get_tts_cache,
+    set_tts_cache,
+    synthesize_role_voice,
+)
 
 router = APIRouter()
 logger = get_logger(__name__)

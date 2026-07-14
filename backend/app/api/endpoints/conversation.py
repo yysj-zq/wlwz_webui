@@ -24,21 +24,19 @@ from app.schemas import (
     GameActionRequest,
     TimelineEntryOut,
     TurnResponse,
+    WorldState,
 )
 from app.models import User
-from app.core.database import get_db
-from app.services import timeline_service
-from app.services.conversation_service import (
+from app.core import get_db
+from app.graph import run_game, run_chat
+from app.services import (
+    WorldController,
     delete_conversation,
+    ensure_conversation_world,
     get_conversation,
     list_conversations,
     rename_conversation,
-)
-from app.graph.runner import run_game, run_chat
-from app.services.world_service import (
-    WorldController,
-    deserialize_world_state,
-    ensure_conversation_world,
+    timeline_service,
 )
 
 router = APIRouter()
@@ -127,7 +125,7 @@ async def read_conversation_world(
         id=convo.id,
         map_id=convo.map_id,
         state_version=convo.state_version,
-        world_state=deserialize_world_state(convo.world_state_json),
+        world_state=WorldState.model_validate(convo.world_state_json),
         created_at=convo.created_at,
         updated_at=convo.updated_at,
     )

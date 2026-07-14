@@ -6,9 +6,9 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
-from app.graph.prompts import DIRECTOR_SYSTEM_PROMPT, NPC_SYSTEM_PROMPT_TEMPLATE
-from app.schemas.world import TurnContext, WorldEntity
-from app.services.timeline_service import render_timeline_for_messages
+from app.core import DIRECTOR_SYSTEM_PROMPT, NPC_SYSTEM_PROMPT_TEMPLATE
+from app.schemas import TurnContext, WorldEntity
+from app.services import render_timeline_for_messages
 
 
 def render_director_messages(

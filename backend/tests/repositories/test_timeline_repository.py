@@ -4,9 +4,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User
-from app.repositories.timeline_repository import timeline_repository
+from app.repositories import timeline_repository
 from app.schemas.world import TimelineEntry
-from app.services.world_service import ensure_conversation_world
+from app.services import ensure_conversation_world
 
 
 async def _new_conversation_id(db: AsyncSession, email: str) -> int:

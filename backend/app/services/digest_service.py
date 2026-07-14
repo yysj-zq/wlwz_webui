@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
-from app.repositories.world_digest_repository import world_digest_repository
-from app.schemas.world import NPCResponse, WorldEntityPatch, WorldState
+from app.core import AsyncSessionLocal, SUMMARIZER_SYSTEM_PROMPT, get_chat_model, get_logger, strip_think
+from app.repositories import world_digest_repository
+from app.schemas import NPCResponse, WorldEntityPatch, WorldState
+from app.services import timeline_service
 
 logger = get_logger(__name__)
 
@@ -33,14 +37,10 @@ async def should_refresh(
 
 
 def schedule_refresh(conversation_id: int) -> None:
-    import asyncio
-
     asyncio.create_task(_refresh_digest_job(conversation_id))
 
 
 async def _refresh_digest_job(conversation_id: int) -> None:
-    from app.core.database import AsyncSessionLocal
-
     try:
         async with AsyncSessionLocal() as db:
             await _refresh_digest(db, conversation_id)
@@ -49,17 +49,10 @@ async def _refresh_digest_job(conversation_id: int) -> None:
 
 
 async def _refresh_digest(db: AsyncSession, conversation_id: int) -> None:
-    from langchain_core.messages import HumanMessage, SystemMessage
-
-    from app.core.llm import get_chat_model, strip_think
-    from app.graph.prompts import SUMMARIZER_SYSTEM_PROMPT
-    from app.services import timeline_service
-    from app.services.world_service import deserialize_world_state
-
     convo = await world_digest_repository.get_conversation(db, conversation_id)
     if convo is None:
         return
-    world_state = deserialize_world_state(convo.world_state_json)
+    world_state = WorldState.model_validate(convo.world_state_json)
     timeline = await timeline_service.list_timeline(db, conversation_id, limit=20)
     rendered = timeline_service.render_timeline_for_messages(timeline)
     body = (

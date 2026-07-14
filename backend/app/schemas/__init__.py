@@ -28,7 +28,6 @@ from app.schemas.world import (
 )
 
 __all__ = [
-    "PLAYER",
     "ChatTurnRequest",
     "CommittedTurn",
     "ConversationOut",
@@ -43,6 +42,7 @@ __all__ = [
     "MemoryScope",
     "MemoryWrite",
     "NPCResponse",
+    "PLAYER",
     "Perceiver",
     "Position",
     "RoleCreate",

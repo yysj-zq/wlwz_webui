@@ -13,7 +13,7 @@ from app.schemas.world import (
     WorldEntityPatch,
 )
 from app.models import ActorMind, Timeline, User
-from app.services.world_service import WorldController, ensure_conversation_world
+from app.services import WorldController, ensure_conversation_world
 
 
 async def _setup_controller(db: AsyncSession, email: str) -> WorldController:

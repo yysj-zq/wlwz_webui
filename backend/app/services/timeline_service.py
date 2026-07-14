@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import COMPACTOR_SYSTEM_PROMPT, get_chat_model, strip_think
 from app.models import Timeline
-from app.repositories.timeline_repository import timeline_repository
-from app.schemas.enums import TimelineKind
-from app.schemas.world import TimelineEntry, WorldEntityPatch
+from app.repositories import timeline_repository
+from app.schemas import TimelineEntry, TimelineKind, WorldEntityPatch
 
 _RECENT_RAW_LIMIT = 8
 
@@ -139,11 +140,6 @@ class Compactor:
         return [virtual, *tail]
 
     async def _summarize(self, head: list[TimelineEntry]) -> str:
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        from app.core.llm import get_chat_model, strip_think
-        from app.graph.prompts import COMPACTOR_SYSTEM_PROMPT
-
         rendered = render_timeline_for_messages(head)
         body = "\n".join(f"- {m['content']}" for m in rendered)
         llm = get_chat_model(temperature=0.2, streaming=False)

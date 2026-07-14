@@ -10,7 +10,7 @@ import pytest
 from langchain_core.messages import AIMessage
 
 import app.graph.nodes.director as director_node
-import app.graph.nodes.npc_subgraph as npc_node
+import app.graph.nodes.npc as npc_node
 
 
 class _StubBoundLLM:

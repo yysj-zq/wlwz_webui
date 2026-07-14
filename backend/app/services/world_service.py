@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ActorMind, Conversation, User
-from app.schemas.enums import EntityKind, TimelineKind
-from app.schemas.world import (
+from app.schemas import (
     PLAYER,
     CommittedTurn,
+    EntityKind,
     NPCResponse,
     Position,
     TimelineEntry,
+    TimelineKind,
     TurnContext,
     WorldEntity,
     WorldEntityPatch,
@@ -81,14 +81,6 @@ def build_default_world_state() -> WorldState:
     return WorldState(map_id=DEFAULT_MAP_ID, state_version=1, entities=entities)
 
 
-def serialize_world_state(world_state: WorldState) -> dict[str, Any]:
-    return world_state.model_dump(mode="json")
-
-
-def deserialize_world_state(payload: dict[str, Any]) -> WorldState:
-    return WorldState.model_validate(payload)
-
-
 async def ensure_conversation_world(
     db: AsyncSession,
     user: User | None,
@@ -104,11 +96,11 @@ async def ensure_conversation_world(
             db, user, title or "新的会话",
             map_id=world_state.map_id,
             state_version=world_state.state_version,
-            world_state_json=serialize_world_state(world_state),
+            world_state_json=world_state.model_dump(mode="json"),
         )
     else:
         conversation = await get_conversation(db, user, conversation_id)
-        return conversation, deserialize_world_state(conversation.world_state_json)
+        return conversation, WorldState.model_validate(conversation.world_state_json)
 
     await actor_mind_service.seed_default_minds_no_commit(db, conversation.id)
 
@@ -233,7 +225,7 @@ class WorldController:
             await actor_mind_service.upsert_increment_no_commit(
                 self.db, self.conversation_id, actor_id, response, at_version=new_version
             )
-        self._conversation.world_state_json = serialize_world_state(next_world)
+        self._conversation.world_state_json = next_world.model_dump(mode="json")
         self._conversation.state_version = new_version
         await self.db.commit()
         await self.db.refresh(self._conversation)
