@@ -14,11 +14,6 @@ from app.services import WorldController
 logger = get_logger(__name__)
 
 
-def _name_lookup(controller: WorldController) -> dict[str, str]:
-    ws = controller.world_state
-    return {eid: e.name for eid, e in ws.entities.items()}
-
-
 async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict:
     """单次 LLM 调用。首次调用时渲染 messages；后续循环复用 state 中的 director_messages。"""
     controller: WorldController = config["configurable"]["controller"]
@@ -27,7 +22,7 @@ async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict:
     new_msgs: list[BaseMessage] = []
     if not messages:
         context = state["context"]
-        name_lookup = _name_lookup(controller)
+        name_lookup = controller.world_state.name_lookup()
         new_msgs = render_director_messages(context, name_lookup)
         messages = new_msgs
     elif isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:

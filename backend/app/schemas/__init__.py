@@ -1,6 +1,6 @@
 from app.schemas.auth import Token, UserCreate, UserLogin, UserOut
 from app.schemas.conversation import ConversationOut, ConversationRename, TimelineEntryOut
-from app.schemas.enums import EntityKind, MemoryScope, TimelineKind, TurnMode
+from app.schemas.enums import Direction, EntityKind, MemoryScope, TimelineKind, TurnMode
 from app.schemas.roles import RoleCreate, RoleOut, RoleUpdate
 from app.schemas.tts import TTSRequest
 from app.schemas.turn import (
@@ -34,6 +34,7 @@ __all__ = [
     "ConversationRename",
     "ConversationWorldRead",
     "DirectorDispatch",
+    "Direction",
     "EnsureConversationRequest",
     "EntityKind",
     "GameActionRequest",

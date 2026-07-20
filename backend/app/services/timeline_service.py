@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import COMPACTOR_SYSTEM_PROMPT, get_chat_model, strip_think
 from app.models import Timeline
 from app.repositories import timeline_repository
-from app.schemas import TimelineEntry, TimelineKind, WorldEntityPatch
+from app.schemas import TimelineEntry, TimelineKind
 
 _RECENT_RAW_LIMIT = 8
 
@@ -67,15 +67,21 @@ def render_timeline_for_messages(
     for entry in entries:
         # 旁白：对任何视角都是客观记录 → user
         if entry.kind == TimelineKind.SCENE:
-            speak = entry.speak or ""
-            if speak:
-                out.append({"role": "user", "content": f"【{speak}】"})
+            # speak 是展示窗口；director 世界变更走 narration（act_patch 的中文映射），
+            # 开场白/摘要走 speak。取非空者。
+            text = entry.speak or entry.narration or ""
+            if text:
+                out.append({"role": "user", "content": f"【{text}】"})
         # npc 或 player
         else:
             if not entry.actor_id:
                 continue
             name = lookup.get(entry.actor_id, entry.actor_id)
-            content = _render_persona(entry, name)
+            content = _render_persona(entry, name, lookup)
+            # 纯动作变更且无叙事（只有 act_patch，无 speak 无 narration）：机器态不进文本，
+            # 交前端可视化 → 跳过
+            if content is None:
+                continue
             # role 取决于「这条发言对当前 viewer 是不是『我说的』」：
             # - director：整条时间线都是供其判断的客观材料，没有一句是导演说的 → 全 user
             #   （若标成 assistant，会与 system prompt「你不写台词、只 submit_dispatch」矛盾，
@@ -89,45 +95,35 @@ def render_timeline_for_messages(
     return out
 
 
-def _render_persona(entry: TimelineEntry, name: str) -> str:
-    # todo 加一个target_id/player_id与中文名的map对照，放中文名而不是id到message里
-    # todo 把render都总结为一个template？
-    target_prefix = f"（对{entry.target_id}）" if entry.target_id else ""
-    if entry.kind == TimelineKind.SPEAK:
-        return f"{name}{target_prefix}：{entry.speak or ''}"
-    elif entry.kind == TimelineKind.ACT:
-        return f"{name}：({_render_patch(entry.act_patch)})"
-    elif entry.kind == TimelineKind.SPEAK_AND_ACT:
-        return f"{name}{target_prefix}：{entry.speak or ''}({_render_patch(entry.act_patch)})"
-    raise AssertionError("unreachable")
+def _render_persona(entry: TimelineEntry, name: str, lookup: dict[str, str]) -> str | None:
+    """把一条 npc/player entry 渲染成一行文本；纯动作无叙事时返回 None（不进文本）。
 
-
-def _render_patch(patches: list[WorldEntityPatch]) -> str:
-    if not patches:
-        return "(无变化)"
-    parts: list[str] = []
-    for ep in patches:
-        bits: list[str] = []
-        if ep.position is not None:
-            bits.append(f"位置→({ep.position.x},{ep.position.y})")
-        if ep.direction is not None:
-            bits.append(f"朝向→{ep.direction}")
-        if ep.public_state is not None:
-            bits.append(f"状态→{ep.public_state}")
-        parts.append(f"{ep.entity_id} {' '.join(bits)}")
-    return "; ".join(parts)
+    朝向/坐标等机器态不再拼进文本（改由前端消费 act_patch）；动作/情绪的中文表达
+    统一走 LLM 生成的 narration。
+    """
+    target_name = lookup.get(entry.target_id, entry.target_id) if entry.target_id else None
+    target_prefix = f"（对{target_name}）" if target_name else ""
+    narration = f"（{entry.narration}）" if entry.narration else ""
+    speak = entry.speak or ""
+    if speak:
+        return f"{name}{target_prefix}：{speak}{narration}"
+    if narration:
+        return f"{name}{target_prefix}：{narration}"
+    return None
 
 
 class Compactor:
     def __init__(self, recent_limit: int = _RECENT_RAW_LIMIT) -> None:
         self.recent_limit = recent_limit
 
-    async def compact(self, entries: list[TimelineEntry]) -> list[TimelineEntry]:
+    async def compact(
+        self, entries: list[TimelineEntry], *, name_lookup: dict[str, str] | None = None
+    ) -> list[TimelineEntry]:
         if len(entries) <= self.recent_limit:
             return entries
         head = entries[: -self.recent_limit]
         tail = entries[-self.recent_limit:]
-        summary = await self._summarize(head)
+        summary = await self._summarize(head, name_lookup=name_lookup)
         if not summary:
             return tail
         virtual = TimelineEntry(
@@ -139,8 +135,10 @@ class Compactor:
         )
         return [virtual, *tail]
 
-    async def _summarize(self, head: list[TimelineEntry]) -> str:
-        rendered = render_timeline_for_messages(head)
+    async def _summarize(
+        self, head: list[TimelineEntry], *, name_lookup: dict[str, str] | None = None
+    ) -> str:
+        rendered = render_timeline_for_messages(head, npc_name_lookup=name_lookup)
         body = "\n".join(f"- {m['content']}" for m in rendered)
         llm = get_chat_model(temperature=0.2, streaming=False)
         result = await llm.ainvoke(

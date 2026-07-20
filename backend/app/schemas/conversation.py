@@ -27,6 +27,7 @@ class TimelineEntryOut(BaseModel):
     kind: str
     speak: str | None = None
     target_id: str | None = None
+    narration: str | None = None
     act_patch: dict[str, Any] | None = None
     created_at: datetime
 

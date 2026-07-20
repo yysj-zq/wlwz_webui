@@ -159,6 +159,7 @@ async def list_conversation_timeline(
             kind=e.kind or "speak",
             speak=e.speak,
             target_id=e.target_id,
+            narration=e.narration,
             act_patch=e.act_patch.model_dump(mode="json") if e.act_patch else None,
             created_at=e.created_at,  # type: ignore[arg-type]
         )

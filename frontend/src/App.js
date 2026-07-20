@@ -313,14 +313,14 @@ function App() {
         .then(entries => {
           // 端点已改为 /timeline，按 (kind, actor_id) 映射成 UI 消息：
           // - speak: 普通对话气泡，role 取 actor_id（玩家保持 "player" 显示）
-          // - scene: 旁白
+          // - scene: 旁白，文本取 speak 或 narration（导演世界变更走 narration）
           // - act/speak_and_act: 暂只显示 speak 部分
           const uiMessages = entries
-            .filter((m) => m.speak)
+            .filter((m) => m.speak || (m.kind === 'scene' && m.narration))
             .map((m) => ({
               id: uuidv4(),
               role: m.kind === 'scene' ? 'scene' : m.actor_id,
-              content: m.speak,
+              content: m.kind === 'scene' ? (m.speak || m.narration) : m.speak,
               kind: m.kind === 'scene' ? 'narration' : (m.actor_id === 'player' ? 'player_action' : 'npc_line'),
               metadata_json: m,
               timestamp: m.created_at,
@@ -593,7 +593,8 @@ function App() {
     if (!currentConversation) return;
     if (!requireLoginForGame()) return;
     // move（只有 act_patch 无 speak）走快路径，不展示 blocking loading：
-    // 键盘连按时 spinner 闪烁会很难看，且后端有 stateVersion 乐观锁兜底。
+    // 键盘连按时 spinner 闪烁会很难看。回合的串行化由 GameView 的在途守卫保证
+    // （请求在途不发新提交），后端 commit 无乐观锁，靠前端串行避免并发丢写。
     const shouldShowBlockingLoading = Boolean(actionPayload.speak);
     if (shouldShowBlockingLoading) {
       setGameLoading(true);
@@ -650,7 +651,7 @@ function App() {
           newMessages.push({
             id: uuidv4(),
             role: 'scene',
-            content: entry.speak,
+            content: entry.speak || entry.narration,
             timestamp: entry.created_at || new Date().toISOString(),
             kind: 'narration',
           });

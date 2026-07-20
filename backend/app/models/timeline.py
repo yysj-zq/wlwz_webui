@@ -26,6 +26,7 @@ class Timeline(Base):
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
     speak: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    narration: Mapped[str | None] = mapped_column(Text, nullable=True)
     act_patch_json: Mapped[dict[str, Any] | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"),  # type: ignore[no-untyped-call]
         nullable=True,

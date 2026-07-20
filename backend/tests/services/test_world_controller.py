@@ -9,6 +9,7 @@ from app.schemas.world import (
     MemoryWrite,
     NPCResponse,
     Perceiver,
+    Position,
     TimelineEntry,
     WorldEntityPatch,
 )
@@ -118,6 +119,69 @@ async def test_commit_turn_silent_npc_skipped(async_db_session: AsyncSession) ->
 
 
 @pytest.mark.asyncio
+async def test_commit_turn_director_writes_merge_single_scene_entry(
+    async_db_session: AsyncSession,
+) -> None:
+    controller = await _setup_controller(async_db_session, "scene@example.com")
+
+    scene_note = "门被推开，一阵冷风灌进屋里"
+    director_writes = [WorldEntityPatch(entity_id="table", public_state={"state": "moved"})]
+    await controller.commit_turn(
+        turn_id="t4",
+        player_entry=TimelineEntry(turn_id="t4", actor_id="player", kind="speak", speak="..."),
+        director_writes=director_writes,
+        npc_responses=[],
+        scene_note=scene_note,
+    )
+
+    rows = (
+        await async_db_session.execute(
+            select(Timeline).where(
+                Timeline.conversation_id == controller.conversation_id,
+                Timeline.turn_id == "t4",
+            )
+        )
+    ).scalars().all()
+    # 玩家 + 单条 director SCENE，共 2 条；不再有 actor_id=player 的 ACT 冗余条
+    scene_rows = [r for r in rows if r.kind == "scene"]
+    assert len(scene_rows) == 1
+    scene = scene_rows[0]
+    # director 世界变更：narration 承载中文映射（进展示窗口），act_patch 同条携带机器态，speak 为空
+    assert scene.narration == scene_note
+    assert scene.speak is None
+    assert scene.act_patch_json == [ep.model_dump(mode="json") for ep in director_writes]
+    # 无 actor_id=player 的 ACT 冗余记录
+    assert not any(r.kind == "act" and r.actor_id == "player" for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_commit_turn_no_director_writes_no_scene_entry(
+    async_db_session: AsyncSession,
+) -> None:
+    controller = await _setup_controller(async_db_session, "noscene@example.com")
+
+    # 无世界变更 → 无 narration → 不产 SCENE（narration 不独立存在）
+    await controller.commit_turn(
+        turn_id="t5",
+        player_entry=TimelineEntry(turn_id="t5", actor_id="player", kind="speak", speak="发个呆"),
+        director_writes=[],
+        npc_responses=[],
+        scene_note=None,
+    )
+
+    rows = (
+        await async_db_session.execute(
+            select(Timeline).where(
+                Timeline.conversation_id == controller.conversation_id,
+                Timeline.turn_id == "t5",
+            )
+        )
+    ).scalars().all()
+    assert [r.kind for r in rows] == ["speak"]  # 仅玩家一条
+    assert not any(r.kind == "scene" for r in rows)
+
+
+@pytest.mark.asyncio
 async def test_director_dispatch_drops_unknown_fields() -> None:
     """DirectorDispatch 解析时拒绝旧 suggested_focus / intent_briefs。"""
     raw = {
@@ -129,3 +193,32 @@ async def test_director_dispatch_drops_unknown_fields() -> None:
     dispatch = DirectorDispatch.model_validate(raw)
     assert not hasattr(dispatch, "suggested_focus")
     assert dispatch.perceivers == [Perceiver(actor_id="baizhantang", perception_reason="被直接称呼")]
+
+
+@pytest.mark.asyncio
+async def test_apply_player_action_mutates_world_no_version_bump(
+    async_db_session: AsyncSession,
+) -> None:
+    controller = await _setup_controller(async_db_session, "applyplayer@example.com")
+    before_version = controller.world_state.state_version
+
+    controller.apply_player_action(
+        [WorldEntityPatch(entity_id="player", position=Position(x=7, y=8), direction="east")]
+    )
+
+    player = controller.world_state.entities["player"]
+    assert (player.position.x, player.position.y) == (7, 8)
+    assert player.direction == "east"
+    # 内存落地不 bump version（版本只在 commit_turn 递增）
+    assert controller.world_state.state_version == before_version
+
+
+@pytest.mark.asyncio
+async def test_apply_player_action_empty_is_noop(
+    async_db_session: AsyncSession,
+) -> None:
+    controller = await _setup_controller(async_db_session, "applyempty@example.com")
+    snapshot = controller.world_state
+    controller.apply_player_action([])
+    # 空 patch：world_state 引用不变
+    assert controller.world_state is snapshot

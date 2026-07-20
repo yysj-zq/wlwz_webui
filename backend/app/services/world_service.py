@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ActorMind, Conversation, User
 from app.schemas import (
-    PLAYER,
     CommittedTurn,
     EntityKind,
     NPCResponse,
@@ -154,9 +153,21 @@ class WorldController:
     async def load_turn_context(self) -> TurnContext:
         digest = await digest_service.get_digest(self.db, self.conversation_id)
         full_timeline = await timeline_service.list_timeline(self.db, self.conversation_id)
-        compacted = await timeline_service.Compactor().compact(full_timeline)
+        compacted = await timeline_service.Compactor().compact(
+            full_timeline, name_lookup=self.world_state.name_lookup()
+        )
         self._last_loaded_timeline = full_timeline
         return TurnContext(digest=digest, timeline=compacted)
+
+    def apply_player_action(self, patches: list[WorldEntityPatch]) -> None:
+        """把玩家提交的 act_patch 就地 apply 到内存 world_state，使其在
+        director/NPC 观察前即成为既定事实。不 commit、不 bump version——
+        版本递增与持久化统一在 commit_turn。空 patches no-op。
+        """
+        if not patches:
+            return
+        self._validate_patches(patches)
+        self.world_state = apply_world_patches(self.world_state, patches)
 
     async def load_actor_mind(self, actor_id: str) -> ActorMind | None:
         return await actor_mind_service.get_or_create(
@@ -187,10 +198,16 @@ class WorldController:
         entries.append(player_entry)
         seq += 1
         if director_writes:
+            # director 的世界变更是无主语的客观记录：合成单条 SCENE。
+            # narration 是 director_writes 的中文映射（进 speak 展示窗口，见渲染层），
+            # act_patch 同条携带机器态。narration 不独立存在，故无 director_writes 不产此条。
             entries.append(
                 TimelineEntry(
                     turn_id=turn_id, intra_turn_seq=seq,
-                    actor_id=PLAYER, kind=TimelineKind.ACT, act_patch=director_writes,
+                    kind=TimelineKind.SCENE,
+                    speak=None,
+                    narration=scene_note,
+                    act_patch=director_writes,
                 )
             )
             seq += 1
@@ -201,14 +218,7 @@ class WorldController:
                 TimelineEntry(
                     turn_id=turn_id, intra_turn_seq=seq,
                     actor_id=actor_id, speak=response.speak, act_patch=response.act_patch,
-                )
-            )
-            seq += 1
-        if scene_note:
-            entries.append(
-                TimelineEntry(
-                    turn_id=turn_id, intra_turn_seq=seq,
-                    kind=TimelineKind.SCENE, speak=scene_note,
+                    narration=response.narration,
                 )
             )
             seq += 1

@@ -25,7 +25,17 @@ class TurnMode(StrEnum):
 
 
 class Direction(StrEnum):
-    NORTH = "north"
-    SOUTH = "south"
-    EAST = "east"
-    WEST = "west"
+    """朝向。成员绑定 (英文值, 中文标签)：value 给前端/DB(机器态)，label 给 LLM/时间线(中文)。"""
+
+    NORTH = "north", "北"
+    SOUTH = "south", "南"
+    EAST = "east", "东"
+    WEST = "west", "西"
+
+    label: str
+
+    def __new__(cls, value: str, label: str) -> "Direction":
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.label = label
+        return obj

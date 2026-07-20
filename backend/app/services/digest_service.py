@@ -54,7 +54,9 @@ async def _refresh_digest(db: AsyncSession, conversation_id: int) -> None:
         return
     world_state = WorldState.model_validate(convo.world_state_json)
     timeline = await timeline_service.list_timeline(db, conversation_id, limit=20)
-    rendered = timeline_service.render_timeline_for_messages(timeline)
+    rendered = timeline_service.render_timeline_for_messages(
+        timeline, npc_name_lookup=world_state.name_lookup()
+    )
     body = (
         "当前世界（JSON）：\n"
         f"{world_state.model_dump(mode='json')}\n\n"

@@ -48,7 +48,7 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict:
     # 准备 LLM 所需的上下文数据
     entity = ws.entities[perceiver.actor_id]
     mind_view = await _load_mind_view(controller, perceiver.actor_id)
-    name_lookup = {eid: e.name for eid, e in ws.entities.items()}
+    name_lookup = ws.name_lookup()
 
     # new_msgs 追踪本次调用的增量（reducer 会追加到 state["messages"]）
     new_msgs: list[BaseMessage] = []

@@ -6,6 +6,8 @@ import { Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogConte
 import TongfuInnScene from './scenes/TongfuInnScene';
 import { useLatestRef } from './hooks';
 
+const MOVE_DEBOUNCE_MS = 250;
+
 const GameView = ({
   worldState,
   loading = false,
@@ -19,6 +21,12 @@ const GameView = ({
   const onGameActionRef = useLatestRef(onGameAction);
   const [targetEntity, setTargetEntity] = useState(null);
   const [interactionText, setInteractionText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const targetEntityRef = useLatestRef(targetEntity);
+  const pendingMoveRef = useRef(null);
+  const moveTimerRef = useRef(null);
+  const requestInFlightRef = useRef(false);
+  const pendingInteractionRef = useRef(null);
 
   useEffect(() => {
     sceneRef.current?.applyWorldState(worldState);
@@ -29,19 +37,16 @@ const GameView = ({
 
     const scene = new TongfuInnScene({
       getWorldState: () => worldStateRef.current,
-      onInteract: (entity) => setTargetEntity(entity),
-      onMove: ({ position, direction }) => {
-        return Promise.resolve(onGameActionRef.current?.({
-          actorId: 'player',
-          act_patch: [{ entity_id: 'player', position, direction }],
-        })).then((response) => {
-          if (response?.world_state) {
-            worldStateRef.current = response.world_state;
-            sceneRef.current?.applyWorldState(response.world_state);
-          }
-          return response;
-        });
+      onInteract: (entity) => {
+        // 打开交互框：暂停待发移动的防抖，避免移动单独发请求；发送时合并，取消时重启。
+        if (moveTimerRef.current) {
+          clearTimeout(moveTimerRef.current);
+          moveTimerRef.current = null;
+        }
+        setTargetEntity(entity);
       },
+      onLocalMove: handleLocalMove,
+      isMoveLocked: () => Boolean(targetEntityRef.current),
     });
     sceneRef.current = scene;
     gameRef.current = new Phaser.Game({
@@ -59,6 +64,7 @@ const GameView = ({
     });
 
     return () => {
+      if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
       gameRef.current?.destroy(true);
       gameRef.current = null;
       sceneRef.current = null;
@@ -72,17 +78,112 @@ const GameView = ({
     return dialogueLines[dialogueLines.length - 1];
   }, [dialogueLines]);
 
+  // 统一回合派发：保证任一时刻只有一个 /game 请求在途（沿用旧 moveLocked 的串行化，
+  // 避免并发回合从同一旧 world_state 快照各自 commit 而丢写）。在途期间的移动仍本地
+  // 乐观累积到 pendingMoveRef，回合结束后若有新 pending 再按防抖补发。
+  const runTurn = (payload) => {
+    requestInFlightRef.current = true;
+    setSubmitting(true);
+    return Promise.resolve(onGameActionRef.current?.(payload))
+      .then((response) => {
+        if (response?.world_state) {
+          worldStateRef.current = response.world_state;
+          sceneRef.current?.applyWorldState(response.world_state);
+        }
+        return response;
+      })
+      .finally(() => {
+        requestInFlightRef.current = false;
+        setSubmitting(false);
+        // 优先补发在途期间点了发送、被推迟的交互；否则若有累积移动按防抖补发。
+        if (pendingInteractionRef.current) {
+          const next = pendingInteractionRef.current;
+          pendingInteractionRef.current = null;
+          runTurn(next);
+        } else if (pendingMoveRef.current && !targetEntityRef.current) {
+          if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
+          moveTimerRef.current = setTimeout(flushMove, MOVE_DEBOUNCE_MS);
+        }
+      });
+  };
+
+  const flushMove = () => {
+    if (moveTimerRef.current) {
+      clearTimeout(moveTimerRef.current);
+      moveTimerRef.current = null;
+    }
+    const pending = pendingMoveRef.current;
+    if (!pending) return;
+    // 有请求在途：不发新提交，保留 pending，待在途回合 finally 里补发。
+    if (requestInFlightRef.current) return;
+    pendingMoveRef.current = null;
+    runTurn({
+      actorId: 'player',
+      act_patch: [{ entity_id: 'player', position: pending.position, direction: pending.direction }],
+    });
+  };
+
+  const handleLocalMove = ({ position, direction }) => {
+    // 本地乐观：即时更新前端 world_state 并重绘，不等后端。
+    const current = worldStateRef.current;
+    if (current?.entities?.player) {
+      const nextState = {
+        ...current,
+        entities: {
+          ...current.entities,
+          player: { ...current.entities.player, position, direction },
+        },
+      };
+      worldStateRef.current = nextState;
+      sceneRef.current?.applyWorldState(nextState);
+    }
+    pendingMoveRef.current = { position, direction };
+    if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
+    moveTimerRef.current = setTimeout(flushMove, MOVE_DEBOUNCE_MS);
+  };
+
   const submitInteraction = () => {
     if (!targetEntity) return;
     const text = interactionText.trim();
-    onGameActionRef.current?.({
+    // 无言交互暂不做：不打字直接提交时仅关闭弹窗；有待发移动则经 closeInteraction 重启防抖。
+    if (!text) {
+      closeInteraction();
+      return;
+    }
+    // 合并待发移动：pendingMove 与台词进同一请求。
+    if (moveTimerRef.current) {
+      clearTimeout(moveTimerRef.current);
+      moveTimerRef.current = null;
+    }
+    const pending = pendingMoveRef.current;
+    pendingMoveRef.current = null;
+    const act_patch = pending
+      ? [{ entity_id: 'player', position: pending.position, direction: pending.direction }]
+      : [];
+    const payload = {
       actorId: 'player',
       targetId: targetEntity.id,
-      speak: text || null,
-      act_patch: text ? [] : [{ entity_id: targetEntity.id, public_state: { last_interactor: 'player' } }],
-    });
+      speak: text,
+      act_patch,
+    };
+    // 有请求在途：推迟到当前回合结束后再发，避免并发回合丢写。
+    if (requestInFlightRef.current) {
+      pendingInteractionRef.current = payload;
+    } else {
+      runTurn(payload);
+    }
     setInteractionText('');
     setTargetEntity(null);
+  };
+
+  const closeInteraction = () => {
+    setTargetEntity(null);
+    setInteractionText('');
+    // 交互框打开期间移动被锁；关闭后若有未发的移动，重启防抖到点发送。
+    if (pendingMoveRef.current) {
+      if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
+      moveTimerRef.current = setTimeout(flushMove, MOVE_DEBOUNCE_MS);
+    }
   };
 
   return (
@@ -166,7 +267,7 @@ const GameView = ({
         </Stack>
       </Box>
 
-      <Dialog open={Boolean(targetEntity)} onClose={() => setTargetEntity(null)} fullWidth maxWidth="sm">
+      <Dialog open={Boolean(targetEntity)} onClose={closeInteraction} fullWidth maxWidth="sm">
         <DialogTitle>与 {targetEntity?.name} 交互</DialogTitle>
         <DialogContent>
           <TextField
@@ -181,8 +282,8 @@ const GameView = ({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTargetEntity(null)}>取消</Button>
-          <Button variant="contained" onClick={submitInteraction} disabled={loading}>
+          <Button onClick={closeInteraction}>取消</Button>
+          <Button variant="contained" onClick={submitInteraction} disabled={loading || submitting}>
             发送
           </Button>
         </DialogActions>

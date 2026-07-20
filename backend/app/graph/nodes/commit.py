@@ -19,7 +19,7 @@ async def commit(state: TurnGraphState, config: RunnableConfig) -> dict:
         player_entry=player_entry,
         director_writes=dispatch.world_writes,
         npc_responses=npc_responses,
-        scene_note=None,
+        scene_note=dispatch.narration,
     )
 
     should = await digest_service.should_refresh(

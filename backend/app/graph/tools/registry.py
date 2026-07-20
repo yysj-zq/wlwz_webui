@@ -65,7 +65,7 @@ def query_neighbors(
         eid for eid, e in ws.entities.items() if abs(e.position.x - center.x) + abs(e.position.y - center.y) <= radius
     ]
 
-
+# todo timeline是否有必要让llm query，现在都渲染给director/npc了
 @tool
 def query_timeline(
     limit: Annotated[int, Field(description="返回最近多少条时间线记录")] = 6,
@@ -100,9 +100,16 @@ def submit_dispatch(
     world_writes: list[WorldEntityPatch],
     perceivers: list[Perceiver],
     tool_call_id: Annotated[str, InjectedToolCallId],
+    narration: str | None = None,
 ) -> Command[Any]:
-    """结束导演回合，提交本回合决策。world_writes 填实体状态变更列表（如玩家移动、物件状态改变），无变更传 []。perceivers 填因本次事件需要做出响应的 NPC 列表，每项含 actor_id 和 perception_reason（说明为何得知此事），无人需响应传 []。必须调用此工具来结束回合。"""
-    dispatch = DirectorDispatch(world_writes=world_writes, perceivers=perceivers)
+    """结束导演回合，提交本回合决策。
+    world_writes 填「玩家动作引发的、非玩家提交的」连锁世界变更列表（如玩家撞倒的物件、被惊动的角色）。玩家自身的移动/朝向/交互已生效，不要重复填入；无连锁变更传 []。
+    narration 是 world_writes 的中文映射，填一句中文旁白描述 world_writes（如「门被推开，一阵冷风灌进屋里」），内容必须匹配你的 world_writes，world_writes 为空则不传。
+    perceivers 填因本次事件需要做出响应的 NPC 列表，每项含 actor_id 和 perception_reason（说明为何得知此事），无人需响应传 []。
+
+    必须调用此工具来结束回合。
+    """
+    dispatch = DirectorDispatch(world_writes=world_writes, perceivers=perceivers, narration=narration)
     # 必坑：director 的 ToolNode 用 messages_key="director_messages"，ToolMessage 必须落进该键，
     # 否则 langgraph 抛 ValueError: Expected to have a matching ToolMessage。
     return Command(update={
@@ -119,15 +126,26 @@ def submit_response(
     tool_call_id: Annotated[str, InjectedToolCallId],
     perceiver: Annotated[Perceiver, InjectedState("npc_perceiver")],
     speak: str | None = None,
+    narration: str | None = None,
     goal_update: GoalPatch | None = None,
 ) -> Command[Any]:
-    """结束扮演回合，提交你的响应。speak 填你说出口的台词原文（不说话就不传）。act_patch 填你的动作引起的世界实体状态变化（如自己移动、情绪变化），其中 entity_id 通常应是你自己；除非你的动作直接作用于某物件（如开门、拿起桌上的东西），否则不要修改其他角色的状态，无变化传 []。memory_writes 填你要记住的新事实，无新记忆传 []。inventory_ops 填物品增减，无变化传 []。必须调用此工具来结束回合。"""
+    """结束扮演回合，提交你的响应。
+
+    speak 填你说出口的台词原文（不说话就不传）。
+    act_patch 填你的动作引起的世界实体状态变化（如自己移动、情绪变化），其中 entity_id 通常应是你自己，除非你的动作直接作用于某物件（如开门、拿起桌上的东西），否则不要修改其他角色的状态，无变化传 []。
+    narration 是 act_patch 的中文映射，填一句中文旁白描述 act_patch（比如「转头看向门口，眼里泛起好奇」），内容必须匹配你的 act_patch，act_patch 为空则不传。
+    memory_writes 填你要记住的新事实，无新记忆传 []。
+    inventory_ops 填物品增减，无变化传 []。
+
+    必须调用此工具来结束回合。
+    """
     # perceiver 经 InjectedState 从子图 state["npc_perceiver"] 注入，用来拿 actor_id；
     # 依赖 NPC 子图 state 存在 npc_perceiver 键。tool_call_id / perceiver 无默认值，
-    # 故必须排在有默认值的 speak / goal_update 之前。
+    # 故必须排在有默认值的 speak / narration / goal_update 之前。
     response = NPCResponse(
         speak=speak,
         act_patch=act_patch,
+        narration=narration,
         memory_writes=memory_writes,
         goal_update=goal_update,
         inventory_ops=inventory_ops,

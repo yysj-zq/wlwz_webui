@@ -41,6 +41,7 @@ class TimelineRepository(BaseRepository[Timeline]):
                 kind=entry.kind,
                 speak=entry.speak,
                 target_id=entry.target_id,
+                narration=entry.narration,
                 act_patch_json=[ep.model_dump(mode="json") for ep in entry.act_patch] if entry.act_patch else None,
             )
             db.add(row)
@@ -57,6 +58,7 @@ class TimelineRepository(BaseRepository[Timeline]):
             kind=row.kind,  # type: ignore[arg-type]
             speak=row.speak,
             target_id=row.target_id,
+            narration=row.narration,
             act_patch=[WorldEntityPatch.model_validate(ep) for ep in row.act_patch_json] if row.act_patch_json else [],
             created_at=row.created_at,
         )

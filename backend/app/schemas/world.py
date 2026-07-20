@@ -32,6 +32,10 @@ class WorldState(BaseModel):
     player_actor_id: str = PLAYER
     entities: dict[str, WorldEntity]
 
+    def name_lookup(self) -> dict[str, str]:
+        """实体 id → 中文名映射，供时间线渲染把 id 翻成人类可读名。"""
+        return {eid: e.name for eid, e in self.entities.items()}
+
 
 class WorldEntityPatch(BaseModel):
     entity_id: str = Field(description="要修改的实体 id，如 baizhantang、player、table")
@@ -52,6 +56,7 @@ class TimelineEntry(BaseModel):
     speak: str | None = None
     act_patch: list[WorldEntityPatch] = Field(default_factory=list)
     target_id: str | None = None
+    narration: str | None = None
     created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -80,6 +85,10 @@ class Perceiver(BaseModel):
 class DirectorDispatch(BaseModel):
     world_writes: list[WorldEntityPatch] = Field(default_factory=list)
     perceivers: list[Perceiver] = Field(default_factory=list)
+    narration: str | None = Field(
+        default=None,
+        description="world_writes的中文映射，描述发生了什么，如「门被推开，一阵冷风灌进屋里」；无改动可不传",
+    )
 
 
 class MemoryWrite(BaseModel):
@@ -103,6 +112,10 @@ class InventoryOp(BaseModel):
 class NPCResponse(BaseModel):
     speak: str | None = None
     act_patch: list[WorldEntityPatch] = Field(default_factory=list)
+    narration: str | None = Field(
+        default=None,
+        description="act_patch的中文映射",
+    )
     memory_writes: list[MemoryWrite] = Field(default_factory=list)
     goal_update: GoalPatch | None = None
     inventory_ops: list[InventoryOp] = Field(default_factory=list)

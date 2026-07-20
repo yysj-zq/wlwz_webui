@@ -1,8 +1,7 @@
 // 同福客栈场景。
 // - 资源策略：tilemap json 优先（drawTilemap），加载失败时回退到 drawMap 程序
 //   化绘制，保证缺资源时仍能开发联调。
-// - moveLocked：阻止用户在前一次 move 请求未回到客户端前再次触发，避免后端
-//   stateVersion 乐观锁连环冲突。
+// - 移动为本地乐观：onLocalMove 上报落点，提交与防抖在 GameView 统一处理。
 import Phaser from 'phaser';
 import { GAME_ASSETS, TILE_SIZE, entityAssetPath } from '../assets';
 
@@ -15,11 +14,12 @@ const worldToPixel = (position) => ({
 });
 
 export default class TongfuInnScene extends Phaser.Scene {
-  constructor({ getWorldState, onInteract, onMove } = {}) {
+  constructor({ getWorldState, onInteract, onLocalMove, isMoveLocked } = {}) {
     super('TongfuInnScene');
     this.getWorldState = getWorldState;
     this.onInteract = onInteract;
-    this.onMove = onMove;
+    this.onLocalMove = onLocalMove;
+    this.isMoveLocked = isMoveLocked || (() => false);
     this.entitySprites = new Map();
     this.entityLabels = new Map();
   }
@@ -41,7 +41,8 @@ export default class TongfuInnScene extends Phaser.Scene {
   }
 
   update() {
-    if (!this.cursors || this.moveLocked) return;
+    if (!this.cursors) return;
+    if (this.isMoveLocked()) return;  // 交互框打开时锁移动
     const player = this.getWorldState?.()?.entities?.player;
     if (!player) return;
 
@@ -66,14 +67,8 @@ export default class TongfuInnScene extends Phaser.Scene {
         x: Math.max(1, Math.min(16, player.position.x + delta.x)),
         y: Math.max(1, Math.min(10, player.position.y + delta.y)),
       };
-      this.moveLocked = true;
-      Promise.resolve(this.onMove?.({ position: nextPosition, direction }))
-        .catch((error) => {
-          console.error('Move action failed', error);
-        })
-        .finally(() => {
-          this.moveLocked = false;
-        });
+      // 本地乐观：上报落点，由 GameView 即时更新本地 world_state 并防抖提交。
+      this.onLocalMove?.({ position: nextPosition, direction });
     }
   }
 
