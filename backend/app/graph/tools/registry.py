@@ -161,5 +161,5 @@ def submit_response(
     )
 
 
-DIRECTOR_TOOLS = [query_entity, query_neighbors, query_timeline, submit_dispatch]
-NPC_TOOLS = [query_entity, query_neighbors, query_timeline, submit_response]
+DIRECTOR_TOOLS = [query_entity, query_neighbors, submit_dispatch]
+NPC_TOOLS = [query_entity, query_neighbors, submit_response]
