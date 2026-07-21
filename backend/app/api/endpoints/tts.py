@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.schemas import TTSRequest
 from app.core import get_db, get_logger
 from app.models import User
+from app.schemas import TTSRequest
 from app.services import (
     get_speaker_id_for_role,
     get_tts_cache,

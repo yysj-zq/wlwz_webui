@@ -30,9 +30,15 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
 
-    conversations: Mapped[list[Conversation]] = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
-    role_profiles: Mapped[list[RoleProfile]] = relationship("RoleProfile", back_populates="user", cascade="all, delete-orphan")
-    settings: Mapped[list[UserSetting]] = relationship("UserSetting", back_populates="user", cascade="all, delete-orphan")
+    conversations: Mapped[list[Conversation]] = relationship(
+        "Conversation", back_populates="user", cascade="all, delete-orphan"
+    )
+    role_profiles: Mapped[list[RoleProfile]] = relationship(
+        "RoleProfile", back_populates="user", cascade="all, delete-orphan"
+    )
+    settings: Mapped[list[UserSetting]] = relationship(
+        "UserSetting", back_populates="user", cascade="all, delete-orphan"
+    )
     tts_voice_caches: Mapped[list[TTSVoiceCache]] = relationship("TTSVoiceCache", back_populates="user")
 
 

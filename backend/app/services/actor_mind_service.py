@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import ActorMind
 from app.repositories import actor_mind_repository
 from app.schemas import NPCResponse
 
@@ -55,10 +56,8 @@ async def get_or_create(
     actor_id: str,
     *,
     defaults: dict[str, Any] | None = None,
-) -> Any:
-    return await actor_mind_repository.get_or_create(
-        db, conversation_id, actor_id, defaults=defaults
-    )
+) -> ActorMind:
+    return await actor_mind_repository.get_or_create(db, conversation_id, actor_id, defaults=defaults)
 
 
 async def seed_default_minds_no_commit(db: AsyncSession, conversation_id: int) -> None:
@@ -100,9 +99,7 @@ async def upsert_increment_no_commit(
         mind.inventory_json = inv
 
 
-async def load_for_prompt(
-    db: AsyncSession, conversation_id: int, actor_id: str
-) -> dict[str, Any]:
+async def load_for_prompt(db: AsyncSession, conversation_id: int, actor_id: str) -> dict[str, Any]:
     mind = await actor_mind_repository.get_by_conversation_actor(db, conversation_id, actor_id)
     if mind is None:
         return {"persona": "", "relations": {}, "goal": {}, "recent_memories": []}

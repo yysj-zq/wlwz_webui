@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from langgraph.types import RunnableConfig
+from typing import Any
+
+from langchain_core.runnables import RunnableConfig
 
 from app.graph.state import TurnGraphState
 from app.services import WorldController
 
 
-async def load_turn_context(state: TurnGraphState, config: RunnableConfig) -> dict:
+async def load_turn_context(state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
     controller: WorldController = config["configurable"]["controller"]
     context = await controller.load_turn_context()
     player_entry = state.get("player_entry")

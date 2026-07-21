@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User
 from app.repositories import timeline_repository
-from app.schemas.world import TimelineEntry
+from app.schemas import TimelineEntry, TimelineKind
 from app.services import ensure_conversation_world
 
 
@@ -15,6 +15,7 @@ async def _new_conversation_id(db: AsyncSession, email: str) -> int:
     await db.commit()
     await db.refresh(user)
     conversation, _ = await ensure_conversation_world(db, user, conversation_id=None)
+    assert conversation is not None
     return conversation.id
 
 
@@ -26,13 +27,15 @@ async def test_list_timeline_orders_by_insertion_not_turn_id(
 
     # 先写的 turn_id 字典序更大，后写的更小——模拟 UUID 乱序
     await timeline_repository.append_no_commit(
-        async_db_session, conversation_id,
-        [TimelineEntry(turn_id="zzzz", actor_id="player", kind="speak", speak="先说的")],
+        async_db_session,
+        conversation_id,
+        [TimelineEntry(turn_id="zzzz", actor_id="player", kind=TimelineKind.SPEAK, speak="先说的")],
     )
     await async_db_session.commit()
     await timeline_repository.append_no_commit(
-        async_db_session, conversation_id,
-        [TimelineEntry(turn_id="aaaa", actor_id="player", kind="speak", speak="后说的")],
+        async_db_session,
+        conversation_id,
+        [TimelineEntry(turn_id="aaaa", actor_id="player", kind=TimelineKind.SPEAK, speak="后说的")],
     )
     await async_db_session.commit()
 

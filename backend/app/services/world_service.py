@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ActorMind, Conversation, User
 from app.schemas import (
     CommittedTurn,
+    Direction,
     EntityKind,
     NPCResponse,
     Position,
@@ -22,8 +23,7 @@ from app.services.conversation_service import create_conversation, get_conversat
 
 DEFAULT_MAP_ID = "tongfu_inn"
 INITIAL_SCENE_NOTE = (
-    "同福客栈屋内，午后阳光斜斜洒在木地板上。柜台后佟掌柜抱着账本嘀咕，"
-    "老白手里抹布转得飞起，小郭蹲在桌边擦着木椅。"
+    "同福客栈屋内，午后阳光斜斜洒在木地板上。柜台后佟掌柜抱着账本嘀咕，老白手里抹布转得飞起，小郭蹲在桌边擦着木椅。"
 )
 
 _RESERVED_PUBLIC_STATE_KEYS = frozenset({"memories", "goal", "inventory"})
@@ -32,49 +32,97 @@ _RESERVED_PUBLIC_STATE_KEYS = frozenset({"memories", "goal", "inventory"})
 def build_default_world_state() -> WorldState:
     entities = {
         "player": WorldEntity(
-            id="player", name="玩家", kind=EntityKind.PLAYER,
-            position=Position(x=5, y=6), asset_key="player", direction="south",
+            id="player",
+            name="玩家",
+            kind=EntityKind.PLAYER,
+            position=Position(x=5, y=6),
+            asset_key="player",
+            direction=Direction.SOUTH,
             public_state={"mood": "neutral"},
         ),
         "baizhantang": WorldEntity(
-            id="baizhantang", name="白展堂", kind=EntityKind.NPC,
-            position=Position(x=8, y=5), asset_key="baizhantang", direction="south",
-            public_state={"mood": "alert", "role": "跑堂"}, interactable=True,
+            id="baizhantang",
+            name="白展堂",
+            kind=EntityKind.NPC,
+            position=Position(x=8, y=5),
+            asset_key="baizhantang",
+            direction=Direction.SOUTH,
+            public_state={"mood": "alert", "role": "跑堂"},
+            interactable=True,
         ),
         "guofurong": WorldEntity(
-            id="guofurong", name="郭芙蓉", kind=EntityKind.NPC,
-            position=Position(x=4, y=4), asset_key="guofurong", direction="south",
-            public_state={"mood": "energetic", "role": "杂役"}, interactable=True,
+            id="guofurong",
+            name="郭芙蓉",
+            kind=EntityKind.NPC,
+            position=Position(x=4, y=4),
+            asset_key="guofurong",
+            direction=Direction.SOUTH,
+            public_state={"mood": "energetic", "role": "杂役"},
+            interactable=True,
         ),
         "tongxiangyu": WorldEntity(
-            id="tongxiangyu", name="佟湘玉", kind=EntityKind.NPC,
-            position=Position(x=10, y=4), asset_key="tongxiangyu", direction="south",
-            public_state={"mood": "concerned", "role": "掌柜"}, interactable=True,
+            id="tongxiangyu",
+            name="佟湘玉",
+            kind=EntityKind.NPC,
+            position=Position(x=10, y=4),
+            asset_key="tongxiangyu",
+            direction=Direction.SOUTH,
+            public_state={"mood": "concerned", "role": "掌柜"},
+            interactable=True,
         ),
         "counter": WorldEntity(
-            id="counter", name="柜台", kind=EntityKind.OBJECT, position=Position(x=10, y=3),
-            asset_key="counter", public_state={"description": "客栈柜台，账簿和算盘都放在附近。"},
+            id="counter",
+            name="柜台",
+            kind=EntityKind.OBJECT,
+            position=Position(x=10, y=3),
+            asset_key="counter",
+            public_state={"description": "客栈柜台，账簿和算盘都放在附近。"},
             interactable=True,
         ),
         "table": WorldEntity(
-            id="table", name="方桌", kind=EntityKind.OBJECT, position=Position(x=6, y=8),
-            asset_key="table", public_state={"description": "客人常坐的木桌。"}, interactable=True,
+            id="table",
+            name="方桌",
+            kind=EntityKind.OBJECT,
+            position=Position(x=6, y=8),
+            asset_key="table",
+            public_state={"description": "客人常坐的木桌。"},
+            interactable=True,
         ),
         "chair": WorldEntity(
-            id="chair", name="椅子", kind=EntityKind.OBJECT, position=Position(x=7, y=8),
-            asset_key="chair", public_state={"description": "木椅。"}, interactable=True,
+            id="chair",
+            name="椅子",
+            kind=EntityKind.OBJECT,
+            position=Position(x=7, y=8),
+            asset_key="chair",
+            public_state={"description": "木椅。"},
+            interactable=True,
         ),
         "ledger": WorldEntity(
-            id="ledger", name="账簿", kind=EntityKind.OBJECT, position=Position(x=11, y=3),
-            asset_key="ledger", public_state={"description": "记录客栈收支的账簿。"}, interactable=True,
+            id="ledger",
+            name="账簿",
+            kind=EntityKind.OBJECT,
+            position=Position(x=11, y=3),
+            asset_key="ledger",
+            public_state={"description": "记录客栈收支的账簿。"},
+            interactable=True,
         ),
         "abacus": WorldEntity(
-            id="abacus", name="算盘", kind=EntityKind.OBJECT, position=Position(x=9, y=3),
-            asset_key="abacus", public_state={"description": "佟掌柜算账用的算盘。"}, interactable=True,
+            id="abacus",
+            name="算盘",
+            kind=EntityKind.OBJECT,
+            position=Position(x=9, y=3),
+            asset_key="abacus",
+            public_state={"description": "佟掌柜算账用的算盘。"},
+            interactable=True,
         ),
         "stairs": WorldEntity(
-            id="stairs", name="楼梯", kind=EntityKind.OBJECT, position=Position(x=13, y=5),
-            asset_key="stairs", public_state={"description": "通向二楼客房。"}, interactable=True,
+            id="stairs",
+            name="楼梯",
+            kind=EntityKind.OBJECT,
+            position=Position(x=13, y=5),
+            asset_key="stairs",
+            public_state={"description": "通向二楼客房。"},
+            interactable=True,
         ),
     }
     return WorldState(map_id=DEFAULT_MAP_ID, state_version=1, entities=entities)
@@ -92,7 +140,9 @@ async def ensure_conversation_world(
     if conversation_id is None:
         world_state = build_default_world_state()
         conversation = await create_conversation(
-            db, user, title or "新的会话",
+            db,
+            user,
+            title or "新的会话",
             map_id=world_state.map_id,
             state_version=world_state.state_version,
             world_state_json=world_state.model_dump(mode="json"),
@@ -141,9 +191,7 @@ def apply_world_patches(world_state: WorldState, patches: list[WorldEntityPatch]
 class WorldController:
     """世界状态管控入口。持有 db 和 conversation_id，外部只需调其方法即可读写世界。"""
 
-    def __init__(
-        self, db: AsyncSession, conversation: Conversation, world_state: WorldState
-    ) -> None:
+    def __init__(self, db: AsyncSession, conversation: Conversation, world_state: WorldState) -> None:
         self.db = db
         self.conversation_id: int = conversation.id
         self._conversation = conversation
@@ -170,9 +218,7 @@ class WorldController:
         self.world_state = apply_world_patches(self.world_state, patches)
 
     async def load_actor_mind(self, actor_id: str) -> ActorMind | None:
-        return await actor_mind_service.get_or_create(
-            self.db, self.conversation_id, actor_id
-        )
+        return await actor_mind_service.get_or_create(self.db, self.conversation_id, actor_id)
 
     # TODO: timeline 只存最终交互结果，NPC/Director 的中间推理过程（tool 查询、多轮思考、重试）全部丢弃。
     #  后续考虑是否需要持久化 reasoning trace 用于 debug/replay/可解释性。
@@ -203,7 +249,8 @@ class WorldController:
             # act_patch 同条携带机器态。narration 不独立存在，故无 director_writes 不产此条。
             entries.append(
                 TimelineEntry(
-                    turn_id=turn_id, intra_turn_seq=seq,
+                    turn_id=turn_id,
+                    intra_turn_seq=seq,
                     kind=TimelineKind.SCENE,
                     speak=None,
                     narration=scene_note,
@@ -216,8 +263,11 @@ class WorldController:
                 continue
             entries.append(
                 TimelineEntry(
-                    turn_id=turn_id, intra_turn_seq=seq,
-                    actor_id=actor_id, speak=response.speak, act_patch=response.act_patch,
+                    turn_id=turn_id,
+                    intra_turn_seq=seq,
+                    actor_id=actor_id,
+                    speak=response.speak,
+                    act_patch=response.act_patch,
                     narration=response.narration,
                 )
             )
@@ -226,9 +276,7 @@ class WorldController:
         new_version = next_world.state_version + 1
         next_world = next_world.model_copy(update={"state_version": new_version})
 
-        orm_rows = await timeline_service.append_entries_no_commit(
-            self.db, self.conversation_id, entries
-        )
+        orm_rows = await timeline_service.append_entries_no_commit(self.db, self.conversation_id, entries)
         for row in orm_rows:
             row.state_version = new_version
         for actor_id, response in npc_responses:

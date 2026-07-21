@@ -18,7 +18,7 @@ class _StubBoundLLM:
         self.name = name
         self.args = args
 
-    async def ainvoke(self, _msgs):
+    async def ainvoke(self, _msgs: list[Any]) -> AIMessage:
         return AIMessage(content="", tool_calls=[{"name": self.name, "args": self.args, "id": "tc1"}])
 
 
@@ -27,7 +27,7 @@ class _StubChat:
         self.name = name
         self.args = args
 
-    def bind_tools(self, _tools):
+    def bind_tools(self, _tools: object) -> _StubBoundLLM:
         return _StubBoundLLM(self.name, self.args)
 
 
@@ -48,34 +48,31 @@ async def _register_and_login(client: httpx.AsyncClient) -> str:
 
 async def test_auth_register_login_me(client: httpx.AsyncClient) -> None:
     token = await _register_and_login(client)
-    me_resp = await client.get(
-        "/api/auth/me", headers={"Authorization": f"Bearer {token}"}
-    )
+    me_resp = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me_resp.status_code == 200
     data = me_resp.json()
     assert data["email"] == "tester@example.com"
     assert data["is_admin"] is False
 
 
-async def test_chat_runs_through_unified_turn_graph(
-    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_chat_runs_through_unified_turn_graph(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     # chat 不走 director；patch 成 explode 验证
     def _explode(**_: object) -> object:
         raise AssertionError("chat 模式不应触达 director")
 
     monkeypatch.setattr(director_node, "get_chat_model", _explode)
     monkeypatch.setattr(
-        npc_node, "get_chat_model",
-        lambda **_: _StubChat("submit_response", {"speak": "我滴个神啊。", "act_patch": [], "memory_writes": [], "inventory_ops": []}),
+        npc_node,
+        "get_chat_model",
+        lambda **_: _StubChat(
+            "submit_response", {"speak": "我滴个神啊。", "act_patch": [], "memory_writes": [], "inventory_ops": []}
+        ),
     )
     token = await _register_and_login(client)
     headers = {"Authorization": f"Bearer {token}"}
 
     # 创建 conversation（自带世界）
-    sess_resp = await client.post(
-        "/api/conversations", headers=headers, json={"title": "同福客栈"}
-    )
+    sess_resp = await client.post("/api/conversations", headers=headers, json={"title": "同福客栈"})
     conversation_id = sess_resp.json()["id"]
 
     chat_resp = await client.post(
@@ -85,13 +82,9 @@ async def test_chat_runs_through_unified_turn_graph(
     )
     assert chat_resp.status_code == 200
     delta = chat_resp.json()["timeline_delta"]
-    assert any(
-        e["actor_id"] == "tongxiangyu" and e["speak"] == "我滴个神啊。" for e in delta
-    )
+    assert any(e["actor_id"] == "tongxiangyu" and e["speak"] == "我滴个神啊。" for e in delta)
 
-    timeline_resp = await client.get(
-        f"/api/conversations/{conversation_id}/timeline", headers=headers
-    )
+    timeline_resp = await client.get(f"/api/conversations/{conversation_id}/timeline", headers=headers)
     entries = timeline_resp.json()
     # 应同时含玩家 speak + NPC speak（外加 turn 0 scene）
     assert any(e["actor_id"] == "player" and e["speak"] == "掌柜的" for e in entries)

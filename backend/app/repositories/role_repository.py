@@ -6,32 +6,22 @@ from app.repositories.base import BaseRepository
 
 
 class RoleRepository(BaseRepository[RoleProfile]):
-    async def get_builtin_and_user_roles(
-        self, db: AsyncSession, user_id: int | None
-    ) -> list[RoleProfile]:
+    async def get_builtin_and_user_roles(self, db: AsyncSession, user_id: int | None) -> list[RoleProfile]:
         stmt = select(RoleProfile).where(RoleProfile.is_builtin.is_(True))
         if user_id is not None:
-            stmt = select(RoleProfile).where(
-                or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user_id)
-            )
+            stmt = select(RoleProfile).where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user_id))
         result = await db.execute(stmt)
         return list(result.scalars().unique().all())
 
-    async def get_by_name(
-        self, db: AsyncSession, name: str, *, user_id: int | None = None
-    ) -> RoleProfile | None:
+    async def get_by_name(self, db: AsyncSession, name: str, *, user_id: int | None = None) -> RoleProfile | None:
         stmt = select(RoleProfile).where(RoleProfile.name == name)
         if user_id is not None:
-            stmt = stmt.where(
-                or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user_id)
-            )
+            stmt = stmt.where(or_(RoleProfile.is_builtin.is_(True), RoleProfile.user_id == user_id))
         else:
             stmt = stmt.where(RoleProfile.is_builtin.is_(True))
         return (await db.execute(stmt)).scalar_one_or_none()
 
-    async def get_user_role(
-        self, db: AsyncSession, user_id: int, role_id: int
-    ) -> RoleProfile | None:
+    async def get_user_role(self, db: AsyncSession, user_id: int, role_id: int) -> RoleProfile | None:
         stmt = select(RoleProfile).where(
             RoleProfile.id == role_id,
             RoleProfile.user_id == user_id,

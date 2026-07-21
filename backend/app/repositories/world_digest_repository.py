@@ -6,9 +6,7 @@ from app.repositories.base import BaseRepository
 
 
 class WorldDigestRepository(BaseRepository[WorldDigest]):
-    async def get_by_conversation(
-        self, db: AsyncSession, conversation_id: int
-    ) -> WorldDigest | None:
+    async def get_by_conversation(self, db: AsyncSession, conversation_id: int) -> WorldDigest | None:
         stmt = select(WorldDigest).where(WorldDigest.conversation_id == conversation_id)
         return (await db.execute(stmt)).scalar_one_or_none()
 
@@ -32,9 +30,7 @@ class WorldDigestRepository(BaseRepository[WorldDigest]):
             row.summary_text = summary_text
         return row
 
-    async def get_conversation(
-        self, db: AsyncSession, conversation_id: int
-    ) -> Conversation | None:
+    async def get_conversation(self, db: AsyncSession, conversation_id: int) -> Conversation | None:
         stmt = select(Conversation).where(Conversation.id == conversation_id)
         return (await db.execute(stmt)).scalar_one_or_none()
 

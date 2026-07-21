@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra='allow')
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="allow")
 
     API_PREFIX: str = Field(default="/api")
     DEBUG: bool = Field(default=False)

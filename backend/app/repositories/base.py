@@ -1,23 +1,19 @@
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import Base
 
-ModelT = TypeVar("ModelT", bound=Base)
 
-
-class BaseRepository(Generic[ModelT]):
+class BaseRepository[ModelT: Base]:
     def __init__(self, model: type[ModelT]) -> None:
         self.model = model
 
     async def get(self, db: AsyncSession, id: Any) -> ModelT | None:
         return await db.get(self.model, id)
 
-    async def get_multi(
-        self, db: AsyncSession, *, offset: int = 0, limit: int = 100
-    ) -> list[ModelT]:
+    async def get_multi(self, db: AsyncSession, *, offset: int = 0, limit: int = 100) -> list[ModelT]:
         stmt = select(self.model).offset(offset).limit(limit)
         return list((await db.execute(stmt)).scalars().all())
 

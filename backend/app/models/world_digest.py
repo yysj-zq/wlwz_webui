@@ -19,8 +19,6 @@ class WorldDigest(Base):
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), primary_key=True)
     at_version: Mapped[int] = mapped_column(Integer, default=0)
     summary_text: Mapped[str] = mapped_column(Text, default="")
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=now_utc, onupdate=now_utc
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
 
     conversation: Mapped[Conversation] = relationship(back_populates="world_digest")

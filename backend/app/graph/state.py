@@ -30,9 +30,9 @@ class TurnGraphState(TypedDict):
     context: NotRequired[TurnContext]
     dispatch: NotRequired[DirectorDispatch]
     committed_turn: NotRequired[CommittedTurn]
-    director_messages: Annotated[list[BaseMessage], operator.add]
-    npc_responses: Annotated[list[tuple[str, NPCResponse]], operator.add]
-    errors: Annotated[list[str], operator.add]
+    director_messages: NotRequired[Annotated[list[BaseMessage], operator.add]]
+    npc_responses: NotRequired[Annotated[list[tuple[str, NPCResponse]], operator.add]]
+    errors: NotRequired[Annotated[list[str], operator.add]]
 
 
 class NpcSubgraphState(TypedDict):

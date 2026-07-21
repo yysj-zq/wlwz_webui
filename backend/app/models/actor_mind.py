@@ -36,8 +36,6 @@ class ActorMind(Base):
         JSON().with_variant(JSONB(), "postgresql"),  # type: ignore[no-untyped-call]
         default=dict,
     )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=now_utc, onupdate=now_utc
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
 
     conversation: Mapped[Conversation] = relationship(back_populates="actor_minds")

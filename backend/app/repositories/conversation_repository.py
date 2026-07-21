@@ -9,19 +9,11 @@ from app.repositories.base import BaseRepository
 
 class ConversationRepository(BaseRepository[Conversation]):
     async def list_by_user(self, db: AsyncSession, user_id: int) -> list[Conversation]:
-        stmt = (
-            select(Conversation)
-            .where(Conversation.user_id == user_id)
-            .order_by(Conversation.updated_at.desc())
-        )
+        stmt = select(Conversation).where(Conversation.user_id == user_id).order_by(Conversation.updated_at.desc())
         return list((await db.execute(stmt)).scalars().all())
 
-    async def get_by_user(
-        self, db: AsyncSession, user_id: int, conversation_id: int
-    ) -> Conversation | None:
-        stmt = select(Conversation).where(
-            Conversation.id == conversation_id, Conversation.user_id == user_id
-        )
+    async def get_by_user(self, db: AsyncSession, user_id: int, conversation_id: int) -> Conversation | None:
+        stmt = select(Conversation).where(Conversation.id == conversation_id, Conversation.user_id == user_id)
         return (await db.execute(stmt)).scalar_one_or_none()
 
     async def create_with_world(

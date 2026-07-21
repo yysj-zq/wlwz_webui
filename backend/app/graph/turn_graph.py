@@ -43,14 +43,14 @@ _LLM_RETRY = RetryPolicy(
 # 路由函数
 # ────────────────────────────────────────────────────────────────────
 
+
 def _route_after_load(state: TurnGraphState) -> list[Send] | Literal["director_step", "commit"]:
     """chat 模式 ingest 已产出 dispatch → 直接 fan-out NPC；game 模式走 director。"""
     dispatch = state.get("dispatch")
     if dispatch is not None:
         if dispatch.perceivers:
             return [
-                Send("npc_worker", {"npc_context": state["context"], "npc_perceiver": p})
-                for p in dispatch.perceivers
+                Send("npc_worker", {"npc_context": state["context"], "npc_perceiver": p}) for p in dispatch.perceivers
             ]
         return "commit"
     return "director_step"
@@ -78,10 +78,7 @@ def _after_director_tools(state: TurnGraphState) -> list[Send] | Literal["direct
     if dispatch is None:
         return "director_step"
     if dispatch.perceivers:
-        return [
-            Send("npc_worker", {"npc_context": state["context"], "npc_perceiver": p})
-            for p in dispatch.perceivers
-        ]
+        return [Send("npc_worker", {"npc_context": state["context"], "npc_perceiver": p}) for p in dispatch.perceivers]
     return "commit"
 
 
@@ -89,18 +86,22 @@ def _after_director_tools(state: TurnGraphState) -> list[Send] | Literal["direct
 # Graph 编译（模块级单例）
 # ────────────────────────────────────────────────────────────────────
 
-def _build_graph() -> CompiledStateGraph:
+
+def _build_graph() -> CompiledStateGraph[TurnGraphState, None, TurnGraphState, TurnGraphState]:
     g = StateGraph(TurnGraphState)
 
     # ── 节点 ──
-    g.add_node("ingest", ingest_player_input)
+    g.add_node("ingest", ingest_player_input)  # type: ignore[call-overload]
     g.add_node("load_context", load_turn_context)
     g.add_node("director_step", director_step, retry_policy=_LLM_RETRY)
-    g.add_node("director_tools_exec", ToolNode(
-        DIRECTOR_TOOLS,
-        messages_key="director_messages",
-        handle_tool_errors=True,
-    ))
+    g.add_node(
+        "director_tools_exec",
+        ToolNode(
+            DIRECTOR_TOOLS,
+            messages_key="director_messages",
+            handle_tool_errors=True,
+        ),
+    )
     g.add_node("npc_worker", build_npc_subgraph(), retry_policy=_LLM_RETRY)
     g.add_node("commit", commit)
 

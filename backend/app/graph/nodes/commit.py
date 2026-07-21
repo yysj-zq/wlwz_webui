@@ -3,13 +3,15 @@
 
 from __future__ import annotations
 
-from langgraph.types import RunnableConfig
+from typing import Any
+
+from langchain_core.runnables import RunnableConfig
 
 from app.graph.state import TurnGraphState
 from app.services import WorldController, digest_service
 
 
-async def commit(state: TurnGraphState, config: RunnableConfig) -> dict:
+async def commit(state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
     controller: WorldController = config["configurable"]["controller"]
     dispatch = state["dispatch"]
     player_entry = state["player_entry"]

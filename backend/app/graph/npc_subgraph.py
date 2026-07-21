@@ -63,16 +63,17 @@ def build_npc_subgraph() -> Any:
     g = StateGraph(NpcSubgraphState)
 
     g.add_node("npc_step", npc_step)
-    g.add_node("npc_tools_exec", ToolNode(
-        NPC_TOOLS,
-        messages_key="messages",       # 告诉 ToolNode 从哪个 state 字段读/写消息
-        handle_tool_errors=True,       # 工具抛异常时返回错误 ToolMessage 而非中断图
-    ))
+    g.add_node(
+        "npc_tools_exec",
+        ToolNode(
+            NPC_TOOLS,
+            messages_key="messages",  # 告诉 ToolNode 从哪个 state 字段读/写消息
+            handle_tool_errors=True,  # 工具抛异常时返回错误 ToolMessage 而非中断图
+        ),
+    )
 
     g.add_edge(START, "npc_step")
-    g.add_conditional_edges("npc_step", _after_npc_step,
-                            {"npc_tools_exec": "npc_tools_exec", END: END})
-    g.add_conditional_edges("npc_tools_exec", _after_npc_tools,
-                            {"npc_step": "npc_step", END: END})
+    g.add_conditional_edges("npc_step", _after_npc_step, {"npc_tools_exec": "npc_tools_exec", END: END})
+    g.add_conditional_edges("npc_tools_exec", _after_npc_tools, {"npc_step": "npc_step", END: END})
 
     return g.compile(checkpointer=False)

@@ -7,7 +7,7 @@ submit 类返回 langgraph Command 直接把决策写入 graph state。
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
@@ -42,7 +42,7 @@ def query_entity(
     ws = controller.world_state
     if actor_id not in ws.entities:
         return {"error": f"未知实体: {actor_id}"}
-    return ws.entities[actor_id].model_dump(mode="json")
+    return cast(dict[str, Any], ws.entities[actor_id].model_dump(mode="json"))
 
 
 @tool
@@ -64,6 +64,7 @@ def query_neighbors(
     return [
         eid for eid, e in ws.entities.items() if abs(e.position.x - center.x) + abs(e.position.y - center.y) <= radius
     ]
+
 
 # todo timeline是否有必要让llm query，现在都渲染给director/npc了
 @tool
@@ -112,10 +113,12 @@ def submit_dispatch(
     dispatch = DirectorDispatch(world_writes=world_writes, perceivers=perceivers, narration=narration)
     # 必坑：director 的 ToolNode 用 messages_key="director_messages"，ToolMessage 必须落进该键，
     # 否则 langgraph 抛 ValueError: Expected to have a matching ToolMessage。
-    return Command(update={
-        "dispatch": dispatch,
-        "director_messages": [ToolMessage("已提交导演决策。", tool_call_id=tool_call_id)],
-    })
+    return Command(
+        update={
+            "dispatch": dispatch,
+            "director_messages": [ToolMessage("已提交导演决策。", tool_call_id=tool_call_id)],
+        }
+    )
 
 
 @tool
@@ -150,10 +153,12 @@ def submit_response(
         goal_update=goal_update,
         inventory_ops=inventory_ops,
     )
-    return Command(update={
-        "npc_responses": [(perceiver.actor_id, response)],
-        "messages": [ToolMessage("已提交扮演响应。", tool_call_id=tool_call_id)],
-    })
+    return Command(
+        update={
+            "npc_responses": [(perceiver.actor_id, response)],
+            "messages": [ToolMessage("已提交扮演响应。", tool_call_id=tool_call_id)],
+        }
+    )
 
 
 DIRECTOR_TOOLS = [query_entity, query_neighbors, query_timeline, submit_dispatch]

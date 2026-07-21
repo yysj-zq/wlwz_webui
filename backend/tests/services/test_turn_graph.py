@@ -13,11 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.graph.nodes.director as director_node
 import app.graph.nodes.npc as npc_node
-from app.schemas.turn import ChatTurnRequest, GameActionRequest
-from app.schemas.world import Position, WorldEntityPatch
+from app.graph import run_chat, run_game
 from app.models import Timeline, User
+from app.schemas import ChatTurnRequest, Direction, GameActionRequest, Position, WorldEntityPatch
 from app.services import WorldController, ensure_conversation_world
-from app.graph import run_game, run_chat
 
 
 class _StubBoundLLM:
@@ -42,13 +41,14 @@ class _StubChat:
         self.tool_name = tool_name
         self.tool_args = tool_args
 
-    def bind_tools(self, _tools, **_kwargs):
+    def bind_tools(self, _tools: object, **_kwargs: object) -> _StubBoundLLM:
         return _StubBoundLLM(self.tool_name, self.tool_args)
 
 
-def _patch_director_dispatch(monkeypatch: pytest.MonkeyPatch, dispatch: dict) -> None:
+def _patch_director_dispatch(monkeypatch: pytest.MonkeyPatch, dispatch: dict[str, Any]) -> None:
     monkeypatch.setattr(
-        director_node, "get_chat_model",
+        director_node,
+        "get_chat_model",
         lambda **_: _StubChat("submit_dispatch", dispatch),
     )
 
@@ -73,13 +73,11 @@ class _SequencedChat:
         self._responses = responses
         self._calls = calls
 
-    def bind_tools(self, _tools, **_kwargs):
+    def bind_tools(self, _tools: object, **_kwargs: object) -> _SequencedBoundLLM:
         return _SequencedBoundLLM(self._responses, self._calls)
 
 
-def _patch_director_sequence(
-    monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]
-) -> list[list[Any]]:
+def _patch_director_sequence(monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]) -> list[list[Any]]:
     """把 director 的 get_chat_model 换成按序返回 responses 的桩。
 
     返回 calls 列表：每次 ainvoke 记一条（其内容是该次调用时的 messages 快照）。
@@ -87,30 +85,31 @@ def _patch_director_sequence(
     """
     calls: list[list[Any]] = []
     monkeypatch.setattr(
-        director_node, "get_chat_model",
+        director_node,
+        "get_chat_model",
         lambda **_: _SequencedChat(responses, calls),
     )
     return calls
 
 
-def _patch_npc_response(monkeypatch: pytest.MonkeyPatch, response: dict) -> None:
+def _patch_npc_response(monkeypatch: pytest.MonkeyPatch, response: dict[str, Any]) -> None:
     full = {"act_patch": [], "memory_writes": [], "inventory_ops": [], **response}
     monkeypatch.setattr(
-        npc_node, "get_chat_model",
+        npc_node,
+        "get_chat_model",
         lambda **_: _StubChat("submit_response", full),
     )
 
 
-def _patch_npc_sequence(
-    monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]
-) -> list[list[Any]]:
+def _patch_npc_sequence(monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]) -> list[list[Any]]:
     """把 npc 的 get_chat_model 换成按序返回 responses 的桩（复用 _SequencedChat）。
 
     返回 calls 列表：每次 npc LLM ainvoke 记一条（其内容是该次调用时的 messages 快照）。
     """
     calls: list[list[Any]] = []
     monkeypatch.setattr(
-        npc_node, "get_chat_model",
+        npc_node,
+        "get_chat_model",
         lambda **_: _SequencedChat(responses, calls),
     )
     return calls
@@ -125,11 +124,13 @@ async def _make_user(db: AsyncSession, email: str) -> User:
 
 
 async def _make_controller(
-    db: AsyncSession, user: User, conversation_id: int | None = None, title: str | None = None,
+    db: AsyncSession,
+    user: User,
+    conversation_id: int | None = None,
+    title: str | None = None,
 ) -> WorldController:
-    conversation, world_state = await ensure_conversation_world(
-        db, user, conversation_id, title=title
-    )
+    conversation, world_state = await ensure_conversation_world(db, user, conversation_id, title=title)
+    assert conversation is not None
     return WorldController(db=db, conversation=conversation, world_state=world_state)
 
 
@@ -150,12 +151,15 @@ async def test_game_say_triggers_director_then_npc(
         {"speak": "客官请讲。", "memory_writes": [{"content": "玩家叫了我"}]},
     )
 
-    response = await run_game(await _make_controller(async_db_session, user), GameActionRequest(
+    response = await run_game(
+        await _make_controller(async_db_session, user),
+        GameActionRequest(
             actorId="player",
             targetId="baizhantang",
             speak="老白！",
             stateVersion=1,
-        ))
+        ),
+    )
 
     # 时间线增量含玩家 speak + NPC speak
     speaks = [e for e in response.timeline_delta if e.kind == "speak"]
@@ -164,38 +168,35 @@ async def test_game_say_triggers_director_then_npc(
 
 
 @pytest.mark.asyncio
-async def test_game_move_via_unified_graph(
-    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_game_move_via_unified_graph(async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     user = await _make_user(async_db_session, "g2@example.com")
     # Director 给出 move patch、无 perceivers
     _patch_director_dispatch(
         monkeypatch,
         {
-            "world_writes": [
-                {"entity_id": "player", "position": {"x": 6, "y": 7}, "direction": "south"}
-            ],
+            "world_writes": [{"entity_id": "player", "position": {"x": 6, "y": 7}, "direction": "south"}],
             "perceivers": [],
         },
     )
 
-    response = await run_game(await _make_controller(async_db_session, user), GameActionRequest(
+    response = await run_game(
+        await _make_controller(async_db_session, user),
+        GameActionRequest(
             actorId="player",
             stateVersion=1,
-            act_patch=[WorldEntityPatch(entity_id="player", position=Position(x=6, y=7), direction="south")])
+            act_patch=[WorldEntityPatch(entity_id="player", position=Position(x=6, y=7), direction=Direction.SOUTH)],
+        ),
     )
     assert response.world_state.entities["player"].position.x == 6
     assert response.world_state.entities["player"].direction == "south"
 
 
 @pytest.mark.asyncio
-async def test_chat_turn_skips_director(
-    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_chat_turn_skips_director(async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     """chat 路径不应进 director——通过把 director.get_chat_model patch 成 raise 验证。"""
     user = await _make_user(async_db_session, "c1@example.com")
 
-    def _explode(**_: object):
+    def _explode(**_: object) -> None:
         raise AssertionError("chat 模式不应触达 director")
 
     monkeypatch.setattr(director_node, "get_chat_model", _explode)
@@ -203,10 +204,14 @@ async def test_chat_turn_skips_director(
 
     controller = await _make_controller(async_db_session, user, title="chat 路径")
 
-    response = await run_chat(controller, controller.conversation_id, ChatTurnRequest(
+    response = await run_chat(
+        controller,
+        controller.conversation_id,
+        ChatTurnRequest(
             targetActorId="tongxiangyu",
             content="掌柜的，结账。",
-        ))
+        ),
+    )
     speaks = [e for e in response.timeline_delta if e.kind == "speak"]
     assert any(e.actor_id == "tongxiangyu" and e.speak == "佟掌柜在算账。" for e in speaks)
     # 玩家这一条 actor_id 等于 player
@@ -214,9 +219,7 @@ async def test_chat_turn_skips_director(
 
 
 @pytest.mark.asyncio
-async def test_actor_mind_isolation(
-    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_actor_mind_isolation(async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     """两轮分别给 A / B 写不同 memory，render NPC B 的 prompt 不应含 A 的记忆。"""
     user = await _make_user(async_db_session, "iso@example.com")
     # 第一轮：让 baizhantang 写一条记忆"密令X"
@@ -240,9 +243,7 @@ async def test_actor_mind_isolation(
     controller = await _make_controller(async_db_session, user)
     ctx = await controller.load_turn_context()
     entity = controller.world_state.entities["guofurong"]
-    mind = await actor_mind_service.load_for_prompt(
-        async_db_session, controller.conversation_id, "guofurong"
-    )
+    mind = await actor_mind_service.load_for_prompt(async_db_session, controller.conversation_id, "guofurong")
     msgs = render_npc_messages(ctx, entity, mind, "测试", {})
     body = "\n".join(str(m.content) for m in msgs)
     assert "密令X" not in body
@@ -262,12 +263,15 @@ async def test_npc_silence_creates_no_timeline_entry(
     )
     _patch_npc_response(monkeypatch, {})  # 全空 = 沉默
 
-    response = await run_game(await _make_controller(async_db_session, user), GameActionRequest(
+    response = await run_game(
+        await _make_controller(async_db_session, user),
+        GameActionRequest(
             actorId="player",
             targetId="baizhantang",
             speak="…",
             stateVersion=1,
-        ))
+        ),
+    )
     npc_entries = [e for e in response.timeline_delta if e.actor_id == "baizhantang"]
     assert npc_entries == []
 
@@ -280,9 +284,7 @@ async def test_timeline_intra_turn_seq_monotonic(
     _patch_director_dispatch(
         monkeypatch,
         {
-            "world_writes": [
-                {"entity_id": "player", "public_state": {"mood": "calm"}}
-            ],
+            "world_writes": [{"entity_id": "player", "public_state": {"mood": "calm"}}],
             "perceivers": [
                 {"actor_id": "baizhantang", "perception_reason": "被直接称呼"},
                 {"actor_id": "guofurong", "perception_reason": "在 2 格内目击"},
@@ -291,15 +293,20 @@ async def test_timeline_intra_turn_seq_monotonic(
     )
     _patch_npc_response(monkeypatch, {"speak": "嗯。"})
 
-    await run_game(await _make_controller(async_db_session, user), GameActionRequest(targetId="baizhantang", speak="大家好", stateVersion=1))
+    await run_game(
+        await _make_controller(async_db_session, user),
+        GameActionRequest(targetId="baizhantang", speak="大家好", stateVersion=1),
+    )
 
     rows = (
-        await async_db_session.execute(
-            select(Timeline)
-            .order_by(Timeline.intra_turn_seq)
-            .where(Timeline.kind != "scene")  # 排除开场旁白
+        (
+            await async_db_session.execute(
+                select(Timeline).order_by(Timeline.intra_turn_seq).where(Timeline.kind != "scene")  # 排除开场旁白
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     # 同一 turn 内顺序：player=0, director_write=1, npc1=2, npc2=3
     same_turn = [r for r in rows if r.turn_id == rows[-1].turn_id]
     seqs = [r.intra_turn_seq for r in same_turn]
@@ -319,14 +326,16 @@ async def test_director_retry_on_missing_tool_call(
             AIMessage(content="我想想…", tool_calls=[]),  # 第 1 次：违规，无 tool_call
             AIMessage(
                 content="",
-                tool_calls=[{
-                    "name": "submit_dispatch",
-                    "args": {
-                        "world_writes": [{"entity_id": "player", "direction": "north"}],
-                        "perceivers": [],
-                    },
-                    "id": uuid.uuid4().hex,
-                }],
+                tool_calls=[
+                    {
+                        "name": "submit_dispatch",
+                        "args": {
+                            "world_writes": [{"entity_id": "player", "direction": "north"}],
+                            "perceivers": [],
+                        },
+                        "id": uuid.uuid4().hex,
+                    }
+                ],
             ),
         ],
     )
@@ -339,18 +348,13 @@ async def test_director_retry_on_missing_tool_call(
     # director_step 被调 2 次（每次恰一次 ainvoke）
     assert len(calls) == 2
     # 第 2 次调用前 messages 含反馈消息
-    assert any(
-        isinstance(m, HumanMessage) and "submit_dispatch" in str(m.content)
-        for m in calls[1]
-    )
+    assert any(isinstance(m, HumanMessage) and "submit_dispatch" in str(m.content) for m in calls[1])
     # 最终 commit 出的是第 2 次的 dispatch（direction 只可能来自 director world_writes）
     assert response.world_state.entities["player"].direction == "north"
 
 
 @pytest.mark.asyncio
-async def test_director_query_then_submit(
-    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_director_query_then_submit(async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
     """护栏：query_entity → 结果回灌 → submit，那条回边行为不变。"""
     user = await _make_user(async_db_session, "query@example.com")
     calls = _patch_director_sequence(
@@ -358,22 +362,26 @@ async def test_director_query_then_submit(
         [
             AIMessage(
                 content="",
-                tool_calls=[{
-                    "name": "query_entity",
-                    "args": {"actor_id": "baizhantang"},
-                    "id": uuid.uuid4().hex,
-                }],
+                tool_calls=[
+                    {
+                        "name": "query_entity",
+                        "args": {"actor_id": "baizhantang"},
+                        "id": uuid.uuid4().hex,
+                    }
+                ],
             ),
             AIMessage(
                 content="",
-                tool_calls=[{
-                    "name": "submit_dispatch",
-                    "args": {
-                        "world_writes": [{"entity_id": "player", "direction": "south"}],
-                        "perceivers": [],
-                    },
-                    "id": uuid.uuid4().hex,
-                }],
+                tool_calls=[
+                    {
+                        "name": "submit_dispatch",
+                        "args": {
+                            "world_writes": [{"entity_id": "player", "direction": "south"}],
+                            "perceivers": [],
+                        },
+                        "id": uuid.uuid4().hex,
+                    }
+                ],
             ),
         ],
     )
@@ -385,9 +393,7 @@ async def test_director_query_then_submit(
 
     assert len(calls) == 2
     # 第 2 次调用前 messages 含 query_entity 的执行结果（证明 query 被执行并回灌）
-    assert any(
-        isinstance(m, ToolMessage) and m.name == "query_entity" for m in calls[1]
-    )
+    assert any(isinstance(m, ToolMessage) and m.name == "query_entity" for m in calls[1])
     assert response.world_state.entities["player"].direction == "south"
 
 
@@ -433,12 +439,15 @@ async def test_npc_plaintext_without_submit_creates_no_timeline_entry(
         [AIMessage(content="（沉默地擦着柜台，没有开口）", tool_calls=[])],
     )
 
-    response = await run_game(await _make_controller(async_db_session, user), GameActionRequest(
+    response = await run_game(
+        await _make_controller(async_db_session, user),
+        GameActionRequest(
             actorId="player",
             targetId="baizhantang",
             speak="老白？",
             stateVersion=1,
-        ))
+        ),
+    )
 
     # npc LLM 只被调一次（无 tool_call → _after_npc_step 直接 END，不回 npc_step 重试）
     assert len(calls) == 1

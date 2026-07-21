@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from langgraph.types import RunnableConfig
+from langchain_core.runnables import RunnableConfig
 
 from app.core import get_chat_model, get_logger
 from app.graph.prompt_render import render_director_messages
@@ -14,7 +16,7 @@ from app.services import WorldController
 logger = get_logger(__name__)
 
 
-async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict:
+async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
     """单次 LLM 调用。首次调用时渲染 messages；后续循环复用 state 中的 director_messages。"""
     controller: WorldController = config["configurable"]["controller"]
     messages: list[BaseMessage] = list(state.get("director_messages") or [])

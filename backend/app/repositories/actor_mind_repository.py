@@ -11,9 +11,7 @@ class ActorMindRepository(BaseRepository[ActorMind]):
     async def get_by_conversation_actor(
         self, db: AsyncSession, conversation_id: int, actor_id: str
     ) -> ActorMind | None:
-        stmt = select(ActorMind).where(
-            ActorMind.conversation_id == conversation_id, ActorMind.actor_id == actor_id
-        )
+        stmt = select(ActorMind).where(ActorMind.conversation_id == conversation_id, ActorMind.actor_id == actor_id)
         return (await db.execute(stmt)).scalar_one_or_none()
 
     async def get_or_create(

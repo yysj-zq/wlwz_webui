@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage
-from langgraph.types import RunnableConfig
+from langchain_core.runnables import RunnableConfig
 
 from app.core import get_chat_model, get_logger
 from app.graph.prompt_render import render_npc_messages
@@ -19,12 +19,10 @@ logger = get_logger(__name__)
 
 async def _load_mind_view(controller: WorldController, actor_id: str) -> dict[str, Any]:
     """从数据库加载该 NPC 的记忆/情感/目标视图，用于填充 system prompt。"""
-    return await actor_mind_service.load_for_prompt(
-        controller.db, controller.conversation_id, actor_id
-    )
+    return await actor_mind_service.load_for_prompt(controller.db, controller.conversation_id, actor_id)
 
 
-async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict:
+async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str, Any]:
     """单次 NPC LLM 调用。首次渲染 prompt 并调用；后续（tool 循环回来）用已有 messages 续写。
 
     流程：
@@ -54,9 +52,7 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict:
     new_msgs: list[BaseMessage] = []
     if not messages:
         # 首次进入：渲染 system prompt + timeline context 作为初始 messages
-        new_msgs = render_npc_messages(
-            context, entity, mind_view, perceiver.perception_reason, name_lookup
-        )
+        new_msgs = render_npc_messages(context, entity, mind_view, perceiver.perception_reason, name_lookup)
         messages = new_msgs  # 供下方 LLM 调用使用完整列表
 
     # 调用 LLM，bind_tools 让模型知道可用工具的 schema

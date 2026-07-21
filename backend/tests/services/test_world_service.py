@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.world import Position, WorldEntityPatch
 from app.models import ActorMind, Timeline, User
+from app.schemas.world import Position, WorldEntityPatch
 from app.services import (
     apply_world_patches,
     build_default_world_state,
@@ -58,18 +58,20 @@ async def test_ensure_conversation_world_seeds_minds_and_scene(async_db_session:
     assert world_state.entities["baizhantang"].public_state["role"] == "跑堂"
 
     minds = (
-        await async_db_session.execute(
-            select(ActorMind).where(ActorMind.conversation_id == conversation.id)
-        )
-    ).scalars().all()
+        (await async_db_session.execute(select(ActorMind).where(ActorMind.conversation_id == conversation.id)))
+        .scalars()
+        .all()
+    )
     assert {m.actor_id for m in minds} == {"baizhantang", "guofurong", "tongxiangyu"}
 
     scenes = (
-        await async_db_session.execute(
-            select(Timeline).where(
-                Timeline.conversation_id == conversation.id, Timeline.kind == "scene"
+        (
+            await async_db_session.execute(
+                select(Timeline).where(Timeline.conversation_id == conversation.id, Timeline.kind == "scene")
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(scenes) == 1
     assert scenes[0].actor_id is None

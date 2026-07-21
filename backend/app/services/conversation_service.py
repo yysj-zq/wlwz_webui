@@ -44,9 +44,7 @@ async def delete_conversation(db: AsyncSession, user: User, conversation_id: int
     await db.commit()
 
 
-async def rename_conversation(
-    db: AsyncSession, user: User, conversation_id: int, new_title: str
-) -> Conversation:
+async def rename_conversation(db: AsyncSession, user: User, conversation_id: int, new_title: str) -> Conversation:
     convo = await get_conversation(db, user, conversation_id)
     convo.title = new_title or convo.title
     await db.commit()

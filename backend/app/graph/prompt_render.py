@@ -17,9 +17,7 @@ def render_director_messages(
 ) -> list[BaseMessage]:
     system = DIRECTOR_SYSTEM_PROMPT.format(digest=context.digest or "（空）")
     messages: list[BaseMessage] = [SystemMessage(content=system)]
-    for m in render_timeline_for_messages(
-        context.timeline, viewer="director", npc_name_lookup=npc_name_lookup
-    ):
+    for m in render_timeline_for_messages(context.timeline, viewer="director", npc_name_lookup=npc_name_lookup):
         messages.append(_to_lc(m["role"], m["content"]))
     return messages
 

@@ -154,4 +154,3 @@ async def set_tts_cache(user_id: int, text: str, speaker_id: str | None, data: b
     client = _get_redis_client()
     key = _make_cache_key(user_id, text, speaker_id)
     await client.setex(key, settings.TTS_CACHE_TTL_SECONDS, data)
-

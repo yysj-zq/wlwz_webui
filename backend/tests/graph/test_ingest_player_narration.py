@@ -12,9 +12,7 @@ from app.schemas.enums import Direction
 
 
 def test_position_and_direction() -> None:
-    patches = [
-        WorldEntityPatch(entity_id="player", position=Position(x=6, y=6), direction=Direction.EAST)
-    ]
+    patches = [WorldEntityPatch(entity_id="player", position=Position(x=6, y=6), direction=Direction.EAST)]
     assert _player_move_narration("player", patches) == "走到(6,6)，面向东"
 
 

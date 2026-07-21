@@ -42,7 +42,7 @@ class WorldEntityPatch(BaseModel):
     position: Position | None = Field(default=None, description="新坐标 {x, y}，不移动则不传")
     direction: Direction | None = Field(default=None, description="新朝向，不改则不传")
     interactable: bool | None = Field(default=None, description="是否可交互")
-    public_state: dict[str, Any] | None = Field(default=None, description="要更新的公开状态，如 {\"mood\": \"happy\"}")
+    public_state: dict[str, Any] | None = Field(default=None, description='要更新的公开状态，如 {"mood": "happy"}')
 
     model_config = ConfigDict(extra="forbid")
 
@@ -62,7 +62,7 @@ class TimelineEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="after")
-    def _fill_kind(self) -> "TimelineEntry":
+    def _fill_kind(self) -> TimelineEntry:
         if self.kind is not None:
             return self
         if self.actor_id is None:

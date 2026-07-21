@@ -3,13 +3,16 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
+from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.graph.nodes.ingest_player import ingest_player_input
-from app.schemas import GameActionRequest, Position, TurnMode, WorldEntityPatch
-from app.services import WorldController, ensure_conversation_world
 from app.models import User
+from app.schemas import Direction, GameActionRequest, Position, TurnMode, WorldEntityPatch
+from app.services import WorldController, ensure_conversation_world
 
 
 async def _controller(db: AsyncSession, email: str) -> WorldController:
@@ -18,6 +21,7 @@ async def _controller(db: AsyncSession, email: str) -> WorldController:
     await db.commit()
     await db.refresh(user)
     conversation, world_state = await ensure_conversation_world(db, user, conversation_id=None)
+    assert conversation is not None
     return WorldController(db, conversation, world_state)
 
 
@@ -28,12 +32,15 @@ async def test_ingest_game_move_applies_to_world_state(
     controller = await _controller(async_db_session, "ingestmove@example.com")
     game_req = GameActionRequest(
         actorId="player",
-        act_patch=[WorldEntityPatch(entity_id="player", position=Position(x=9, y=9), direction="north")],
+        act_patch=[WorldEntityPatch(entity_id="player", position=Position(x=9, y=9), direction=Direction.NORTH)],
     )
-    config = {"configurable": {"mode": TurnMode.GAME, "game_request": game_req, "controller": controller}}
+    config = cast(
+        RunnableConfig,
+        {"configurable": {"mode": TurnMode.GAME, "game_request": game_req, "controller": controller}},
+    )
 
     await ingest_player_input({}, config)
 
     player = controller.world_state.entities["player"]
     assert (player.position.x, player.position.y) == (9, 9)
-    assert player.direction == "north"
+    assert player.direction == Direction.NORTH

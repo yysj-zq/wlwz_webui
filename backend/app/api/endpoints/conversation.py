@@ -15,6 +15,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.core import get_db
+from app.graph import run_chat, run_game
+from app.models import User
 from app.schemas import (
     ChatTurnRequest,
     ConversationOut,
@@ -26,9 +29,6 @@ from app.schemas import (
     TurnResponse,
     WorldState,
 )
-from app.models import User
-from app.core import get_db
-from app.graph import run_game, run_chat
 from app.services import (
     WorldController,
     delete_conversation,
@@ -77,9 +77,7 @@ async def list_my_conversations(
     return [ConversationOut.model_validate(c) for c in convos]
 
 
-@router.delete(
-    "/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT
-)
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_conversation(
     conversation_id: int,
     db: AsyncSession = Depends(get_db),
@@ -91,9 +89,7 @@ async def remove_conversation(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post(
-    "/conversations/{conversation_id}/rename", response_model=ConversationOut
-)
+@router.post("/conversations/{conversation_id}/rename", response_model=ConversationOut)
 async def rename_conversation_endpoint(
     conversation_id: int,
     payload: ConversationRename,
@@ -101,17 +97,13 @@ async def rename_conversation_endpoint(
     current_user: User = Depends(get_current_user),
 ) -> ConversationOut:
     try:
-        convo = await rename_conversation(
-            db, current_user, conversation_id, payload.title
-        )
+        convo = await rename_conversation(db, current_user, conversation_id, payload.title)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return ConversationOut.model_validate(convo)
 
 
-@router.get(
-    "/conversations/{conversation_id}/world", response_model=ConversationWorldRead
-)
+@router.get("/conversations/{conversation_id}/world", response_model=ConversationWorldRead)
 async def read_conversation_world(
     conversation_id: int,
     db: AsyncSession = Depends(get_db),
@@ -147,9 +139,7 @@ async def list_conversation_timeline(
         await get_conversation(db, current_user, conversation_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    entries = await timeline_service.list_timeline(
-        db, conversation_id, after_id=after_id, limit=limit
-    )
+    entries = await timeline_service.list_timeline(db, conversation_id, after_id=after_id, limit=limit)
     return [
         TimelineEntryOut(
             id=e.id or 0,
@@ -160,7 +150,7 @@ async def list_conversation_timeline(
             speak=e.speak,
             target_id=e.target_id,
             narration=e.narration,
-            act_patch=e.act_patch.model_dump(mode="json") if e.act_patch else None,
+            act_patch=[ep.model_dump(mode="json") for ep in e.act_patch] if e.act_patch else None,
             created_at=e.created_at,  # type: ignore[arg-type]
         )
         for e in entries
@@ -185,6 +175,8 @@ async def game_action_endpoint(
         conversation, world_state = await ensure_conversation_world(
             db, current_user, conversation_id, title="新的游戏会话"
         )
+        if conversation is None:
+            raise HTTPException(status_code=401, detail="需要登录")
         controller = WorldController(db=db, conversation=conversation, world_state=world_state)
         return await run_game(controller, request)
     except ValueError as exc:
@@ -203,9 +195,9 @@ async def chat_endpoint(
 ) -> TurnResponse:
     """对话（chat 模式）：ingest 节点直接构造 dispatch_override，跳过 Director。"""
     try:
-        conversation, world_state = await ensure_conversation_world(
-            db, current_user, conversation_id, title="新的对话"
-        )
+        conversation, world_state = await ensure_conversation_world(db, current_user, conversation_id, title="新的对话")
+        if conversation is None:
+            raise HTTPException(status_code=401, detail="需要登录")
         controller = WorldController(db=db, conversation=conversation, world_state=world_state)
         return await run_chat(controller, conversation_id, payload)
     except ValueError as exc:

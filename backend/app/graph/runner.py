@@ -30,9 +30,7 @@ async def run_game(controller: WorldController, request: GameActionRequest) -> T
     return _build_response(controller, cast(TurnGraphState, result))
 
 
-async def run_chat(
-    controller: WorldController, conversation_id: int, request: ChatTurnRequest
-) -> TurnResponse:
+async def run_chat(controller: WorldController, conversation_id: int, request: ChatTurnRequest) -> TurnResponse:
     config: RunnableConfig = {
         "configurable": {
             "mode": TurnMode.CHAT,

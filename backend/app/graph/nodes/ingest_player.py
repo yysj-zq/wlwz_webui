@@ -7,6 +7,7 @@ chat 模式同时直接构造 dispatch 跳过 director。
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
@@ -44,7 +45,7 @@ def _player_move_narration(actor_id: str, patches: list[WorldEntityPatch]) -> st
     return "，".join(parts) if parts else None
 
 
-async def ingest_player_input(_state: TurnGraphState, config: RunnableConfig) -> dict:
+async def ingest_player_input(_state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
     cfg = config.get("configurable", {})
     mode = cfg["mode"]
     turn_id = uuid.uuid4().hex
@@ -60,9 +61,7 @@ async def ingest_player_input(_state: TurnGraphState, config: RunnableConfig) ->
         )
         dispatch = DirectorDispatch(
             world_writes=[],
-            perceivers=[
-                Perceiver(actor_id=chat_req.targetActorId, perception_reason="用户直接对你说话")
-            ],
+            perceivers=[Perceiver(actor_id=chat_req.targetActorId, perception_reason="用户直接对你说话")],
         )
         return {"player_entry": player_entry, "dispatch": dispatch}
 

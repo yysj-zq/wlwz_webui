@@ -1,6 +1,6 @@
 """Conversation 即世界：API 端到端覆盖创建播种、玩家动作、conversation 不一致校验。"""
 
-from typing import cast
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -11,20 +11,20 @@ import app.graph.nodes.npc as npc_node
 
 
 class _StubBoundLLM:
-    def __init__(self, name: str, args: dict) -> None:
+    def __init__(self, name: str, args: dict[str, Any]) -> None:
         self.name = name
         self.args = args
 
-    async def ainvoke(self, _msgs):
+    async def ainvoke(self, _msgs: list[Any]) -> AIMessage:
         return AIMessage(content="", tool_calls=[{"name": self.name, "args": self.args, "id": "tc1"}])
 
 
 class _StubChat:
-    def __init__(self, name: str, args: dict) -> None:
+    def __init__(self, name: str, args: dict[str, Any]) -> None:
         self.name = name
         self.args = args
 
-    def bind_tools(self, _tools, **_kwargs):
+    def bind_tools(self, _tools: object, **_kwargs: object) -> _StubBoundLLM:
         return _StubBoundLLM(self.name, self.args)
 
 
@@ -72,23 +72,23 @@ async def test_player_action_writes_npc_speak_to_timeline(
     client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        director_node, "get_chat_model",
+        director_node,
+        "get_chat_model",
         lambda **_: _StubChat(
             "submit_dispatch",
-            {"world_writes": [], "perceivers": [
-                {"actor_id": "baizhantang", "perception_reason": "被直接称呼"}
-            ]},
+            {"world_writes": [], "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被直接称呼"}]},
         ),
     )
     monkeypatch.setattr(
-        npc_node, "get_chat_model",
-        lambda **_: _StubChat("submit_response", {"speak": "客官您吩咐。", "act_patch": [], "memory_writes": [], "inventory_ops": []}),
+        npc_node,
+        "get_chat_model",
+        lambda **_: _StubChat(
+            "submit_response", {"speak": "客官您吩咐。", "act_patch": [], "memory_writes": [], "inventory_ops": []}
+        ),
     )
     token = await _register_and_login(client)
     headers = {"Authorization": f"Bearer {token}"}
-    sess_resp = await client.post(
-        "/api/conversations", headers=headers, json={"title": "同福客栈"}
-    )
+    sess_resp = await client.post("/api/conversations", headers=headers, json={"title": "同福客栈"})
     conversation_id = sess_resp.json()["id"]
 
     action_resp = await client.post(
@@ -97,16 +97,13 @@ async def test_player_action_writes_npc_speak_to_timeline(
         json={
             "stateVersion": 1,
             "actorId": "player",
-            
             "targetId": "baizhantang",
             "speak": "老白，门口是谁？",
         },
     )
     assert action_resp.status_code == 200
     delta = action_resp.json()["timeline_delta"]
-    assert any(
-        e["actor_id"] == "baizhantang" and e["speak"] == "客官您吩咐。" for e in delta
-    )
+    assert any(e["actor_id"] == "baizhantang" and e["speak"] == "客官您吩咐。" for e in delta)
 
 
 async def test_player_action_rejects_mismatched_conversation_id(
@@ -114,9 +111,7 @@ async def test_player_action_rejects_mismatched_conversation_id(
 ) -> None:
     token = await _register_and_login(client)
     headers = {"Authorization": f"Bearer {token}"}
-    sess_resp = await client.post(
-        "/api/conversations", headers=headers, json={"title": "同福客栈"}
-    )
+    sess_resp = await client.post("/api/conversations", headers=headers, json={"title": "同福客栈"})
     conversation_id = sess_resp.json()["id"]
 
     response = await client.post(
@@ -126,7 +121,6 @@ async def test_player_action_rejects_mismatched_conversation_id(
             "conversationId": conversation_id + 999,
             "stateVersion": 1,
             "actorId": "player",
-            
             "act_patch": [{"entity_id": "player", "position": {"x": 6, "y": 6}}],
         },
     )

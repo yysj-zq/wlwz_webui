@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import operator
 import uuid
-from typing import Annotated, NotRequired, TypedDict
+from typing import Annotated, Any, NotRequired, TypedDict
 
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 
 from app.graph.tools.registry import submit_dispatch, submit_response
@@ -33,7 +34,7 @@ class _NpcState(TypedDict):
     npc_responses: NotRequired[list[tuple[str, NPCResponse]]]
 
 
-def _compile(state_type, tool, messages_key: str):
+def _compile(state_type: type[Any], tool: Any, messages_key: str) -> CompiledStateGraph[Any, None, Any, Any]:
     g = StateGraph(state_type)
     g.add_node("tools", ToolNode([tool], messages_key=messages_key))
     g.add_edge(START, "tools")
@@ -46,14 +47,16 @@ async def test_submit_dispatch_command_writes_dispatch_into_director_messages() 
     call_id = uuid.uuid4().hex
     ai = AIMessage(
         content="",
-        tool_calls=[{
-            "name": "submit_dispatch",
-            "args": {
-                "world_writes": [],
-                "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被直接称呼"}],
-            },
-            "id": call_id,
-        }],
+        tool_calls=[
+            {
+                "name": "submit_dispatch",
+                "args": {
+                    "world_writes": [],
+                    "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被直接称呼"}],
+                },
+                "id": call_id,
+            }
+        ],
     )
     graph = _compile(_DirState, submit_dispatch, "director_messages")
 
@@ -76,23 +79,27 @@ async def test_submit_response_command_writes_npc_responses_via_injected_state()
     call_id = uuid.uuid4().hex
     ai = AIMessage(
         content="",
-        tool_calls=[{
-            "name": "submit_response",
-            "args": {
-                "act_patch": [],
-                "memory_writes": [],
-                "inventory_ops": [],
-                "speak": "客官请讲。",
-            },
-            "id": call_id,
-        }],
+        tool_calls=[
+            {
+                "name": "submit_response",
+                "args": {
+                    "act_patch": [],
+                    "memory_writes": [],
+                    "inventory_ops": [],
+                    "speak": "客官请讲。",
+                },
+                "id": call_id,
+            }
+        ],
     )
     graph = _compile(_NpcState, submit_response, "messages")
 
-    result = await graph.ainvoke({
-        "messages": [ai],
-        "npc_perceiver": Perceiver(actor_id="baizhantang", perception_reason="被直接称呼"),
-    })
+    result = await graph.ainvoke(
+        {
+            "messages": [ai],
+            "npc_perceiver": Perceiver(actor_id="baizhantang", perception_reason="被直接称呼"),
+        }
+    )
 
     responses = result["npc_responses"]
     assert len(responses) == 1

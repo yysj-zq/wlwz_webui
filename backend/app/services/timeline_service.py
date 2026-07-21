@@ -14,31 +14,29 @@ _RECENT_RAW_LIMIT = 8
 
 
 async def list_timeline(
-        db: AsyncSession,
-        conversation_id: int,
-        *,
-        after_id: int | None = None,
-        limit: int | None = None,
+    db: AsyncSession,
+    conversation_id: int,
+    *,
+    after_id: int | None = None,
+    limit: int | None = None,
 ) -> list[TimelineEntry]:
-    return await timeline_repository.list_by_conversation(
-        db, conversation_id, after_id=after_id, limit=limit
-    )
+    return await timeline_repository.list_by_conversation(db, conversation_id, after_id=after_id, limit=limit)
 
 
 async def append_entries_no_commit(
-        db: AsyncSession,
-        conversation_id: int,
-        entries: list[TimelineEntry],
+    db: AsyncSession,
+    conversation_id: int,
+    entries: list[TimelineEntry],
 ) -> list[Timeline]:
     return await timeline_repository.append_no_commit(db, conversation_id, entries)
 
 
 def render_timeline_for_messages(
-        entries: list[TimelineEntry],
-        *,
-        viewer: str = "director",
-        npc_name_lookup: dict[str, str] | None = None,
-        self_actor_id: str | None = None,
+    entries: list[TimelineEntry],
+    *,
+    viewer: str = "director",
+    npc_name_lookup: dict[str, str] | None = None,
+    self_actor_id: str | None = None,
 ) -> list[dict[str, Any]]:
     # todo [1] 原生role、scece的chat-template训练兼容，不放到user/assistant下面？eg.
     # <|im_start|>system
@@ -87,10 +85,7 @@ def render_timeline_for_messages(
             #   （若标成 assistant，会与 system prompt「你不写台词、只 submit_dispatch」矛盾，
             #    诱导导演续写台词而非调工具）
             # - npc：仅该 NPC 自己的历史发言是「我说的」→ assistant；其余角色都是 user
-            if viewer == "npc":
-                role = "assistant" if entry.actor_id == self_actor_id else "user"
-            else:
-                role = "user"
+            role = ("assistant" if entry.actor_id == self_actor_id else "user") if viewer == "npc" else "user"
             out.append({"role": role, "content": content})
     return out
 
@@ -122,7 +117,7 @@ class Compactor:
         if len(entries) <= self.recent_limit:
             return entries
         head = entries[: -self.recent_limit]
-        tail = entries[-self.recent_limit:]
+        tail = entries[-self.recent_limit :]
         summary = await self._summarize(head, name_lookup=name_lookup)
         if not summary:
             return tail
@@ -135,15 +130,11 @@ class Compactor:
         )
         return [virtual, *tail]
 
-    async def _summarize(
-        self, head: list[TimelineEntry], *, name_lookup: dict[str, str] | None = None
-    ) -> str:
+    async def _summarize(self, head: list[TimelineEntry], *, name_lookup: dict[str, str] | None = None) -> str:
         rendered = render_timeline_for_messages(head, npc_name_lookup=name_lookup)
         body = "\n".join(f"- {m['content']}" for m in rendered)
         llm = get_chat_model(temperature=0.2, streaming=False)
-        result = await llm.ainvoke(
-            [SystemMessage(content=COMPACTOR_SYSTEM_PROMPT), HumanMessage(content=body)]
-        )
+        result = await llm.ainvoke([SystemMessage(content=COMPACTOR_SYSTEM_PROMPT), HumanMessage(content=body)])
         content = result.content
         if isinstance(content, list):
             content = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in content)
