@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: webui2-postgres
+    restart: unless-stopped
+    # WSL 内 Docker + Windows 本机客户端：bridge 端口映射到不了 Windows localhost。
+    # host 网络让进程直接听在 WSL 主机上，Windows mirrored localhost 才能连上。
+    network_mode: host
+#    ports:
+#      - "5432:5432"
+    environment:
+      POSTGRES_USER: webui
+      POSTGRES_PASSWORD: webui_password
+      POSTGRES_DB: webui_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: webui2-redis
+    restart: unless-stopped
+    network_mode: host
+#    ports:
+#      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
