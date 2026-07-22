@@ -157,6 +157,20 @@ export const sendPlayerAction = async (conversationId, payload) => {
   return response.data;
 };
 
+// 切换会话级扮演角色：更新 player_actor_id 并就地翻转实体 kind（不重建世界）。
+// actorId 为注册表 slug。返回 ConversationWorldRead。
+export const setPlayedRole = async (conversationId, actorId) => {
+  const token = localStorage.getItem('accessToken');
+  const response = await api.post(
+    `/api/conversations/${conversationId}/played-role`,
+    { actorId },
+    {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    },
+  );
+  return response.data;
+};
+
 // 认证相关 API
 export const login = async (email, password) => {
   const response = await api.post('/api/auth/login', { email, password });

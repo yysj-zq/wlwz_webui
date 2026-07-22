@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 import app.main as app_main
 from app.core import database as db_module
 from app.core import settings
+from app.services import seed_builtin_roles
 
 
 def _test_database_url(tmp_path_db: Path) -> str:
@@ -70,6 +71,12 @@ async def _prepare_schema(engine: AsyncEngine) -> None:
     await _stamp_alembic_version(engine)
 
 
+async def _seed_builtin_roles(session_maker: async_sessionmaker[AsyncSession]) -> None:
+    """世界/心智已改为从内置角色注册表派生，测试库需先按 yaml 播种内置角色。"""
+    async with session_maker() as session:
+        await seed_builtin_roles(session)
+
+
 @pytest_asyncio.fixture
 async def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[httpx.AsyncClient]:
     """使用 ``httpx.AsyncClient`` + ``ASGITransport``，与 asyncpg/SQLAlchemy 共用同一事件循环。
@@ -89,6 +96,7 @@ async def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterat
     monkeypatch.setattr(settings, "INIT_BUILTIN_ROLES_ON_START", False)
 
     await _prepare_schema(test_engine)
+    await _seed_builtin_roles(test_session_maker)
     await db_module.check_db_health()
 
     app = app_main.create_app()
@@ -107,6 +115,7 @@ async def async_db_session(tmp_path: Path) -> AsyncIterator[AsyncSession]:
     test_session_maker = async_sessionmaker(bind=test_engine, expire_on_commit=False, class_=AsyncSession)
 
     await _prepare_schema(test_engine)
+    await _seed_builtin_roles(test_session_maker)
 
     async with test_session_maker() as session:
         yield session

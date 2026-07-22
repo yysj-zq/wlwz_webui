@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     Float,
@@ -31,10 +32,15 @@ class RoleProfile(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(128))
+    # 跨层稳定 id：内置角色用拼音 slug，自定义角色用 f"custom{id}"。逻辑上唯一，
+    # 但保留 nullable 以便旧数据平滑迁移（迁移脚本负责回填）。
+    slug: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True, unique=True)
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     default_speaker_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 角色扩展配置（人设/关系/目标/出生点/是否可进入游戏）。改用 JSON 基类型 +
+    # postgresql JSONB 变体，与 ActorMind/Conversation 一致，确保 SQLite 也能存 dict。
     config_json: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB().with_variant(Text, "sqlite"),  # type: ignore[no-untyped-call]
+        JSON().with_variant(JSONB(), "postgresql"),  # type: ignore[no-untyped-call]
         nullable=True,
     )
     is_builtin: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

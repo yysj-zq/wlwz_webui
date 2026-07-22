@@ -4,21 +4,33 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Phaser from 'phaser';
 import { Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import TongfuInnScene from './scenes/TongfuInnScene';
+import { RoleSelector } from '../components/RoleSelector';
 import { useLatestRef } from './hooks';
 
 const MOVE_DEBOUNCE_MS = 250;
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8081';
+// 世界尚未加载时的临时 slug fallback（须由后端 roles 提供同名注册表角色，不是前端合成身份）。
+const PLAYER_ACTOR_ID = 'player';
 
 const GameView = ({
   worldState,
+  conversationKey = null,
   loading = false,
   dialogueLines = [],
+  speechByActor = null,
+  speakableActorIds = null,
+  rolesConfig = null,
   onGameAction,
+  onChangePlayedRole,
+  onSpeakTTS,
 }) => {
   const containerRef = useRef(null);
   const gameRef = useRef(null);
   const sceneRef = useRef(null);
   const worldStateRef = useLatestRef(worldState);
   const onGameActionRef = useLatestRef(onGameAction);
+  const onSpeakTTSRef = useLatestRef(onSpeakTTS);
+  const speakableActorIdsRef = useLatestRef(speakableActorIds);
   const [targetEntity, setTargetEntity] = useState(null);
   const [interactionText, setInteractionText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -27,10 +39,34 @@ const GameView = ({
   const moveTimerRef = useRef(null);
   const requestInFlightRef = useRef(false);
   const pendingInteractionRef = useRef(null);
+  // 切会话时递增；在途回合 finally 对照世代，避免把旧会话动作冲到新会话。
+  const sessionGenRef = useRef(0);
+  const inFlightGenRef = useRef(null);
+
+  const playerActorId = worldState?.player_actor_id || PLAYER_ACTOR_ID;
+
+  useEffect(() => {
+    sessionGenRef.current += 1;
+    if (moveTimerRef.current) {
+      clearTimeout(moveTimerRef.current);
+      moveTimerRef.current = null;
+    }
+    pendingMoveRef.current = null;
+    pendingInteractionRef.current = null;
+    setTargetEntity(null);
+    setInteractionText('');
+    // 不强制清 requestInFlight：旧请求仍会结束；世代校验会阻止它补发 pending。
+  }, [conversationKey]);
 
   useEffect(() => {
     sceneRef.current?.applyWorldState(worldState);
   }, [worldState]);
+
+  // 每实体最近一句 → 场景常驻气泡。放在 worldState effect 之后声明，
+  // 保证同一次渲染里先重建精灵、再贴气泡（气泡定位依赖精灵/实体位置）。
+  useEffect(() => {
+    sceneRef.current?.applyDialogueLines(speechByActor || {});
+  }, [speechByActor]);
 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) return undefined;
@@ -47,6 +83,9 @@ const GameView = ({
       },
       onLocalMove: handleLocalMove,
       isMoveLocked: () => Boolean(targetEntityRef.current),
+      onSpeakTTS: (slug, text) => onSpeakTTSRef.current?.(slug, text),
+      // 遵循配置：仅对配了 speaker 的 slug 允许气泡 TTS 图标。
+      canSpeak: (slug) => Boolean(speakableActorIdsRef.current?.has(slug)),
     });
     sceneRef.current = scene;
     gameRef.current = new Phaser.Game({
@@ -78,14 +117,36 @@ const GameView = ({
     return dialogueLines[dialogueLines.length - 1];
   }, [dialogueLines]);
 
+  // 与 Chat 共用 RoleSelector：roleList 形状一致，仅保留 in_game 可扮演角色。
+  const playedRoleList = useMemo(() => (
+    (rolesConfig?.roles || [])
+      .filter((r) => r.in_game === true && r.slug)
+      .map((r) => ({
+        name: r.name,
+        slug: r.slug,
+        avatar: r.avatar_url
+          ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`)
+          : '',
+        description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '…' : ''),
+      }))
+  ), [rolesConfig]);
+  const currentPlayedName = playedRoleList.find((o) => o.slug === playerActorId)?.name
+    || playedRoleList[0]?.name
+    || '';
+
   // 统一回合派发：保证任一时刻只有一个 /game 请求在途（沿用旧 moveLocked 的串行化，
   // 避免并发回合从同一旧 world_state 快照各自 commit 而丢写）。在途期间的移动仍本地
   // 乐观累积到 pendingMoveRef，回合结束后若有新 pending 再按防抖补发。
   const runTurn = (payload) => {
+    const gen = sessionGenRef.current;
+    inFlightGenRef.current = gen;
     requestInFlightRef.current = true;
     setSubmitting(true);
     return Promise.resolve(onGameActionRef.current?.(payload))
       .then((response) => {
+        if (gen !== sessionGenRef.current) {
+          return null;
+        }
         if (response?.world_state) {
           worldStateRef.current = response.world_state;
           sceneRef.current?.applyWorldState(response.world_state);
@@ -93,8 +154,14 @@ const GameView = ({
         return response;
       })
       .finally(() => {
-        requestInFlightRef.current = false;
-        setSubmitting(false);
+        if (inFlightGenRef.current === gen) {
+          requestInFlightRef.current = false;
+          inFlightGenRef.current = null;
+          setSubmitting(false);
+        }
+        if (gen !== sessionGenRef.current) {
+          return;
+        }
         // 优先补发在途期间点了发送、被推迟的交互；否则若有累积移动按防抖补发。
         if (pendingInteractionRef.current) {
           const next = pendingInteractionRef.current;
@@ -117,21 +184,24 @@ const GameView = ({
     // 有请求在途：不发新提交，保留 pending，待在途回合 finally 里补发。
     if (requestInFlightRef.current) return;
     pendingMoveRef.current = null;
+    const pid = worldStateRef.current?.player_actor_id || PLAYER_ACTOR_ID;
     runTurn({
-      actorId: 'player',
-      act_patch: [{ entity_id: 'player', position: pending.position, direction: pending.direction }],
+      actorId: pid,
+      act_patch: [{ entity_id: pid, position: pending.position, direction: pending.direction }],
     });
   };
 
   const handleLocalMove = ({ position, direction }) => {
     // 本地乐观：即时更新前端 world_state 并重绘，不等后端。
+    // 移动的实体 = 会话级 player_actor_id（embody 后为对应角色 slug）。
     const current = worldStateRef.current;
-    if (current?.entities?.player) {
+    const pid = current?.player_actor_id || PLAYER_ACTOR_ID;
+    if (current?.entities?.[pid]) {
       const nextState = {
         ...current,
         entities: {
           ...current.entities,
-          player: { ...current.entities.player, position, direction },
+          [pid]: { ...current.entities[pid], position, direction },
         },
       };
       worldStateRef.current = nextState;
@@ -157,11 +227,12 @@ const GameView = ({
     }
     const pending = pendingMoveRef.current;
     pendingMoveRef.current = null;
+    const pid = worldStateRef.current?.player_actor_id || PLAYER_ACTOR_ID;
     const act_patch = pending
-      ? [{ entity_id: 'player', position: pending.position, direction: pending.direction }]
+      ? [{ entity_id: pid, position: pending.position, direction: pending.direction }]
       : [];
     const payload = {
-      actorId: 'player',
+      actorId: pid,
       targetId: targetEntity.id,
       speak: text,
       act_patch,
@@ -238,6 +309,17 @@ const GameView = ({
               方向键移动，点击 NPC 或物件交互。
             </Typography>
           </Box>
+
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(248,234,208,0.7)', display: 'block', mb: 0.75 }}>
+              扮演角色
+            </Typography>
+            <RoleSelector
+              assistantRole={currentPlayedName}
+              setAssistantRole={onChangePlayedRole}
+              roleList={playedRoleList}
+            />
+          </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap">
             <Chip size="small" label={`版本 ${worldState?.state_version || 0}`} />
             <Chip size="small" label={`${Object.keys(worldState?.entities || {}).length} 个实体`} />
@@ -245,7 +327,7 @@ const GameView = ({
           {latestLine ? (
             <Box sx={{ p: 1.5, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
               <Typography variant="caption" sx={{ opacity: 0.72 }}>
-                {latestLine.actor_id || 'scene'}
+                {latestLine.name || latestLine.actor_id || 'scene'}
               </Typography>
               <Typography variant="body2">{latestLine.text || latestLine.content}</Typography>
             </Box>
@@ -260,7 +342,7 @@ const GameView = ({
                 variant="caption"
                 sx={{ display: 'block', opacity: 0.72 }}
               >
-                {line.actor_id || 'scene'}：{line.text || line.content || ''}
+                {line.name || line.actor_id || 'scene'}：{line.text || line.content || ''}
               </Typography>
             ))}
           </Box>

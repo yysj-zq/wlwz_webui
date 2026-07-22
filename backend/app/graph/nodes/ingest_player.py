@@ -13,7 +13,6 @@ from langchain_core.runnables import RunnableConfig
 
 from app.graph.state import TurnGraphState
 from app.schemas import (
-    PLAYER,
     DirectorDispatch,
     Perceiver,
     TimelineEntry,
@@ -45,16 +44,20 @@ def _player_move_narration(actor_id: str, patches: list[WorldEntityPatch]) -> st
     return "，".join(parts) if parts else None
 
 
-async def ingest_player_input(_state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
+async def ingest_player_input(state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
     cfg = config.get("configurable", {})
     mode = cfg["mode"]
     turn_id = uuid.uuid4().hex
 
     if mode == TurnMode.CHAT:
         chat_req = cfg["chat_request"]
+        # 玩家说话的 actor_id 取当前扮演身份（会话 player_actor_id，须为注册表 slug），
+        # 使时间线渲染出正确的说话人姓名。
+        controller = cfg["controller"]
+        player_actor_id = controller.world_state.player_actor_id
         player_entry = TimelineEntry(
             turn_id=turn_id,
-            actor_id=PLAYER,
+            actor_id=player_actor_id,
             kind=TimelineKind.SPEAK,
             speak=chat_req.content,
             target_id=chat_req.targetActorId,

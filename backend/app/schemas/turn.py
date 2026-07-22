@@ -2,13 +2,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.world import PLAYER, TimelineEntry, WorldEntityPatch, WorldState
+from app.schemas.world import TimelineEntry, WorldEntityPatch, WorldState
 
 
 class GameActionRequest(BaseModel):
     conversationId: int | None = None
     stateVersion: int | None = None
-    actorId: str = PLAYER
+    # 行动主体 slug；默认 "player" 为注册表默认扮演角色，实际会话应以 world_state.player_actor_id 为准。
+    actorId: str = "player"
     speak: str | None = None
     act_patch: list[WorldEntityPatch] = Field(default_factory=list)
     targetId: str | None = None
@@ -17,6 +18,12 @@ class GameActionRequest(BaseModel):
 class ChatTurnRequest(BaseModel):
     targetActorId: str
     content: str
+
+
+class PlayedRoleRequest(BaseModel):
+    """切换扮演角色请求：actorId 为任意 in_game 注册表 slug。"""
+
+    actorId: str
 
 
 class EnsureConversationRequest(BaseModel):

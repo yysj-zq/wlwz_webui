@@ -21,6 +21,11 @@ class RoleRepository(BaseRepository[RoleProfile]):
             stmt = stmt.where(RoleProfile.is_builtin.is_(True))
         return (await db.execute(stmt)).scalar_one_or_none()
 
+    async def list_builtin(self, db: AsyncSession) -> list[RoleProfile]:
+        stmt = select(RoleProfile).where(RoleProfile.is_builtin.is_(True)).order_by(RoleProfile.id)
+        result = await db.execute(stmt)
+        return list(result.scalars().unique().all())
+
     async def get_user_role(self, db: AsyncSession, user_id: int, role_id: int) -> RoleProfile | None:
         stmt = select(RoleProfile).where(
             RoleProfile.id == role_id,

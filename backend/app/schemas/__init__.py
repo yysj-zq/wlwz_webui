@@ -1,17 +1,17 @@
 from app.schemas.auth import Token, UserCreate, UserLogin, UserOut
 from app.schemas.conversation import ConversationOut, ConversationRename, TimelineEntryOut
 from app.schemas.enums import Direction, EntityKind, MemoryScope, TimelineKind, TurnMode
-from app.schemas.roles import RoleCreate, RoleOut, RoleUpdate
+from app.schemas.roles import RoleCreate, RoleOut, RoleRegistryEntry, RoleSpawn, RoleUpdate
 from app.schemas.tts import TTSRequest
 from app.schemas.turn import (
     ChatTurnRequest,
     ConversationWorldRead,
     EnsureConversationRequest,
     GameActionRequest,
+    PlayedRoleRequest,
     TurnResponse,
 )
 from app.schemas.world import (
-    PLAYER,
     CommittedTurn,
     DirectorDispatch,
     GoalPatch,
@@ -43,11 +43,13 @@ __all__ = [
     "MemoryScope",
     "MemoryWrite",
     "NPCResponse",
-    "PLAYER",
     "Perceiver",
+    "PlayedRoleRequest",
     "Position",
     "RoleCreate",
     "RoleOut",
+    "RoleRegistryEntry",
+    "RoleSpawn",
     "RoleUpdate",
     "TTSRequest",
     "TimelineEntry",

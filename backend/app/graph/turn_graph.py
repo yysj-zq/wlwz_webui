@@ -91,7 +91,7 @@ def _build_graph() -> CompiledStateGraph[TurnGraphState, None, TurnGraphState, T
     g = StateGraph(TurnGraphState)
 
     # ── 节点 ──
-    g.add_node("ingest", ingest_player_input)  # type: ignore[call-overload]
+    g.add_node("ingest", ingest_player_input)
     g.add_node("load_context", load_turn_context)
     g.add_node("director_step", director_step, retry_policy=_LLM_RETRY)
     g.add_node(

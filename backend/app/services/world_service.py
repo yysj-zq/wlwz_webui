@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ActorMind, Conversation, User
 from app.schemas import (
     CommittedTurn,
-    Direction,
     EntityKind,
     NPCResponse,
     Position,
+    RoleRegistryEntry,
     TimelineEntry,
     TimelineKind,
     TurnContext,
@@ -18,10 +18,12 @@ from app.schemas import (
     WorldEntityPatch,
     WorldState,
 )
-from app.services import actor_mind_service, digest_service, timeline_service
+from app.services import actor_mind_service, digest_service, roles_service, timeline_service
 from app.services.conversation_service import create_conversation, get_conversation
 
 DEFAULT_MAP_ID = "tongfu_inn"
+# 新会话默认扮演的注册表 slug；必须存在于 in_game 注册表，不是系统身份常量。
+DEFAULT_PLAYED_SLUG = "player"
 INITIAL_SCENE_NOTE = (
     "同福客栈屋内，午后阳光斜斜洒在木地板上。柜台后佟掌柜抱着账本嘀咕，老白手里抹布转得飞起，小郭蹲在桌边擦着木椅。"
 )
@@ -29,47 +31,9 @@ INITIAL_SCENE_NOTE = (
 _RESERVED_PUBLIC_STATE_KEYS = frozenset({"memories", "goal", "inventory"})
 
 
-def build_default_world_state() -> WorldState:
-    entities = {
-        "player": WorldEntity(
-            id="player",
-            name="玩家",
-            kind=EntityKind.PLAYER,
-            position=Position(x=5, y=6),
-            asset_key="player",
-            direction=Direction.SOUTH,
-            public_state={"mood": "neutral"},
-        ),
-        "baizhantang": WorldEntity(
-            id="baizhantang",
-            name="白展堂",
-            kind=EntityKind.NPC,
-            position=Position(x=8, y=5),
-            asset_key="baizhantang",
-            direction=Direction.SOUTH,
-            public_state={"mood": "alert", "role": "跑堂"},
-            interactable=True,
-        ),
-        "guofurong": WorldEntity(
-            id="guofurong",
-            name="郭芙蓉",
-            kind=EntityKind.NPC,
-            position=Position(x=4, y=4),
-            asset_key="guofurong",
-            direction=Direction.SOUTH,
-            public_state={"mood": "energetic", "role": "杂役"},
-            interactable=True,
-        ),
-        "tongxiangyu": WorldEntity(
-            id="tongxiangyu",
-            name="佟湘玉",
-            kind=EntityKind.NPC,
-            position=Position(x=10, y=4),
-            asset_key="tongxiangyu",
-            direction=Direction.SOUTH,
-            public_state={"mood": "concerned", "role": "掌柜"},
-            interactable=True,
-        ),
+def _build_object_entities() -> dict[str, WorldEntity]:
+    """客栈里的静态物件实体。物件不是角色，硬编码在此是合理的。"""
+    return {
         "counter": WorldEntity(
             id="counter",
             name="柜台",
@@ -125,7 +89,71 @@ def build_default_world_state() -> WorldState:
             interactable=True,
         ),
     }
-    return WorldState(map_id=DEFAULT_MAP_ID, state_version=1, entities=entities)
+
+
+def _npc_entity_from_entry(entry: RoleRegistryEntry) -> WorldEntity:
+    return WorldEntity(
+        id=entry.slug,
+        name=entry.name,
+        kind=EntityKind.NPC,
+        position=Position(x=entry.spawn.x, y=entry.spawn.y),
+        asset_key=entry.slug,
+        direction=entry.spawn.direction,
+        interactable=True,
+    )
+
+
+def _player_entity_from_entry(entry: RoleRegistryEntry) -> WorldEntity:
+    """把注册表角色作为玩家可控实体（kind=PLAYER）。id 用其 slug，与 player_actor_id 对齐。"""
+    return WorldEntity(
+        id=entry.slug,
+        name=entry.name,
+        kind=EntityKind.PLAYER,
+        position=Position(x=entry.spawn.x, y=entry.spawn.y),
+        asset_key=entry.slug,
+        direction=entry.spawn.direction,
+        public_state={"mood": "neutral"},
+    )
+
+
+def _require_played_entry(registry: list[RoleRegistryEntry], played_actor_id: str) -> RoleRegistryEntry:
+    played = next((e for e in registry if e.slug == played_actor_id), None)
+    if played is None:
+        if played_actor_id == DEFAULT_PLAYED_SLUG:
+            raise ValueError(f'注册表缺少默认扮演角色 slug="{DEFAULT_PLAYED_SLUG}"')
+        raise ValueError(f"未知可扮演角色: {played_actor_id}")
+    return played
+
+
+def _assemble_entities(registry: list[RoleRegistryEntry], played_actor_id: str) -> dict[str, WorldEntity]:
+    """按 embody 规则从注册表 + 物件生成世界实体字典。
+
+    - played 必须是 registry 中某条的 slug，否则 ValueError。
+    - played 那条 → kind=PLAYER；其余全部 registry 条目 → kind=NPC；再加物件。
+    - 附身同福角色时，slug=player 的外来角色仍以 NPC 在场。
+    """
+    played = _require_played_entry(registry, played_actor_id)
+    entities: dict[str, WorldEntity] = _build_object_entities()
+    entities[played.slug] = _player_entity_from_entry(played)
+    for entry in registry:
+        if entry.slug == played_actor_id:
+            continue
+        entities[entry.slug] = _npc_entity_from_entry(entry)
+    return entities
+
+
+async def build_world_state(
+    db: AsyncSession, *, played_actor_id: str = DEFAULT_PLAYED_SLUG, state_version: int = 1
+) -> WorldState:
+    """从注册表派生世界状态。played_actor_id 须为 in_game 注册表 slug（默认 DEFAULT_PLAYED_SLUG）。"""
+    registry = await roles_service.list_ingame_registry(db)
+    entities = _assemble_entities(registry, played_actor_id)
+    return WorldState(
+        map_id=DEFAULT_MAP_ID,
+        state_version=state_version,
+        player_actor_id=played_actor_id,
+        entities=entities,
+    )
 
 
 async def ensure_conversation_world(
@@ -135,10 +163,18 @@ async def ensure_conversation_world(
     title: str | None = None,
 ) -> tuple[Conversation | None, WorldState]:
     if user is None:
-        return None, build_default_world_state()
+        return None, await build_world_state(db, played_actor_id=DEFAULT_PLAYED_SLUG)
 
     if conversation_id is None:
-        world_state = build_default_world_state()
+        # 新会话默认扮演注册表中的 player（外来可扮演角色）。
+        registry = await roles_service.list_ingame_registry(db)
+        entities = _assemble_entities(registry, DEFAULT_PLAYED_SLUG)
+        world_state = WorldState(
+            map_id=DEFAULT_MAP_ID,
+            state_version=1,
+            player_actor_id=DEFAULT_PLAYED_SLUG,
+            entities=entities,
+        )
         conversation = await create_conversation(
             db,
             user,
@@ -147,23 +183,90 @@ async def ensure_conversation_world(
             state_version=world_state.state_version,
             world_state_json=world_state.model_dump(mode="json"),
         )
-    else:
-        conversation = await get_conversation(db, user, conversation_id)
-        return conversation, WorldState.model_validate(conversation.world_state_json)
+        # 全员播种：注册表角色一视同仁；当前扮演者的 mind 闲置，切换后即可被 LLM 使用。
+        await actor_mind_service.seed_minds_no_commit(db, conversation.id, registry)
 
-    await actor_mind_service.seed_default_minds_no_commit(db, conversation.id)
+        scene_entry = TimelineEntry(
+            turn_id=uuid.uuid4().hex,
+            intra_turn_seq=0,
+            kind=TimelineKind.SCENE,
+            speak=INITIAL_SCENE_NOTE,
+        )
+        await timeline_service.append_entries_no_commit(db, conversation.id, [scene_entry])
 
-    scene_entry = TimelineEntry(
-        turn_id=uuid.uuid4().hex,
-        intra_turn_seq=0,
-        kind=TimelineKind.SCENE,
-        speak=INITIAL_SCENE_NOTE,
+        await db.commit()
+        await db.refresh(conversation)
+        return conversation, world_state
+
+    conversation = await get_conversation(db, user, conversation_id)
+    return conversation, WorldState.model_validate(conversation.world_state_json)
+
+
+def _flip_played_kinds(world_state: WorldState, played_actor_id: str) -> dict[str, WorldEntity]:
+    """就地翻转新旧扮演者的 PLAYER/NPC kind，保留坐标与其它状态。"""
+    previous = world_state.player_actor_id
+    entities = dict(world_state.entities)
+
+    if previous != played_actor_id and previous in entities:
+        entities[previous] = entities[previous].model_copy(update={"kind": EntityKind.NPC, "interactable": True})
+    entities[played_actor_id] = entities[played_actor_id].model_copy(
+        update={"kind": EntityKind.PLAYER, "interactable": False}
     )
-    await timeline_service.append_entries_no_commit(db, conversation.id, [scene_entry])
+    return entities
 
+
+async def switch_played_role(db: AsyncSession, conversation: Conversation, played_actor_id: str) -> WorldState:
+    """切换扮演角色：只改 player_actor_id + 就地翻 kind，保留当前会话境况（位置等）。
+
+    不重建实体、不补播心智（心智在建会话时已全员播种）。
+    played_actor_id 必须是 in_game 注册表 slug，且已在当前世界实体中，否则 ValueError。
+    """
+    registry = await roles_service.list_ingame_registry(db)
+    valid_slugs = {e.slug for e in registry}
+    if played_actor_id not in valid_slugs:
+        raise ValueError(f"非法扮演角色: {played_actor_id}")
+
+    current = WorldState.model_validate(conversation.world_state_json)
+    if played_actor_id not in current.entities:
+        raise ValueError(f"扮演角色不在当前世界: {played_actor_id}")
+
+    new_version = conversation.state_version + 1
+    world_state = current.model_copy(
+        update={
+            "player_actor_id": played_actor_id,
+            "state_version": new_version,
+            "entities": _flip_played_kinds(current, played_actor_id),
+        }
+    )
+
+    conversation.world_state_json = world_state.model_dump(mode="json")
+    conversation.state_version = new_version
     await db.commit()
     await db.refresh(conversation)
-    return conversation, world_state
+    return world_state
+
+
+async def ensure_chat_target_entity(
+    db: AsyncSession,
+    user: User | None,
+    controller: WorldController,
+    target_slug: str,
+) -> None:
+    """chat 目标健壮化：目标不在世界实体中但为该用户合法注册表角色时，惰性以 NPC 形式补入。
+
+    补入只改内存 world_state 并播种心智（不 commit、不 bump 版本）；随后 run_chat 的
+    commit_turn 会把该实体一并持久化。目标完全非法则抛 ValueError（端点转 4xx）。
+    """
+    ws = controller.world_state
+    if target_slug in ws.entities:
+        return
+    entry = await roles_service.resolve_role_registry_entry(db, user, target_slug)
+    if entry is None:
+        raise ValueError(f"未知对话目标: {target_slug}")
+    entities = dict(ws.entities)
+    entities[entry.slug] = _npc_entity_from_entry(entry)
+    controller.world_state = ws.model_copy(update={"entities": entities})
+    await actor_mind_service.seed_minds_no_commit(db, controller.conversation_id, [entry])
 
 
 def apply_world_patches(world_state: WorldState, patches: list[WorldEntityPatch]) -> WorldState:

@@ -51,12 +51,14 @@ async def create_my_role(
         raise
     return RoleOut(
         id=r.id,
+        slug=r.slug,
         name=r.name,
         system_prompt=r.system_prompt,
         default_speaker_id=r.default_speaker_id,
         avatar_url=avatar_api_path(r.id) if r.avatar_blob else None,
         is_builtin=False,
         is_mine=True,
+        in_game=False,
     )
 
 
@@ -80,12 +82,14 @@ async def update_my_role(
         raise HTTPException(status_code=404, detail="角色不存在或无权修改")
     return RoleOut(
         id=r.id,
+        slug=r.slug,
         name=r.name,
         system_prompt=r.system_prompt,
         default_speaker_id=r.default_speaker_id,
         avatar_url=avatar_api_path(r.id) if r.avatar_blob else None,
         is_builtin=False,
         is_mine=True,
+        in_game=False,
     )
 
 
@@ -121,12 +125,14 @@ async def upload_role_avatar(
     await db.refresh(r)
     return RoleOut(
         id=r.id,
+        slug=r.slug,
         name=r.name,
         system_prompt=r.system_prompt,
         default_speaker_id=r.default_speaker_id,
         avatar_url=avatar_api_path(r.id) if r.avatar_blob else None,
         is_builtin=False,
         is_mine=True,
+        in_game=False,
     )
 
 

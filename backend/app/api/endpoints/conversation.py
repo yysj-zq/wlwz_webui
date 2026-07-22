@@ -25,6 +25,7 @@ from app.schemas import (
     ConversationWorldRead,
     EnsureConversationRequest,
     GameActionRequest,
+    PlayedRoleRequest,
     TimelineEntryOut,
     TurnResponse,
     WorldState,
@@ -32,10 +33,12 @@ from app.schemas import (
 from app.services import (
     WorldController,
     delete_conversation,
+    ensure_chat_target_entity,
     ensure_conversation_world,
     get_conversation,
     list_conversations,
     rename_conversation,
+    switch_played_role,
     timeline_service,
 )
 
@@ -123,6 +126,35 @@ async def read_conversation_world(
     )
 
 
+@router.post(
+    "/conversations/{conversation_id}/played-role",
+    response_model=ConversationWorldRead,
+)
+async def set_played_role_endpoint(
+    conversation_id: int,
+    payload: PlayedRoleRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ConversationWorldRead:
+    """切换扮演角色：更新 player_actor_id 并就地翻转实体 kind，保留会话境况（不重建世界）。"""
+    try:
+        convo = await get_conversation(db, current_user, conversation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        world_state = await switch_played_role(db, convo, payload.actorId)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ConversationWorldRead(
+        id=convo.id,
+        map_id=convo.map_id,
+        state_version=convo.state_version,
+        world_state=world_state,
+        created_at=convo.created_at,
+        updated_at=convo.updated_at,
+    )
+
+
 @router.get(
     "/conversations/{conversation_id}/timeline",
     response_model=list[TimelineEntryOut],
@@ -193,12 +225,17 @@ async def chat_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> TurnResponse:
-    """对话（chat 模式）：ingest 节点直接构造 dispatch_override，跳过 Director。"""
+    """对话（chat 模式）：ingest 节点直接构造 dispatch_override，跳过 Director。
+
+    chat 目标健壮化：若 targetActorId 是该用户合法注册表角色但当前不在世界实体中
+    （典型为自定义角色），先惰性补入 NPC 实体并播种心智，避免 npc 节点静默空回复。
+    """
     try:
         conversation, world_state = await ensure_conversation_world(db, current_user, conversation_id, title="新的对话")
         if conversation is None:
             raise HTTPException(status_code=401, detail="需要登录")
         controller = WorldController(db=db, conversation=conversation, world_state=world_state)
+        await ensure_chat_target_entity(db, current_user, controller, payload.targetActorId)
         return await run_chat(controller, conversation_id, payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

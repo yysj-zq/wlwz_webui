@@ -7,8 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.enums import Direction, EntityKind, MemoryScope, TimelineKind
 
-PLAYER = "player"
-
 
 class Position(BaseModel):
     x: int
@@ -29,7 +27,8 @@ class WorldEntity(BaseModel):
 class WorldState(BaseModel):
     map_id: str
     state_version: int
-    player_actor_id: str = PLAYER
+    # 当前人类可控 actor 的 slug，须为 in_game 注册表条目（默认 "player" 亦须在注册表中）。
+    player_actor_id: str = "player"
     entities: dict[str, WorldEntity]
 
     def name_lookup(self) -> dict[str, str]:

@@ -28,9 +28,14 @@ const ChatPage = ({
   onTopbarCondenseChange,
   viewMode,
   gameWorldState,
+  gameConversationKey,
   gameLoading,
   gameDialogueLines,
+  gameSpeechByActor,
+  gameSpeakableActorIds,
   onGameAction,
+  onChangePlayedRole,
+  onGameSpeakTTS,
 }) => {
   return (
     <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
@@ -50,9 +55,15 @@ const ChatPage = ({
       {viewMode === 'game' ? (
         <GameView
           worldState={gameWorldState}
+          conversationKey={gameConversationKey}
           loading={gameLoading}
           dialogueLines={gameDialogueLines}
+          speechByActor={gameSpeechByActor}
+          speakableActorIds={gameSpeakableActorIds}
+          rolesConfig={rolesConfig}
           onGameAction={onGameAction}
+          onChangePlayedRole={onChangePlayedRole}
+          onSpeakTTS={onGameSpeakTTS}
         />
       ) : (
         <Chat

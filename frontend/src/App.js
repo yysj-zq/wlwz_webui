@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Box, CssBaseline, useMediaQuery, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Typography, Drawer, Tabs, Tab } from '@mui/material';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
@@ -7,16 +7,11 @@ import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';
 import RolesPage from './pages/RolesPage';
 import { v4 as uuidv4 } from 'uuid';
-import { sendChatMessage, sendStreamMessage, requestTTS, login, register, getCurrentUser, setAuthToken, listConversations, getConversationMessages, deleteConversationApi, renameConversationApi, getRoles, ensureConversation, sendPlayerAction } from './services/api';
+import { sendChatMessage, sendStreamMessage, requestTTS, login, register, getCurrentUser, setAuthToken, listConversations, getConversationMessages, deleteConversationApi, renameConversationApi, getRoles, ensureConversation, sendPlayerAction, setPlayedRole } from './services/api';
 import { applyTimelineDelta } from './game/worldState'; // eslint-disable-line no-unused-vars
 
-// chat 路径需要把 assistantRole（中文展示名）映射到 world_state 里的 actor_id。
-// 后端会校验 targetActorId 必须存在于 entities 内。
-const ROLE_NAME_TO_ACTOR_ID = {
-  '佟湘玉': 'tongxiangyu',
-  '白展堂': 'baizhantang',
-  '郭芙蓉': 'guofurong',
-};
+// 默认扮演的注册表 slug，须由后端 roles 提供；世界未就绪时作临时 fallback。
+const PLAYER_ACTOR_ID = 'player';
 
 function App() {
   const { theme } = useTheme();
@@ -35,10 +30,6 @@ function App() {
   const [currentConversationId, setCurrentConversationId] = useState(() => {
     const saved = localStorage.getItem('currentConversationId');
     return saved || (conversations[0] && conversations[0].id);
-  });
-  const [userRole, setUserRole] = useState(() => {
-    const saved = localStorage.getItem('userRole');
-    return saved || '佟湘玉';
   });
   const [assistantRole, setAssistantRole] = useState(() => {
     const saved = localStorage.getItem('assistantRole');
@@ -68,9 +59,12 @@ function App() {
   const [topbarCondensed, setTopbarCondensed] = useState(false);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('viewMode') || 'chat');
   const [conversationWorlds, setConversationWorlds] = useState({});
-  const [gameDialogueLines, setGameDialogueLines] = useState([]);
+  // 游戏气泡按前端 conversation.id 隔离，避免切会话串台。
+  const [gameDialogueByConv, setGameDialogueByConv] = useState({});
   const [gameLoading, setGameLoading] = useState(false);
   const currentConversationWorldStateRef = useRef(null);
+  const currentConversationIdRef = useRef(null);
+  const gameTTSInFlightRef = useRef(false);
   const leftEnterTimerRef = useRef(null);
   const leftLeaveTimerRef = useRef(null);
   const zenMode = zenPinned;
@@ -128,10 +122,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem('currentConversationId', currentConversationId);
   }, [currentConversationId]);
-
-  useEffect(() => {
-    localStorage.setItem('userRole', userRole);
-  }, [userRole]);
 
   useEffect(() => {
     localStorage.setItem('assistantRole', assistantRole);
@@ -203,14 +193,130 @@ function App() {
   const currentConversation = conversations.find(conv => conv.id === currentConversationId) || conversations[0];
   const currentConversationWorld = currentConversation ? conversationWorlds[currentConversation.id] : null;
   const currentConversationWorldState = currentConversationWorld?.world_state || null;
+  const gameDialogueLines = currentConversation
+    ? (gameDialogueByConv[currentConversation.id] || [])
+    : [];
+
+  // 渲染期同步，避免 ensure/hydrate 的 effect 早于 ref effect 跑时误判会话已切换。
+  currentConversationIdRef.current = currentConversationId;
 
   useEffect(() => {
     currentConversationWorldStateRef.current = currentConversationWorldState;
   }, [currentConversationWorldState]);
 
-  const getEntityName = (worldState, actorId) => (
-    worldState?.entities?.[actorId]?.name || actorId || 'scene'
+  // 角色身份的唯一事实源：全部从后端 rolesConfig.roles 派生（slug ⇄ 显示名 ⇄ speaker）。
+  // 找不到时降级：name→null、slug→原样、speaker→null；不伪造中文显示名。
+  const nameToSlug = (name) => (
+    rolesConfig?.roles?.find((r) => r.name === name)?.slug || null
   );
+  const slugToName = (slug) => (
+    rolesConfig?.roles?.find((r) => r.slug === slug)?.name || slug
+  );
+  const slugToSpeaker = (slug) => (
+    rolesConfig?.roles?.find((r) => r.slug === slug)?.default_speaker_id || null
+  );
+
+  const getEntityName = (worldState, actorId) => (
+    worldState?.entities?.[actorId]?.name || slugToName(actorId) || actorId || 'scene'
+  );
+
+  const timelineToUiMessages = (entries) => (
+    (entries || [])
+      .filter((m) => m.speak || (m.kind === 'scene' && m.narration))
+      .map((m) => ({
+        id: uuidv4(),
+        role: m.kind === 'scene' ? 'scene' : slugToName(m.actor_id),
+        content: m.kind === 'scene' ? (m.speak || m.narration) : m.speak,
+        kind: m.kind === 'scene' ? 'narration' : (m.actor_id === PLAYER_ACTOR_ID ? 'player_action' : 'npc_line'),
+        metadata_json: m,
+        timestamp: m.created_at,
+      }))
+  );
+
+  const timelineToGameSpeechLines = (entries) => (
+    (entries || [])
+      .filter((entry) => entry.speak && entry.actor_id)
+      .map((entry) => ({
+        actor_id: entry.actor_id,
+        name: slugToName(entry.actor_id),
+        text: entry.speak,
+      }))
+  );
+
+  // 拉 timeline 填 chat messages（仅当该会话 messages 仍空）。
+  const loadConversationMessagesIfEmpty = async (uiConversationId, backendConversationId) => {
+    if (!uiConversationId || !backendConversationId) return;
+    try {
+      const entries = await getConversationMessages(backendConversationId);
+      if (currentConversationIdRef.current !== uiConversationId) return;
+      const uiMessages = timelineToUiMessages(entries);
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== uiConversationId) return c;
+          if (c.messages?.length) return c;
+          return { ...c, messages: uiMessages };
+        })
+      );
+    } catch (error) {
+      console.error('Load messages error', error);
+    }
+  };
+
+  // 切到 chat 时若 messages 仍空，从 timeline 回填（不必先离开再点回会话列表）。
+  // 等 rolesConfig 就绪后再拉，避免 role 写成拼音 slug。
+  useEffect(() => {
+    if (viewMode !== 'chat' || !currentUser || !currentConversation?.backendConversationId) return;
+    if (!rolesConfig?.roles?.length) return;
+    if (currentConversation.messages?.length) return;
+    void loadConversationMessagesIfEmpty(
+      currentConversation.id,
+      currentConversation.backendConversationId,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, currentConversationId, currentUser, currentConversation?.backendConversationId, rolesConfig]);
+
+  // roles 晚到时：把已加载消息/游戏台词里的 slug 翻成中文名。
+  useEffect(() => {
+    if (!rolesConfig?.roles?.length) return;
+    setConversations((prev) => {
+      let any = false;
+      const next = prev.map((conv) => {
+        if (!conv.messages?.length) return conv;
+        let changed = false;
+        const messages = conv.messages.map((m) => {
+          if (m.role === 'scene' || !m.role) return m;
+          const slug = m.metadata_json?.actor_id || m.role;
+          const name = slugToName(slug);
+          if (name === m.role) return m;
+          changed = true;
+          return { ...m, role: name };
+        });
+        if (!changed) return conv;
+        any = true;
+        return { ...conv, messages };
+      });
+      return any ? next : prev;
+    });
+    setGameDialogueByConv((prev) => {
+      let any = false;
+      const next = { ...prev };
+      Object.keys(next).forEach((id) => {
+        next[id] = (next[id] || []).map((line) => {
+          const name = slugToName(line.actor_id);
+          if (line.name === name) return line;
+          any = true;
+          return { ...line, name };
+        });
+      });
+      return any ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolesConfig]);
+
+  // 扮演角色是会话级真值：取当前会话 world_state.player_actor_id 的显示名。
+  // 世界尚未创建时（player_actor_id 缺省）退化为默认注册表 slug。
+  const playedActorId = currentConversationWorldState?.player_actor_id || PLAYER_ACTOR_ID;
+  const userRole = slugToName(playedActorId);
 
   const requireLoginForGame = () => {
     if (currentUser) {
@@ -237,6 +343,32 @@ function App() {
     );
   };
 
+  const hydrateGameDialogueFromTimeline = async (uiConversationId, backendConversationId) => {
+    if (!uiConversationId || !backendConversationId) return;
+    try {
+      const entries = await getConversationMessages(backendConversationId);
+      if (currentConversationIdRef.current !== uiConversationId) return;
+      const lines = timelineToGameSpeechLines(entries);
+      setGameDialogueByConv((prev) => {
+        const existing = prev[uiConversationId] || [];
+        // 已有本页 live 追加且更长时保留；否则用服务端权威历史覆盖/填入。
+        if (existing.length > lines.length) return prev;
+        return { ...prev, [uiConversationId]: lines };
+      });
+      // 顺带填 chat messages，切回 chat 时不必再点会话列表。
+      const uiMessages = timelineToUiMessages(entries);
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== uiConversationId) return c;
+          if (c.messages?.length) return c;
+          return { ...c, messages: uiMessages };
+        })
+      );
+    } catch (error) {
+      console.error('Hydrate game dialogue error', error);
+    }
+  };
+
   const ensureCurrentConversationWorld = async () => {
     if (!currentConversation) {
       return null;
@@ -244,8 +376,11 @@ function App() {
     if (!requireLoginForGame()) {
       return null;
     }
-    const existing = conversationWorlds[currentConversation.id];
+    const uiConversationId = currentConversation.id;
+    const existing = conversationWorlds[uiConversationId];
     if (existing?.world_state) {
+      const backendId = existing.id || currentConversation.backendConversationId;
+      void hydrateGameDialogueFromTimeline(uiConversationId, backendId);
       return existing;
     }
     setGameLoading(true);
@@ -254,18 +389,61 @@ function App() {
         conversationId: currentConversation.backendConversationId || null,
         title: currentConversation.title,
       });
+      if (currentConversationIdRef.current !== uiConversationId) {
+        return null;
+      }
       // 仅在拿到 backend conversation_id 后才把 game session 写入 map，避免
       // 离线/异常路径产生只有 UI key 的幽灵条目。
       if (data?.id) {
-        setConversationWorlds(prev => ({ ...prev, [currentConversation.id]: data }));
+        setConversationWorlds(prev => ({ ...prev, [uiConversationId]: data }));
         currentConversationWorldStateRef.current = data.world_state;
         if (!currentConversation.backendConversationId) {
-          patchCurrentConversation(conv => ({ ...conv, backendConversationId: data.id }));
+          setConversations(prev =>
+            prev.map(conv => (
+              conv.id === uiConversationId
+                ? { ...conv, backendConversationId: data.id }
+                : conv
+            ))
+          );
         }
+        void hydrateGameDialogueFromTimeline(uiConversationId, data.id);
       }
       return data;
     } finally {
-      setGameLoading(false);
+      if (currentConversationIdRef.current === uiConversationId) {
+        setGameLoading(false);
+      }
+    }
+  };
+
+  // 切换会话级扮演角色：调后端更新 player_actor_id（就地翻 kind，保留境况）。
+  // roleName 是 rolesConfig 中的显示名，解析为对应注册表 slug。
+  const handleChangePlayedRole = async (roleName) => {
+    if (!currentConversation) return;
+    const actorId = nameToSlug(roleName);
+    if (!actorId) {
+      console.error('无法解析扮演角色对应身份，取消切换：', roleName);
+      return;
+    }
+    if (actorId === playedActorId) return;
+    try {
+      const ensured = await ensureConversation({
+        conversationId: currentConversation.backendConversationId || null,
+        title: currentConversation.title,
+      });
+      const backendConversationId = ensured?.id;
+      if (!backendConversationId) {
+        console.error('无法创建会话以切换扮演角色');
+        return;
+      }
+      if (!currentConversation.backendConversationId) {
+        patchCurrentConversation(conv => ({ ...conv, backendConversationId }));
+      }
+      const data = await setPlayedRole(backendConversationId, actorId);
+      setConversationWorlds(prev => ({ ...prev, [currentConversation.id]: data }));
+      currentConversationWorldStateRef.current = data.world_state;
+    } catch (error) {
+      console.error('切换扮演角色失败', error);
     }
   };
 
@@ -309,29 +487,7 @@ function App() {
     setCurrentConversationId(id);
     const conv = conversations.find(c => c.id === id);
     if (currentUser && conv && conv.backendConversationId && (!conv.messages || conv.messages.length === 0)) {
-      getConversationMessages(conv.backendConversationId)
-        .then(entries => {
-          // 端点已改为 /timeline，按 (kind, actor_id) 映射成 UI 消息：
-          // - speak: 普通对话气泡，role 取 actor_id（玩家保持 "player" 显示）
-          // - scene: 旁白，文本取 speak 或 narration（导演世界变更走 narration）
-          // - act/speak_and_act: 暂只显示 speak 部分
-          const uiMessages = entries
-            .filter((m) => m.speak || (m.kind === 'scene' && m.narration))
-            .map((m) => ({
-              id: uuidv4(),
-              role: m.kind === 'scene' ? 'scene' : m.actor_id,
-              content: m.kind === 'scene' ? (m.speak || m.narration) : m.speak,
-              kind: m.kind === 'scene' ? 'narration' : (m.actor_id === 'player' ? 'player_action' : 'npc_line'),
-              metadata_json: m,
-              timestamp: m.created_at,
-            }));
-          setConversations(prev =>
-            prev.map(c =>
-              c.id === id ? { ...c, messages: uiMessages } : c
-            )
-          );
-        })
-        .catch(e => console.error('Load messages error', e));
+      void loadConversationMessagesIfEmpty(id, conv.backendConversationId);
     }
     if (isMobile) {
       setSidebarOpen(false);
@@ -356,6 +512,27 @@ function App() {
       audioPlayerRef.current.pause();
       audioPlayerRef.current.currentTime = 0;
       audioPlayerRef.current = null;
+    }
+  };
+
+  // 游戏气泡内 TTS 按钮回调：按实体 slug 取 default_speaker_id 请求语音并播放。
+  // gameTTSInFlightRef 作为最小守卫，避免重复点击并发拉取。
+  const handleGameSpeakTTS = async (slug, text) => {
+    if (!text || !text.trim()) return;
+    if (gameTTSInFlightRef.current) return;
+    gameTTSInFlightRef.current = true;
+    try {
+      const speakerId = slugToSpeaker(slug);
+      const audioBlob = await requestTTS(text, slugToName(slug), speakerId);
+      const audioUrl = URL.createObjectURL(audioBlob);
+      stopCurrentAudio();
+      const audio = new Audio(audioUrl);
+      audioPlayerRef.current = audio;
+      await audio.play();
+    } catch (error) {
+      console.error('Game TTS Error:', error);
+    } finally {
+      gameTTSInFlightRef.current = false;
     }
   };
 
@@ -469,6 +646,12 @@ function App() {
   };
 
   const handleSendMessage = async (message) => {
+    // chat 目标身份用角色 slug（唯一事实源为 rolesConfig）。找不到即中止，不静默兜底。
+    const targetActorId = nameToSlug(assistantRole);
+    if (!targetActorId) {
+      console.error('未找到对话角色对应 slug，取消发送：', assistantRole);
+      return;
+    }
     // 找到当前对话
     const updatedConversations = conversations.map(conv => {
       if (conv.id === currentConversationId) {
@@ -515,7 +698,6 @@ function App() {
       .filter(msg => msg.id !== lastMessageId && msg.role === userRole)
       .pop();
     const content = lastUserMessage?.content || '';
-    const targetActorId = ROLE_NAME_TO_ACTOR_ID[assistantRole] || 'tongxiangyu';
     // 确保 conversation 已在后端创建（自带世界）；chat / game action 共用同一 conversation。
     const ensured = await ensureConversation({
       conversationId: currentConv.backendConversationId || null,
@@ -592,6 +774,8 @@ function App() {
   const handleGameAction = async (actionPayload) => {
     if (!currentConversation) return;
     if (!requireLoginForGame()) return;
+    // 捕获发起时的会话身份；await 之后若已切走则丢弃结果，避免串台。
+    const uiConversationId = currentConversation.id;
     // move（只有 act_patch 无 speak）走快路径，不展示 blocking loading：
     // 键盘连按时 spinner 闪烁会很难看。回合的串行化由 GameView 的在途守卫保证
     // （请求在途不发新提交），后端 commit 无乐观锁，靠前端串行避免并发丢写。
@@ -601,6 +785,9 @@ function App() {
     }
     try {
       const ensured = await ensureCurrentConversationWorld();
+      if (currentConversationIdRef.current !== uiConversationId) {
+        return null;
+      }
       const worldState = currentConversationWorldStateRef.current || ensured?.world_state;
       const backendConversationId = ensured?.id || currentConversation.backendConversationId;
       const response = await sendPlayerAction(backendConversationId || 0, {
@@ -609,9 +796,13 @@ function App() {
         stateVersion: worldState?.state_version || null,
       });
 
+      if (currentConversationIdRef.current !== uiConversationId) {
+        return null;
+      }
+
       setConversationWorlds(prev => ({
         ...prev,
-        [currentConversation.id]: {
+        [uiConversationId]: {
           ...(ensured || {}),
           id: response.conversationId,
           state_version: response.stateVersion,
@@ -621,17 +812,35 @@ function App() {
       currentConversationWorldStateRef.current = response.world_state;
 
       if (response.conversationId && !currentConversation.backendConversationId) {
-        patchCurrentConversation(conv => ({ ...conv, backendConversationId: response.conversationId }));
+        setConversations(prev =>
+          prev.map(conv => (
+            conv.id === uiConversationId
+              ? { ...conv, backendConversationId: response.conversationId }
+              : conv
+          ))
+        );
       }
 
+      // 受控身份 = 会话级 player_actor_id（注册表 slug，默认 "player"）。
+      const playerActorId = response.world_state?.player_actor_id
+        || worldState?.player_actor_id
+        || PLAYER_ACTOR_ID;
+
       const newMessages = [];
+      // speechLines：每条 speak（含玩家自身与 NPC）都进气泡数据源，供场景按实体聚合。
+      const speechLines = [];
       if (actionPayload.speak) {
         newMessages.push({
           id: uuidv4(),
-          role: userRole || '玩家',
+          role: slugToName(playerActorId),
           content: actionPayload.speak,
           timestamp: new Date().toISOString(),
           kind: 'player_action',
+        });
+        speechLines.push({
+          actor_id: playerActorId,
+          name: slugToName(playerActorId),
+          text: actionPayload.speak,
         });
       }
       if (response.narration) {
@@ -643,10 +852,9 @@ function App() {
           kind: 'narration',
         });
       }
-      // timeline_delta 是后端权威事件流；过滤掉 player 自身条目，剩下的就是 NPC speak / scene
-      const npcDialogueLines = [];
+      // timeline_delta 是后端权威事件流；玩家自身条目已在上面单独处理，这里只收其余 NPC speak / scene。
       (response.timeline_delta || []).forEach((entry) => {
-        if (entry.actor_id === 'player') return;
+        if (entry.actor_id === playerActorId) return;
         if (entry.kind === 'scene') {
           newMessages.push({
             id: uuidv4(),
@@ -666,17 +874,27 @@ function App() {
             kind: 'npc_line',
             metadata_json: entry,
           });
-          npcDialogueLines.push({ actor_id: entry.actor_id, text: entry.speak });
+          speechLines.push({
+            actor_id: entry.actor_id,
+            name: getEntityName(response.world_state, entry.actor_id),
+            text: entry.speak,
+          });
         }
       });
       if (newMessages.length) {
-        patchCurrentConversation(conv => ({
-          ...conv,
-          messages: [...(conv.messages || []), ...newMessages],
-        }));
+        setConversations(prev =>
+          prev.map(conv => (
+            conv.id === uiConversationId
+              ? { ...conv, messages: [...(conv.messages || []), ...newMessages] }
+              : conv
+          ))
+        );
       }
-      if (npcDialogueLines.length) {
-        setGameDialogueLines(prev => [...prev, ...npcDialogueLines]);
+      if (speechLines.length) {
+        setGameDialogueByConv(prev => ({
+          ...prev,
+          [uiConversationId]: [...(prev[uiConversationId] || []), ...speechLines],
+        }));
       }
       return response;
     } catch (error) {
@@ -688,6 +906,25 @@ function App() {
       }
     }
   };
+
+  // 按实体聚合"每个 slug 的最近一句"，供游戏内常驻气泡绑定。
+  const gameSpeechByActor = useMemo(() => {
+    const map = {};
+    for (const line of gameDialogueLines) {
+      if (line.actor_id) map[line.actor_id] = line.text;
+    }
+    return map;
+  }, [gameDialogueLines]);
+
+  // 可 TTS 的实体集合：仅含配了 default_speaker_id 的注册表 slug。
+  // 未配语音的角色（含无 speaker 的 player）不在其中，其气泡不渲染 TTS 按钮。
+  const speakableActorIds = useMemo(() => {
+    const set = new Set();
+    (rolesConfig?.roles || []).forEach((r) => {
+      if (r.slug && r.default_speaker_id) set.add(r.slug);
+    });
+    return set;
+  }, [rolesConfig]);
 
   const isChatPage = location.pathname === '/';
 
@@ -764,16 +1001,21 @@ function App() {
                 onRetryMessageAudio={handleRetryMessageAudio}
                 userRole={userRole}
                 assistantRole={assistantRole}
-                setUserRole={setUserRole}
+                setUserRole={handleChangePlayedRole}
                 setAssistantRole={setAssistantRole}
                 rolesConfig={rolesConfig}
                 onZenActivate={activateZenMode}
                 onTopbarCondenseChange={setTopbarCondensed}
                 viewMode={viewMode}
                 gameWorldState={currentConversationWorldState}
+                gameConversationKey={currentConversation?.id || null}
                 gameLoading={gameLoading}
                 gameDialogueLines={gameDialogueLines}
+                gameSpeechByActor={gameSpeechByActor}
+                gameSpeakableActorIds={speakableActorIds}
                 onGameAction={handleGameAction}
+                onChangePlayedRole={handleChangePlayedRole}
+                onGameSpeakTTS={handleGameSpeakTTS}
               />
             }
           />
@@ -839,7 +1081,7 @@ function App() {
                 setCurrentUser(null);
               }}
               userRole={userRole}
-              setUserRole={setUserRole}
+              setUserRole={handleChangePlayedRole}
               assistantRole={assistantRole}
               setAssistantRole={setAssistantRole}
               streamingEnabled={streamingEnabled}

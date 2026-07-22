@@ -53,11 +53,15 @@ const Chat = ({
   onZenActivate,
   onTopbarCondenseChange,
 }) => {
+  // 角色列表唯一来源：后端 rolesConfig.roles（含 slug=player 的注册表角色）。
+  // 扮演 / 对话轮盘共用同一份映射；父层用 nameToSlug 解析。
   const roleList = rolesConfig?.roles?.map((r) => ({
     name: r.name,
+    slug: r.slug,
     avatar: r.avatar_url ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`) : '',
     description: (r.system_prompt || '').slice(0, 40) + ((r.system_prompt || '').length > 40 ? '…' : ''),
   })) || [];
+  const playedRoleList = roleList;
   const getAvatarForRole = (roleName) => {
     const r = rolesConfig?.roles?.find((x) => x.name === roleName);
     if (!r?.avatar_url) return PLACEHOLDER_AVATAR;
@@ -381,7 +385,7 @@ const Chat = ({
                   <RoleSelector
                     assistantRole={userRole}
                     setAssistantRole={setUserRole}
-                    roleList={roleList}
+                    roleList={playedRoleList}
                   />
                 </RoleBioCard>
                 <RoleBioCard>

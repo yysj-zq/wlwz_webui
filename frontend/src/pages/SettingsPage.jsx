@@ -31,10 +31,12 @@ const SettingsPage = ({
 }) => {
   const { theme, mode, toggleMode } = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  // 角色列表唯一来源：后端 rolesConfig.roles（含 slug=player 的注册表角色）。
   const roleList = rolesConfig?.roles?.map((r) => ({
     name: r.name,
     avatar: r.avatar_url ? (r.avatar_url.startsWith('http') ? r.avatar_url : `${API_BASE}${r.avatar_url}`) : '',
   })) || [];
+  const playedRoleList = roleList;
 
   return (
     <Box
@@ -129,7 +131,7 @@ const SettingsPage = ({
                   onChange={(e) => setUserRole(e.target.value)}
                   label="你的角色"
                 >
-                  {(roleList.length ? roleList : [{ name: userRole || '用户' }]).map((role) => (
+                  {playedRoleList.map((role) => (
                     <MenuItem key={role.name} value={role.name}>
                       {role.name}
                     </MenuItem>
