@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from app.core import get_chat_model, get_logger
@@ -54,9 +54,15 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
         # 首次进入：渲染 system prompt + timeline context 作为初始 messages
         new_msgs = render_npc_messages(context, entity, mind_view, perceiver.perception_reason, name_lookup)
         messages = new_msgs  # 供下方 LLM 调用使用完整列表
+    elif isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:
+        # 上一轮没调工具（违规）——补一条反馈让本次重试有效（与 director 同构）
+        feedback = HumanMessage(content="你必须调用 submit_response 工具提交你的响应以结束回合。")
+        new_msgs.append(feedback)
+        messages.append(feedback)
 
-    # 调用 LLM，bind_tools 让模型知道可用工具的 schema
-    llm = get_chat_model(temperature=0.8, streaming=False).bind_tools(NPC_TOOLS)
+    # tool_choice="any" 强制调工具，从源头杜绝"输出纯文本不调工具"的违规（对支持约束解码的模型生效；
+    # 对忽略该参数的模型，仍靠上面的无-tool_call 反馈重试兜底，与 director 同构）。
+    llm = get_chat_model(temperature=0.8, streaming=False).bind_tools(NPC_TOOLS, tool_choice="any")
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("NPC[%s] LLM 返回了非 AIMessage: %s", perceiver.actor_id, type(ai_msg))

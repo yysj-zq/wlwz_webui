@@ -420,12 +420,9 @@ async def test_director_illegal_args_never_commit(
 
 
 @pytest.mark.asyncio
-async def test_npc_plaintext_without_submit_creates_no_timeline_entry(
-    async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """路径 B：NPC 只吐纯文本、从不调 submit_response → _after_npc_step 直接 END，
-    不补写空响应，不报错，且该 NPC 无 timeline 条目。"""
-    user = await _make_user(async_db_session, "plaintext@example.com")
+async def test_npc_retry_on_missing_tool_call(async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NPC 无 tool_call 违规 → 打回 npc_step 重试（与 director 同构），第 2 次合法 submit 正常收尾。"""
+    user = await _make_user(async_db_session, "npcretry@example.com")
     _patch_director_dispatch(
         monkeypatch,
         {
@@ -433,10 +430,26 @@ async def test_npc_plaintext_without_submit_creates_no_timeline_entry(
             "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被直接称呼"}],
         },
     )
-    # npc 桩：纯文本、无 tool_calls（从不 submit）
     calls = _patch_npc_sequence(
         monkeypatch,
-        [AIMessage(content="（沉默地擦着柜台，没有开口）", tool_calls=[])],
+        [
+            AIMessage(content="（沉默地擦着柜台，没有开口）", tool_calls=[]),  # 第 1 次：违规，无 tool_call
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "submit_response",
+                        "args": {
+                            "speak": "客官请讲。",
+                            "act_patch": [],
+                            "memory_writes": [],
+                            "inventory_ops": [],
+                        },
+                        "id": uuid.uuid4().hex,
+                    }
+                ],
+            ),
+        ],
     )
 
     response = await run_game(
@@ -449,8 +462,11 @@ async def test_npc_plaintext_without_submit_creates_no_timeline_entry(
         ),
     )
 
-    # npc LLM 只被调一次（无 tool_call → _after_npc_step 直接 END，不回 npc_step 重试）
-    assert len(calls) == 1
-    # 该 NPC 无 timeline 条目（纯文本不落库）
-    npc_entries = [e for e in response.timeline_delta if e.actor_id == "baizhantang"]
-    assert npc_entries == []
+    # npc_step 被调 2 次（第 1 次违规打回，第 2 次合法 submit）
+    assert len(calls) == 2
+    # 第 2 次调用前 messages 含反馈消息
+    assert any(isinstance(m, HumanMessage) and "submit_response" in str(m.content) for m in calls[1])
+    # 最终该 NPC 正常产出 speak 条目
+    assert any(
+        e.actor_id == "baizhantang" and e.speak == "客官请讲。" for e in response.timeline_delta if e.kind == "speak"
+    )

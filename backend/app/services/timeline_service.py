@@ -34,9 +34,7 @@ async def append_entries_no_commit(
 def render_timeline_for_messages(
     entries: list[TimelineEntry],
     *,
-    viewer: str = "director",
     npc_name_lookup: dict[str, str] | None = None,
-    self_actor_id: str | None = None,
 ) -> list[dict[str, Any]]:
     # todo [1] 原生role、scece的chat-template训练兼容，不放到user/assistant下面？eg.
     # <|im_start|>system
@@ -80,13 +78,10 @@ def render_timeline_for_messages(
             # 交前端可视化 → 跳过
             if content is None:
                 continue
-            # role 取决于「这条发言对当前 viewer 是不是『我说的』」：
-            # - director：整条时间线都是供其判断的客观材料，没有一句是导演说的 → 全 user
-            #   （若标成 assistant，会与 system prompt「你不写台词、只 submit_dispatch」矛盾，
-            #    诱导导演续写台词而非调工具）
-            # - npc：仅该 NPC 自己的历史发言是「我说的」→ assistant；其余角色都是 user
-            role = ("assistant" if entry.actor_id == self_actor_id else "user") if viewer == "npc" else "user"
-            out.append({"role": role, "content": content})
+            # director 与 npc 一律把历史发言渲染成 user（含 NPC 自己过去的台词）：
+            # assistant 只留给模型本轮真正产出的 tool_call。若把自身历史标成纯文本 assistant，
+            # 会形成「角色名：台词」的反向 few-shot，诱导模型续写文本而非调 submit_* 工具。
+            out.append({"role": "user", "content": content})
     return out
 
 

@@ -23,7 +23,8 @@ def _after_npc_step(state: NpcSubgraphState) -> str:
 
     判断 LLM 最后一条输出：
     - 带 tool_calls → 路由到 npc_tools_exec 执行工具
-    - 不带 tool_calls（纯文本/空） → 直接 END（路径 B：NPC 只说话不 submit，不补写空响应）
+    - 不带 tool_calls（纯文本，违规） → 打回 npc_step 重试（与 director 同构，不静默丢弃响应）
+    - 无 messages（entity 已被剧情删除，npc_step 直写空响应） → END
     """
     messages = state.get("messages") or []
     if not messages:
@@ -31,7 +32,7 @@ def _after_npc_step(state: NpcSubgraphState) -> str:
     last = messages[-1]
     if isinstance(last, AIMessage) and last.tool_calls:
         return "npc_tools_exec"
-    return END
+    return "npc_step"
 
 
 def _after_npc_tools(state: NpcSubgraphState) -> str:
@@ -57,7 +58,7 @@ def build_npc_subgraph() -> Any:
 
     边：
     - START → npc_step（入口）
-    - npc_step → npc_tools_exec | END（条件：有无 tool_calls）
+    - npc_step → npc_tools_exec | npc_step | END（条件：有 tool_calls / 违规重试 / entity 缺失）
     - npc_tools_exec → npc_step | END（条件：npc_responses 是否已写入）
     """
     g = StateGraph(NpcSubgraphState)
@@ -73,7 +74,9 @@ def build_npc_subgraph() -> Any:
     )
 
     g.add_edge(START, "npc_step")
-    g.add_conditional_edges("npc_step", _after_npc_step, {"npc_tools_exec": "npc_tools_exec", END: END})
+    g.add_conditional_edges(
+        "npc_step", _after_npc_step, {"npc_tools_exec": "npc_tools_exec", "npc_step": "npc_step", END: END}
+    )
     g.add_conditional_edges("npc_tools_exec", _after_npc_tools, {"npc_step": "npc_step", END: END})
 
     return g.compile(checkpointer=False)

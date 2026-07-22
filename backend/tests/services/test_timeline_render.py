@@ -1,10 +1,9 @@
 """render_timeline_for_messages 的 role 映射测试。
 
-核心不变量：一条发言渲染成 assistant 当且仅当它对当前 viewer 是「我说的」。
-- director 视角：整条时间线都是客观材料，没有一句是导演说的 → 全 user
-  （历史上曾把 NPC 台词标成 assistant，与导演 system prompt「你不写台词」矛盾）
-- npc 视角：仅该 NPC 自己的发言是 assistant，其余角色（含玩家）都是 user
-- 旁白（SCENE）：对任何视角都是 user
+核心不变量：所有历史发言一律 user，没有任何 assistant。
+- 旁白（SCENE）、玩家、各 NPC（含渲染视角自身过去的台词）都渲染成 user
+- assistant 只留给模型本轮真正产出的 tool_call，历史里不出现
+  （避免「角色名：台词」的反向 few-shot 诱导模型续写文本而非调工具）
 """
 
 from __future__ import annotations
@@ -34,30 +33,13 @@ def _timeline() -> list[TimelineEntry]:
 _NAMES = {"baizhantang": "白展堂", "tongxiangyu": "佟湘玉", "player": "玩家"}
 
 
-def test_director_view_has_no_assistant_role() -> None:
-    """director 视角：没有任何一条是 assistant（NPC 台词不该被当成导演说的）。"""
-    rendered = render_timeline_for_messages(_timeline(), viewer="director", npc_name_lookup=_NAMES)
+def test_all_history_rendered_as_user() -> None:
+    """所有历史发言（旁白、玩家、各 NPC，含叙述视角自身的过去台词）一律 user，无 assistant。"""
+    timeline = [*_timeline(), _speak("baizhantang", "我白展堂")]
+    rendered = render_timeline_for_messages(timeline, npc_name_lookup=_NAMES)
     roles = [m["role"] for m in rendered]
+    assert set(roles) == {"user"}
     assert "assistant" not in roles
-    assert roles == ["user", "user", "user", "user"]
-
-
-def test_npc_view_only_self_is_assistant() -> None:
-    """npc 视角：仅白展堂自己的发言是 assistant，玩家和其他 NPC 都是 user。"""
-    rendered = render_timeline_for_messages(
-        _timeline(), viewer="npc", npc_name_lookup=_NAMES, self_actor_id="baizhantang"
-    )
-    by_content = {m["content"]: m["role"] for m in rendered}
-    assert by_content["白展堂：在下白展堂"] == "assistant"
-    assert by_content["佟湘玉：哎哟喂"] == "user"
-    assert by_content["玩家：你是谁"] == "user"
-    assert by_content["【天黑了】"] == "user"
-
-
-def test_npc_view_without_self_id_has_no_assistant() -> None:
-    """npc 视角但未指定 self（无自身历史）：不应误把任何发言标成 assistant。"""
-    rendered = render_timeline_for_messages(_timeline(), viewer="npc", npc_name_lookup=_NAMES)
-    assert "assistant" not in [m["role"] for m in rendered]
 
 
 def test_target_id_rendered_as_chinese_name() -> None:
