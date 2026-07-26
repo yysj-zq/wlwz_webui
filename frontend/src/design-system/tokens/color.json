@@ -1,0 +1,55 @@
+{
+  "color": {
+    "brand": {
+      "ink": { "value": "#1A1410", "type": "color", "description": "墨底 — 主文字 / 深色戏台底" },
+      "lacquer": { "value": "#B42318", "type": "color", "description": "漆红 — 主强调 / CTA" },
+      "lantern": {
+        "value": "#D4A017",
+        "type": "color",
+        "description": "灯金 — 暖高光 / 深色主题强调"
+      },
+      "paper": { "value": "#F7F2E8", "type": "color", "description": "宣纸 — 默认画布底" },
+      "mute": { "value": "#6B635A", "type": "color", "description": "煤灰 — 次要文字" }
+    },
+    "surface": {
+      "0": { "value": "#F7F2E8", "type": "color", "description": "画布底" },
+      "1": { "value": "#FFFBF5", "type": "color", "description": "纸面" },
+      "2": { "value": "#F0EADF", "type": "color", "description": "侧栏" },
+      "3": { "value": "#EBE4D8", "type": "color", "description": "聊天区" }
+    },
+    "text": {
+      "primary": { "value": "#1A1410", "type": "color" },
+      "secondary": { "value": "#6B635A", "type": "color" },
+      "muted": { "value": "#8A8175", "type": "color" },
+      "inverse": { "value": "#F7F2E8", "type": "color" }
+    },
+    "border": {
+      "default": { "value": "#D9D0C3", "type": "color" },
+      "subtle": { "value": "rgba(26, 20, 16, 0.10)", "type": "color" },
+      "strong": { "value": "#3D342C", "type": "color" },
+      "focus": { "value": "#B42318", "type": "color" },
+      "danger": { "value": "#8B1510", "type": "color" }
+    },
+    "role": {
+      "player": { "value": "#B42318", "type": "color", "description": "扮演角色高亮" },
+      "npc": { "value": "#1E4D8C", "type": "color", "description": "NPC 高亮" },
+      "scene": { "value": "#6B635A", "type": "color", "description": "旁白 / 场景" }
+    },
+    "feedback": {
+      "info": { "value": "#1E4D8C", "type": "color" },
+      "success": { "value": "#2F6B3A", "type": "color" },
+      "warning": { "value": "#C4890A", "type": "color" },
+      "danger": { "value": "#8B1510", "type": "color" }
+    },
+    "overlay": {
+      "scrim": { "value": "rgba(26, 20, 16, 0.48)", "type": "color", "description": "Dialog 遮罩" },
+      "ink-soft": { "value": "rgba(26, 20, 16, 0.06)", "type": "color" },
+      "ink-strong": { "value": "rgba(26, 20, 16, 0.92)", "type": "color" },
+      "paper-soft": {
+        "value": "rgba(255, 251, 245, 0.72)",
+        "type": "color",
+        "description": "顶栏毛玻璃"
+      }
+    }
+  }
+}

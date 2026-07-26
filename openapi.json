@@ -1,0 +1,2358 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "角色扮演对话API",
+    "description": "提供角色扮演和聊天功能的后端 API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "注册新用户",
+        "description": "使用邮箱、密码与可选的用户名注册一个新账号。若邮箱已被注册则返回 400。\n\n成功后返回新建用户的公开信息（不含密码哈希）。",
+        "operationId": "register_api_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "新创建的用户公开信息。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "邮箱已被注册或请求体校验失败。"
+          },
+          "422": {
+            "description": "请求体字段类型或格式不合法（如邮箱格式错误、密码为空）。"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "用户登录并获取 JWT",
+        "description": "使用邮箱与密码换取 JWT access token。\n\n- 邮箱不存在或密码错误：返回 401。\n- 账号被禁用：返回 400。\n成功后返回的 token 默认有效期由后端配置（ACCESS_TOKEN_EXPIRE_MINUTES）控制。",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "JWT 访问令牌及其类型。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "账号已被禁用。"
+          },
+          "401": {
+            "description": "邮箱不存在或密码错误。"
+          },
+          "422": {
+            "description": "请求体字段类型或格式不合法。"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "获取当前登录用户信息",
+        "description": "解析请求头中的 JWT 并返回当前登录用户的公开信息。",
+        "operationId": "read_me_api_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "当前登录用户公开信息。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未提供有效 JWT，或 token 已过期/被吊销。"
+          },
+          "403": {
+            "description": "凭据有效但当前被禁止访问该资源。"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/conversations": {
+      "get": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "列出当前用户所有会话",
+        "description": "返回当前登录用户拥有的全部会话（不含会话体内容），按更新时间倒序。",
+        "operationId": "list_my_conversations_api_conversations_get",
+        "responses": {
+          "200": {
+            "description": "会话摘要列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationOut"
+                  },
+                  "type": "array",
+                  "title": "Response List My Conversations Api Conversations Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未提供有效 JWT。"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "创建或加载会话（带世界状态）",
+        "description": "幂等创建/加载会话。\n\n- 若 `conversationId` 为空则创建新会话，并同步生成初始世界（场景、NPC、心智、开门旁白）。\n- 若 `conversationId` 不为空则加载该会话及其当前世界状态。\n- 若 `conversationId` 不存在或不属于当前用户：返回 404。\n\n返回体同时携带会话基本信息与世界快照，前端可直接定位玩家 actor 与世界状态版本。",
+        "operationId": "create_or_load_conversation_api_conversations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnsureConversationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "会话信息与当前世界状态快照。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationWorldRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "422": {
+            "description": "请求体字段类型不合法。"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/conversations/{conversation_id}": {
+      "delete": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "删除指定会话",
+        "description": "硬删除当前用户的指定 conversation，连带其世界状态、时间线、记忆一并清理。\n\n若 conversationId 不存在或不属于当前用户：返回 404。",
+        "operationId": "remove_conversation_api_conversations__conversation_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "删除成功。"
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{conversation_id}/rename": {
+      "post": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "重命名会话",
+        "description": "更新指定会话的标题。若会话不存在或不属于当前用户：返回 404。",
+        "operationId": "rename_conversation_endpoint_api_conversations__conversation_id__rename_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationRename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的会话摘要。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "422": {
+            "description": "请求体字段类型不合法。"
+          }
+        }
+      }
+    },
+    "/api/conversations/{conversation_id}/world": {
+      "get": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "获取会话世界状态快照",
+        "description": "返回会话当前世界视图，包含 `mapId`、`stateVersion`、完整 `worldState`（实体、坐标、\n公开状态）以及会话时间戳。前端可用于首屏渲染世界场景与位置。",
+        "operationId": "read_conversation_world_api_conversations__conversation_id__world_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "会话世界状态快照。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationWorldRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{conversation_id}/played-role": {
+      "post": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "切换会话中的扮演角色",
+        "description": "将 `player_actor_id` 切换为指定 actor（须为 in_game 注册表中的合法 slug），\n并就地翻转该实体的 kind（player/npc），保留会话现有世界状态。\n\n- 不重建世界，已有时间线 / 记忆 / 心智不受影响。\n- 若 conversationId 不存在或不属于当前用户：返回 404。\n- 若 actorId 不在 in_game 注册表中：返回 400。",
+        "operationId": "set_played_role_endpoint_api_conversations__conversation_id__played_role_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayedRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "切换后的会话世界快照（包含新 player_actor_id）。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationWorldRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "actorId 不在 in_game 注册表或请求体不合法。"
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/conversations/{conversation_id}/timeline": {
+      "get": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "获取会话统一时间线",
+        "description": "返回该会话的时间线增量（按 id 升序），混含 `speak` / `act` / `speak_and_act` / `scene` 四类条目。\n\n- `afterId`（可选）仅返回 id > afterId 的条目，用于增量轮询。\n- `limit`（可选）限制返回条数上限。\n- 前端按 `kind` 过滤后渲染不同视觉样式。\n- 条目类型与 TurnResponse.timelineDelta 一致：`TimelineEntry`（含强类型 `actPatch`）。",
+        "operationId": "list_conversation_timeline_api_conversations__conversation_id__timeline_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "afterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Afterid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "时间线条目列表（TimelineEntry[]）。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TimelineEntry"
+                  },
+                  "title": "Response List Conversation Timeline Api Conversations  Conversation Id  Timeline Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "422": {
+            "description": "afterId / limit 参数类型不合法。"
+          }
+        }
+      }
+    },
+    "/api/conversations/{conversation_id}/actions": {
+      "post": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "玩家动作（game 模式）",
+        "description": "玩家在 game 模式下的一次动作提交。流程：Director 调度 → fan_out_npcs → commit。\n\n请求体支持：\n- `speak`：本轮要说的话。\n- `actPatch`：本轮对世界实体的变更（移动、改坐标、改 publicState 等）。\n- `stateVersion`（必填）：乐观锁版本。若与当前服务端 stateVersion 不一致，\n  返回 **409**，响应体为 ConflictResponse（`code` / `currentStateVersion` / `worldState`），客户端应读取 `currentStateVersion` 后重试。\n- `targetId` / `actorId`：目标实体与动作主体（默认 `\"player\"`）。\n\n常见错误：\n- 404：会话不存在或不属于当前用户（懒加载时也会自动创建）。\n- 409：stateVersion 冲突（仅 STATE_VERSION_CONFLICT）。\n- 422：Director 拒绝的世界变更（如越界、非法 patch）、`conversationId` 与路径不一致，或字段类型错误。",
+        "operationId": "game_action_endpoint_api_conversations__conversation_id__actions_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "本轮动作提交后的世界状态与时间线增量。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未提供有效 JWT。"
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "409": {
+            "description": "STATE_VERSION_CONFLICT：stateVersion 与服务端不一致。响应体为 ConflictResponse（camelCase：code / currentStateVersion / worldState）。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Director 拒绝本轮 worldWrites、conversationId 与路径不一致，或字段类型不合法。"
+          }
+        }
+      }
+    },
+    "/api/conversations/{conversation_id}/chat": {
+      "post": {
+        "tags": [
+          "Conversation"
+        ],
+        "summary": "对话回合（chat 模式）",
+        "description": "玩家在 chat 模式下的普通对话回合。与 game 模式的区别：\n- 不走 Director，直接构造 `dispatch_override` 交由 ingest → fan_out_npcs → commit。\n- 若 `targetActorId` 是当前用户合法注册表角色但当前不在世界实体中（典型为自定义角色），\n  会惰性补入 NPC 实体并播种心智，避免 npc 节点静默空回复。\n\n错误：\n- 400：targetActorId 不在合法注册表中。\n- 401：未登录。\n- 404：会话不存在或不属于当前用户。\n- 409：stateVersion 冲突；响应体为 ConflictResponse（`code` / `currentStateVersion` / `worldState`）。\n- 422：回合处理拒绝（非法 patch 等），或请求体字段类型不合法。",
+        "operationId": "chat_endpoint_api_conversations__conversation_id__chat_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatTurnRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "本轮对话回合后的世界状态与时间线增量。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "targetActorId 不在用户合法角色注册表中。"
+          },
+          "401": {
+            "description": "未提供有效 JWT。"
+          },
+          "404": {
+            "description": "指定 conversationId 不存在或不属于当前用户。"
+          },
+          "409": {
+            "description": "STATE_VERSION_CONFLICT：stateVersion 与服务端不一致。响应体为 ConflictResponse（camelCase：code / currentStateVersion / worldState）。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "回合处理拒绝（非法 patch 等），或请求体字段类型不合法。"
+          }
+        }
+      }
+    },
+    "/api/roles": {
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "获取可用角色列表",
+        "description": "返回当前用户可见的角色列表（`RoleOut` 数组）。\n\n- 内置角色（isBuiltin=True）始终可见。\n- 自定义角色（isMine=True）仅在已登录且属于当前用户时返回。\n- 未登录访问时，仅返回内置角色。",
+        "operationId": "get_roles_api_roles_get",
+        "responses": {
+          "200": {
+            "description": "RoleOut 数组，字段为 camelCase。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleOut"
+                  },
+                  "type": "array",
+                  "title": "Response Get Roles Api Roles Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/roles/my": {
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "创建当前用户的自定义角色",
+        "description": "为当前登录用户创建一个新的自定义角色。\n\n- `name` 在同一用户下唯一（重复返回 400）。\n- `default_speaker_id` 可选；未设置时后续 TTS 调用须显式传入 speakerId。\n- 头像请通过 `POST /roles/{roleId}/avatar` 单独上传。",
+        "operationId": "create_my_role_api_roles_my_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "新创建的自定义角色公开信息。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "角色名重复，或请求体字段类型不合法。"
+          },
+          "401": {
+            "description": "未提供有效 JWT。"
+          },
+          "422": {
+            "description": "请求体字段类型或长度不合法。"
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/roles/my/{role_id}": {
+      "put": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "更新当前用户的自定义角色",
+        "description": "局部更新当前用户的指定自定义角色。仅修改提供的字段；未提供的字段保持不变。\n\n- 不允许修改内置角色。\n- 若 roleId 不存在或不属于当前用户：返回 404。",
+        "operationId": "update_my_role_api_roles_my__role_id__put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Role Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新后的角色公开信息。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "角色不存在或当前用户无权修改。"
+          },
+          "422": {
+            "description": "请求体字段类型不合法。"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "删除当前用户的自定义角色",
+        "description": "硬删除当前用户拥有的指定自定义角色。不允许删除内置角色。\n\n- 若 roleId 不存在或不属于当前用户：返回 404。",
+        "operationId": "delete_my_role_api_roles_my__role_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Role Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "删除成功。"
+          },
+          "404": {
+            "description": "角色不存在或当前用户无权删除。"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/roles/{role_id}/avatar": {
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "上传并更新角色头像",
+        "description": "上传一张图片作为指定自定义角色的头像，支持 image/* MIME（PNG/JPEG/WebP）。\n\n- 仅允许修改当前用户拥有的自定义角色。\n- 若文件不是图片：返回 400。\n- 头像二进制存储于数据库（avatar_blob），获取请用 `GET /roles/{roleId}/avatar`。",
+        "operationId": "upload_role_avatar_api_roles__role_id__avatar_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Role Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_role_avatar_api_roles__role_id__avatar_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新头像后的角色公开信息（含 avatar_url）。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "上传文件不是图片，或请求体不合法。"
+          },
+          "404": {
+            "description": "角色不存在或当前用户无权修改。"
+          },
+          "413": {
+            "description": "文件过大（超出后端限制）。"
+          },
+          "422": {
+            "description": "表单字段类型不合法。"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "获取角色头像二进制",
+        "description": "直接返回指定角色的头像图片原始字节，Content-Type 与上传时一致（如 image/png）。\n\n- 若角色不存在或未上传头像：返回 404。\n- 该端点不需要鉴权（头像可公开）。",
+        "operationId": "get_role_avatar_api_roles__role_id__avatar_get",
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Role Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "头像二进制（image/*）。",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "404": {
+            "description": "角色不存在或尚未上传头像。"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tts": {
+      "post": {
+        "tags": [
+          "TTS"
+        ],
+        "summary": "文本转语音（TTS）",
+        "description": "将文本合成为 WAV 音频并以 `audio/wav` 返回。\n\n解析顺序：\n1. 若请求中传入 `speakerId`，直接使用。\n2. 否则根据 `assistantRole` 查询该用户可用的默认 `default_speaker_id`。\n3. 若都拿不到 speaker：返回 400。\n\n成功后按 (user_id, text, speaker_id) 写入 Redis 缓存，下次命中直接返回缓存。\n\n错误：\n- 400：角色未配置语音且未传入 speakerId。\n- 401：未登录。\n- 500：TTS 上游或本地推理异常。\n- 502：TTS 服务不可用 / 响应错误。",
+        "operationId": "tts_api_tts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TTSRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "成功合成并返回 WAV 音频。",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "audio/wav": {}
+            }
+          },
+          "400": {
+            "description": "角色未配置语音且未传入 speakerId。"
+          },
+          "401": {
+            "description": "未提供有效 JWT。"
+          },
+          "500": {
+            "description": "TTS 上游或本地推理异常。"
+          },
+          "502": {
+            "description": "TTS 服务不可用或响应错误。"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "健康检查接口：验证数据库连接。",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Root  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_role_avatar_api_roles__role_id__avatar_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_role_avatar_api_roles__role_id__avatar_post"
+      },
+      "ChatTurnRequest": {
+        "properties": {
+          "targetActorId": {
+            "type": "string",
+            "title": "Targetactorid",
+            "description": "对话目标 NPC 的实体 ID 或角色 slug（OpenAPI 字段名 targetActorId）。",
+            "examples": [
+              "baizhantang",
+              "npc_xiaoyu"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Content",
+            "description": "本轮要说的话，注入 LLM 后生成目标 NPC 的回复。",
+            "examples": [
+              "堂主，昨夜究竟发生了什么？"
+            ]
+          },
+          "stateVersion": {
+            "type": "integer",
+            "title": "Stateversion",
+            "description": "Expected world state version（OpenAPI 字段名 stateVersion）；if mismatched, returns 409 with current state。乐观锁：服务端会比对会话当前 stateVersion，不一致则返回 409。",
+            "examples": [
+              12,
+              13
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetActorId",
+          "content",
+          "stateVersion"
+        ],
+        "title": "ChatTurnRequest",
+        "description": "玩家对话请求体（chat 模式：POST /conversations/{id}/chat）。"
+      },
+      "ConflictResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "错误码，固定为 \"STATE_VERSION_CONFLICT\"。",
+            "examples": [
+              "STATE_VERSION_CONFLICT"
+            ]
+          },
+          "currentStateVersion": {
+            "type": "integer",
+            "title": "Currentstateversion",
+            "description": "服务端当前的世界状态版本号（OpenAPI 字段名 currentStateVersion；与 worldState.stateVersion 同值）。",
+            "examples": [
+              14
+            ]
+          },
+          "worldState": {
+            "$ref": "#/components/schemas/WorldState",
+            "description": "服务端当前完整世界状态（OpenAPI 字段名 worldState），客户端应使用此快照重渲染。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "currentStateVersion",
+          "worldState"
+        ],
+        "title": "ConflictResponse",
+        "description": "409 乐观锁冲突响应体：客户端用 ``worldState`` 重渲染。\n\n- ``code`` 固定为 ``\"STATE_VERSION_CONFLICT\"``，便于前端 if/else。\n- ``currentStateVersion`` 与 ``worldState.stateVersion`` 同值，\n  冗余出来仅为方便客户端单独读这一字段（不必深挖 worldState）。"
+      },
+      "ConversationOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "会话主键 ID。",
+            "examples": [
+              1
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "会话标题，前端默认展示。",
+            "examples": [
+              "百战堂血案"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "可选会话描述/摘要。",
+            "examples": [
+              "悬疑推理 · 第一案"
+            ]
+          },
+          "modelName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelname",
+            "description": "创建时使用的模型名。",
+            "examples": [
+              "gpt-4o-mini"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat",
+            "description": "创建时间（UTC ISO-8601）。"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat",
+            "description": "最近一次更新时间（UTC ISO-8601）。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "ConversationOut",
+        "description": "会话摘要（不含会话体）。"
+      },
+      "ConversationRename": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "description": "新会话标题。",
+            "examples": [
+              "百战堂血案（重试）"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "ConversationRename",
+        "description": "重命名会话请求体。"
+      },
+      "ConversationWorldRead": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "会话主键 ID；首次创建前可能为 null。",
+            "examples": [
+              1
+            ]
+          },
+          "mapId": {
+            "type": "string",
+            "title": "Mapid",
+            "description": "世界地图 ID（OpenAPI 字段名 mapId）。",
+            "examples": [
+              "tongfu_inn"
+            ]
+          },
+          "stateVersion": {
+            "type": "integer",
+            "title": "Stateversion",
+            "description": "当前世界状态版本号（OpenAPI 字段名 stateVersion）。",
+            "examples": [
+              12
+            ]
+          },
+          "worldState": {
+            "$ref": "#/components/schemas/WorldState",
+            "description": "完整世界状态快照（OpenAPI 字段名 worldState）。"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat",
+            "description": "创建时间（UTC ISO-8601）。"
+          },
+          "updatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updatedat",
+            "description": "最近一次更新时间（UTC ISO-8601）。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mapId",
+          "stateVersion",
+          "worldState"
+        ],
+        "title": "ConversationWorldRead",
+        "description": "会话 + 世界状态读模型。"
+      },
+      "Direction": {
+        "type": "string",
+        "enum": [
+          "north",
+          "south",
+          "east",
+          "west"
+        ],
+        "title": "Direction",
+        "description": "朝向。成员绑定 (英文值, 中文标签)：value 给前端/DB(机器态)，label 给 LLM/时间线(中文)。"
+      },
+      "EnsureConversationRequest": {
+        "properties": {
+          "conversationId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversationid",
+            "description": "已有会话 ID（OpenAPI 字段名 conversationId）；为空则创建新会话。",
+            "examples": [
+              1
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "新会话标题（仅创建时生效）。",
+            "examples": [
+              "百战堂血案"
+            ]
+          }
+        },
+        "type": "object",
+        "title": "EnsureConversationRequest",
+        "description": "创建或加载会话请求体。"
+      },
+      "EntityKind": {
+        "type": "string",
+        "enum": [
+          "player",
+          "npc",
+          "object"
+        ],
+        "title": "EntityKind",
+        "description": "世界实体类型。\n\n成员说明：\n- `player`：由人类控制的主角实体（同一时刻最多 1 个，由 `WorldState.player_actor_id` 指定）。\n- `npc`：由 LLM 驱动的 NPC 实体，拥有心智（记忆/目标/性格）。\n- `object`：不可交互或弱交互的物件/摆设。"
+      },
+      "GameActionRequest": {
+        "properties": {
+          "conversationId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversationid",
+            "description": "可选会话 ID（OpenAPI 字段名 conversationId）；为安全考虑必须与路径参数一致，否则返回 422。",
+            "examples": [
+              1
+            ]
+          },
+          "stateVersion": {
+            "type": "integer",
+            "title": "Stateversion",
+            "description": "Expected world state version（OpenAPI 字段名 stateVersion）；if mismatched, returns 409 with current state。乐观锁：服务端会比对会话当前 stateVersion，不一致则返回 409，响应体为 ConflictResponse（code=STATE_VERSION_CONFLICT），客户端须读取 currentStateVersion 后重试。",
+            "examples": [
+              12,
+              13
+            ]
+          },
+          "actorId": {
+            "type": "string",
+            "title": "Actorid",
+            "description": "动作执行者实体 ID（OpenAPI 字段名 actorId，默认 \"player\"）。实际生效以 worldState.playerActorId 为准。",
+            "default": "player",
+            "examples": [
+              "player",
+              "baizhantang"
+            ]
+          },
+          "speak": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speak",
+            "description": "本轮要说的话，可选。",
+            "examples": [
+              "我打开桌上的木盒。"
+            ]
+          },
+          "actPatch": {
+            "items": {
+              "$ref": "#/components/schemas/WorldEntityPatch"
+            },
+            "type": "array",
+            "title": "Actpatch",
+            "description": "本轮对世界实体的变更集合（OpenAPI 字段名 actPatch）。",
+            "examples": [
+              [
+                {
+                  "entityId": "player",
+                  "position": {
+                    "x": 3,
+                    "y": 4
+                  }
+                }
+              ]
+            ]
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid",
+            "description": "本轮动作/说话的目标实体 ID（OpenAPI 字段名 targetId）。",
+            "examples": [
+              "table"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "stateVersion"
+        ],
+        "title": "GameActionRequest",
+        "description": "玩家动作请求体（game 模式：POST /conversations/{id}/actions）。"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PlayedRoleRequest": {
+        "properties": {
+          "actorId": {
+            "type": "string",
+            "title": "Actorid",
+            "description": "要切换的 in_game 角色 slug（OpenAPI 字段名 actorId）。",
+            "examples": [
+              "baizhantang",
+              "npc_xiaoyu"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "actorId"
+        ],
+        "title": "PlayedRoleRequest",
+        "description": "切换扮演角色请求：actorId 为任意 in_game 注册表 slug。"
+      },
+      "Position": {
+        "properties": {
+          "x": {
+            "type": "integer",
+            "title": "X",
+            "description": "Tile x 坐标（当前地图的瓦片坐标系，原点左上，x 向右增长）。",
+            "examples": [
+              3
+            ]
+          },
+          "y": {
+            "type": "integer",
+            "title": "Y",
+            "description": "Tile y 坐标（当前地图的瓦片坐标系，原点左上，y 向下增长）。",
+            "examples": [
+              4
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "Position",
+        "description": "世界实体在地图上的坐标。"
+      },
+      "RoleCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "description": "角色名（同一用户下唯一）。",
+            "examples": [
+              "百战堂"
+            ]
+          },
+          "systemPrompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Systemprompt",
+            "description": "LLM 系统提示词，可选。",
+            "examples": [
+              "你是一位身经百战的老将。"
+            ]
+          },
+          "defaultSpeakerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultspeakerid",
+            "description": "TTS 默认 speaker ID，可选。",
+            "examples": [
+              "spk_male_01"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RoleCreate",
+        "description": "创建自定义角色请求体。"
+      },
+      "RoleOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "角色主键 ID。",
+            "examples": [
+              1
+            ]
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug",
+            "description": "URL 友好 slug，内置角色固定；自定义角色由后端生成。",
+            "examples": [
+              "baizhantang"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "展示用角色名。",
+            "examples": [
+              "百战堂"
+            ]
+          },
+          "systemPrompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Systemprompt",
+            "description": "注入 LLM 的系统提示词；为空时使用后端默认。",
+            "examples": [
+              "你是一位身经百战的老将，言语简洁。"
+            ]
+          },
+          "defaultSpeakerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultspeakerid",
+            "description": "TTS 默认 speaker ID；未设置则 TTS 调用须显式传入 speakerId。",
+            "examples": [
+              "spk_male_01"
+            ]
+          },
+          "avatarUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatarurl",
+            "description": "头像 URL（指向 /roles/{id}/avatar），未上传时为 null。",
+            "examples": [
+              "/api/roles/1/avatar"
+            ]
+          },
+          "isBuiltin": {
+            "type": "boolean",
+            "title": "Isbuiltin",
+            "description": "是否系统内置角色（内置不可修改/删除）。",
+            "examples": [
+              true
+            ]
+          },
+          "isMine": {
+            "type": "boolean",
+            "title": "Ismine",
+            "description": "是否当前用户创建的自定义角色。",
+            "default": false,
+            "examples": [
+              false
+            ]
+          },
+          "inGame": {
+            "type": "boolean",
+            "title": "Ingame",
+            "description": "是否可作为世界实体进入游戏。",
+            "default": false,
+            "examples": [
+              true
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "isBuiltin"
+        ],
+        "title": "RoleOut",
+        "description": "角色对外公开信息。"
+      },
+      "RoleUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "新角色名。",
+            "examples": [
+              "百战堂（重命名）"
+            ]
+          },
+          "systemPrompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Systemprompt",
+            "description": "新的系统提示词。",
+            "examples": [
+              "你是一位身经百战的老将，言语中带江湖气。"
+            ]
+          },
+          "defaultSpeakerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultspeakerid",
+            "description": "新的默认 speaker ID。",
+            "examples": [
+              "spk_male_02"
+            ]
+          }
+        },
+        "type": "object",
+        "title": "RoleUpdate",
+        "description": "更新自定义角色请求体（局部更新）。"
+      },
+      "TTSRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Text",
+            "description": "待合成的纯文本（不含 SSML）。",
+            "examples": [
+              "你好，欢迎来到百战堂。"
+            ]
+          },
+          "assistantRole": {
+            "type": "string",
+            "title": "Assistantrole",
+            "description": "目标角色 slug 或名称，用于查询 default_speaker_id。",
+            "examples": [
+              "baizhantang"
+            ]
+          },
+          "speakerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speakerid",
+            "description": "TTS speaker ID 覆盖；为空时按 assistantRole 查默认。",
+            "examples": [
+              "spk_male_01"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "assistantRole"
+        ],
+        "title": "TTSRequest",
+        "description": "TTS 合成请求体。"
+      },
+      "TimelineEntry": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "时间线条目主键 ID，新建时为 null。",
+            "examples": [
+              42
+            ]
+          },
+          "turnId": {
+            "type": "string",
+            "title": "Turnid",
+            "description": "所属 turn 的唯一 ID（用于去重/分组）。",
+            "examples": [
+              "turn_01HXY..."
+            ]
+          },
+          "intraTurnSeq": {
+            "type": "integer",
+            "title": "Intraturnseq",
+            "description": "同一 turn 内的顺序号，越小越靠前；-1 表示自动分配。",
+            "default": -1,
+            "examples": [
+              0
+            ]
+          },
+          "actorId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actorid",
+            "description": "执行本条目的 actor 实体 ID（scene 旁白时为 null）。",
+            "examples": [
+              "baizhantang"
+            ]
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimelineKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "条目类型：speak / act / speak_and_act / scene；为空时由 _fill_kind 自动推断。",
+            "examples": [
+              "speak"
+            ]
+          },
+          "speak": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speak",
+            "description": "说话内容（kind=speak / speak_and_act 时有值）。",
+            "examples": [
+              "我闻到了一股淡淡的血腥味。"
+            ]
+          },
+          "actPatch": {
+            "items": {
+              "$ref": "#/components/schemas/WorldEntityPatch"
+            },
+            "type": "array",
+            "title": "Actpatch",
+            "description": "本条目触发的世界实体变更集合（OpenAPI 字段名 actPatch）。",
+            "examples": [
+              [
+                {
+                  "entityId": "player",
+                  "position": {
+                    "x": 3,
+                    "y": 4
+                  }
+                }
+              ]
+            ]
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid",
+            "description": "对谁说话或对哪个实体施加动作。",
+            "examples": [
+              "player"
+            ]
+          },
+          "narration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narration",
+            "description": "场景/动作的旁白描述（中文）。",
+            "examples": [
+              "一阵冷风从门缝灌入。"
+            ]
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat",
+            "description": "创建时间（UTC ISO-8601）。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turnId"
+        ],
+        "title": "TimelineEntry",
+        "description": "统一时间线条目：speak / act / speak_and_act / scene。"
+      },
+      "TimelineKind": {
+        "type": "string",
+        "enum": [
+          "speak",
+          "act",
+          "speak_and_act",
+          "scene"
+        ],
+        "title": "TimelineKind",
+        "description": "统一时间线条目类型。\n\n成员说明：\n- `speak`：仅说话（聊天/对话）。\n- `act`：仅动作（移动/改变世界状态）。\n- `speak_and_act`：同回合内既说话又动作（玩家或 NPC 都可能产生）。\n- `scene`：场景/环境旁白（actor_id 为空）。"
+      },
+      "Token": {
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "title": "Accesstoken",
+            "description": "JWT access token，前端放入 Authorization: Bearer <token> 头。",
+            "examples": [
+              "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            ]
+          },
+          "tokenType": {
+            "type": "string",
+            "title": "Tokentype",
+            "description": "Token 类型，固定为 \"bearer\"。",
+            "default": "bearer",
+            "examples": [
+              "bearer"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "accessToken"
+        ],
+        "title": "Token",
+        "description": "登录成功响应：JWT access token。"
+      },
+      "TurnResponse": {
+        "properties": {
+          "conversationId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversationid",
+            "description": "所属会话 ID（OpenAPI 字段名 conversationId）。",
+            "examples": [
+              1
+            ]
+          },
+          "stateVersion": {
+            "type": "integer",
+            "title": "Stateversion",
+            "description": "提交后的最新世界状态版本号（OpenAPI 字段名 stateVersion）。",
+            "examples": [
+              13
+            ]
+          },
+          "worldState": {
+            "$ref": "#/components/schemas/WorldState",
+            "description": "本回合后的完整世界状态（OpenAPI 字段名 worldState）。"
+          },
+          "timelineDelta": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            },
+            "type": "array",
+            "title": "Timelinedelta",
+            "description": "本回合产生的时间线增量条目（OpenAPI 字段名 timelineDelta）。"
+          },
+          "narration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narration",
+            "description": "场景/动作的中文旁白摘要（无变更时可能为空）。",
+            "examples": [
+              "木盒被打开，露出里面的一封血书。"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "stateVersion",
+          "worldState"
+        ],
+        "title": "TurnResponse",
+        "description": "单回合（game 动作 / chat 对话）返回体：含新世界状态与时间线增量。"
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "用户邮箱，作为登录账号，必须为合法邮箱格式。",
+            "examples": [
+              "alice@example.com"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Password",
+            "description": "明文密码（服务端使用 bcrypt 加盐哈希后存储）。",
+            "examples": [
+              "S3cret!Pass"
+            ]
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "可选显示名；为空时使用邮箱前缀作为默认。",
+            "examples": [
+              "alice"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserCreate",
+        "description": "注册新用户请求体。"
+      },
+      "UserLogin": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "注册时使用的邮箱。",
+            "examples": [
+              "alice@example.com"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "明文密码。",
+            "examples": [
+              "S3cret!Pass"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserLogin",
+        "description": "用户登录请求体。"
+      },
+      "UserOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "用户主键 ID。",
+            "examples": [
+              1
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "用户邮箱。",
+            "examples": [
+              "alice@example.com"
+            ]
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username",
+            "description": "显示名。",
+            "examples": [
+              "alice"
+            ]
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "title": "Isadmin",
+            "description": "是否管理员账号；管理员拥有后台管理权限。",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "isAdmin"
+        ],
+        "title": "UserOut",
+        "description": "用户公开信息（不含密码哈希）。"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorldEntity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "实体唯一 ID，在同一 WorldState 内唯一。",
+            "examples": [
+              "baizhantang",
+              "player",
+              "table"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "展示用中文名，供时间线与 UI 渲染使用。",
+            "examples": [
+              "百战堂",
+              "玩家"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EntityKind",
+            "description": "实体类型：player（主角）/ npc（LLM 驱动）/ object（物件）。",
+            "examples": [
+              "npc"
+            ]
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position",
+            "description": "Tile coordinates (x, y) in the current map。"
+          },
+          "assetKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assetkey",
+            "description": "Asset key for sprite/atlas lookup; null uses default placeholder。",
+            "examples": [
+              "sprite/baizhantang.png"
+            ]
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Direction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "当前朝向（北/南/东/西）；未设置时渲染层使用默认朝南。",
+            "examples": [
+              "north"
+            ]
+          },
+          "publicState": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Publicstate",
+            "description": "对所有角色可见的公开状态，如 {\"mood\": \"angry\", \"hp\": 80}。",
+            "examples": [
+              {
+                "mood": "happy"
+              }
+            ]
+          },
+          "interactable": {
+            "type": "boolean",
+            "title": "Interactable",
+            "description": "是否可被玩家交互（点击/对话/使用）。",
+            "default": false,
+            "examples": [
+              true
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "position"
+        ],
+        "title": "WorldEntity",
+        "description": "世界实体：player / npc / object 之一。"
+      },
+      "WorldEntityPatch": {
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "title": "Entityid",
+            "description": "要修改的实体 id，如 baizhantang、player、table",
+            "examples": [
+              "player"
+            ]
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Position"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "新坐标 {x, y}，不移动则不传"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Direction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "新朝向，不改则不传"
+          },
+          "interactable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interactable",
+            "description": "是否可交互"
+          },
+          "publicState": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publicstate",
+            "description": "要更新的公开状态，如 {\"mood\": \"happy\"}"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "entityId"
+        ],
+        "title": "WorldEntityPatch",
+        "description": "对世界实体的局部变更：只更新提供的字段。"
+      },
+      "WorldState": {
+        "properties": {
+          "mapId": {
+            "type": "string",
+            "title": "Mapid",
+            "description": "世界地图 ID（OpenAPI 字段名 mapId）。",
+            "examples": [
+              "tongfu_inn"
+            ]
+          },
+          "stateVersion": {
+            "type": "integer",
+            "title": "Stateversion",
+            "description": "Monotonically increasing world state version（OpenAPI 字段名 stateVersion）；clients use this for optimistic locking。",
+            "examples": [
+              12
+            ]
+          },
+          "playerActorId": {
+            "type": "string",
+            "title": "Playeractorid",
+            "description": "当前人类可控 actor 的 slug（OpenAPI 字段名 playerActorId），须为 in_game 注册表条目。",
+            "default": "player",
+            "examples": [
+              "player"
+            ]
+          },
+          "entities": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WorldEntity"
+            },
+            "type": "object",
+            "title": "Entities",
+            "description": "实体 ID → 实体对象的映射。",
+            "examples": [
+              {
+                "player": {
+                  "id": "player",
+                  "kind": "player",
+                  "name": "玩家",
+                  "position": {
+                    "x": 3,
+                    "y": 4
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "mapId",
+          "stateVersion",
+          "entities"
+        ],
+        "title": "WorldState",
+        "description": "完整世界状态：地图 + 实体表 + 元信息。"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/api/auth/login"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "用户注册、登录、JWT 鉴权与当前用户信息接口。"
+    },
+    {
+      "name": "Conversation",
+      "description": "会话生命周期、世界状态、玩家动作、对话、统一时间线与角色切换接口。"
+    },
+    {
+      "name": "Roles",
+      "description": "角色（系统内置 + 用户自定义）的查询、创建、更新、删除与头像管理。"
+    },
+    {
+      "name": "TTS",
+      "description": "文本转语音（TTS）合成接口，支持角色默认 speaker 与 Redis 缓存。"
+    }
+  ]
+}

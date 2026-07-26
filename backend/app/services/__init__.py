@@ -6,6 +6,7 @@ from app.services.actor_mind_service import (
     seed_minds_no_commit,
     upsert_increment_no_commit,
 )
+from app.services.conflict import StateVersionConflict, assert_state_version_matches
 from app.services.conversation_service import (
     create_conversation,
     delete_conversation,
@@ -50,9 +51,11 @@ from app.services.world_service import (
 
 __all__ = [
     "Compactor",
+    "StateVersionConflict",
     "WorldController",
     "append_entries_no_commit",
     "apply_world_patches",
+    "assert_state_version_matches",
     "avatar_api_path",
     "build_world_state",
     "create_conversation",

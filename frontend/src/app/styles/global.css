@@ -1,0 +1,94 @@
+/* 产品壳与业务页共用的轻量全局规则（非 token 管道）。 */
+
+.app-shell-main [data-testid='chat-page'],
+.app-shell-main [data-testid='play-page'] {
+  background: transparent;
+}
+
+/* ---------- DS Button / IconButton 交互（对齐 _legacy Header actionButtonSx） ---------- */
+/* 组件用 inline style 写默认 background；hover 需 !important 才能盖过 */
+
+.ds-button--ghost:not(:disabled):hover,
+.ds-button--secondary:not(:disabled):hover {
+  background: var(--shell-action-hover, var(--color-overlay-ink-soft)) !important;
+}
+
+.ds-button--primary:not(:disabled):hover {
+  box-shadow: var(--shadow-glow-lantern) !important;
+}
+
+.ds-button--danger:not(:disabled):hover,
+.ds-button--lacquer:not(:disabled):hover {
+  box-shadow: var(--shadow-glow-lacquer) !important;
+}
+
+.ds-button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.ds-button:focus-visible {
+  box-shadow: var(--shadow-focus-ring) !important;
+}
+
+.ds-iconbutton:not(:disabled):hover {
+  background: var(--shell-action-hover, var(--color-overlay-ink-soft)) !important;
+}
+
+.ds-iconbutton--primary:not(:disabled):hover {
+  background: var(--color-brand-lantern) !important;
+  box-shadow: var(--shadow-glow-lantern) !important;
+}
+
+.ds-iconbutton--danger:not(:disabled):hover,
+.ds-iconbutton--lacquer:not(:disabled):hover {
+  box-shadow: var(--shadow-glow-lacquer) !important;
+}
+
+.ds-iconbutton:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.ds-iconbutton:focus-visible {
+  box-shadow: var(--shadow-focus-ring) !important;
+}
+
+/* ---------- AppHeader 操作按钮 ---------- */
+
+.app-header-action {
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease !important;
+}
+
+.app-header-action:hover:not(:disabled) {
+  background: var(--shell-action-hover) !important;
+}
+
+.app-header-action:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.app-header-mode:hover:not(:disabled) {
+  background: var(--shell-action-hover) !important;
+}
+
+.app-header-mode:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-button,
+  .ds-iconbutton,
+  .app-header-action,
+  .app-header-mode {
+    transition-duration: 0.01ms !important;
+  }
+
+  .ds-button:not(:disabled):active,
+  .ds-iconbutton:not(:disabled):active,
+  .app-header-action:active:not(:disabled),
+  .app-header-mode:active:not(:disabled) {
+    transform: none;
+  }
+}

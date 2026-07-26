@@ -39,7 +39,7 @@ async def _register_and_login(client: httpx.AsyncClient) -> str:
         json={"email": "game@example.com", "password": "pwd123456"},
     )
     assert login_resp.status_code == 200
-    return cast(str, login_resp.json()["access_token"])
+    return cast(str, login_resp.json()["accessToken"])
 
 
 async def test_create_conversation_seeds_scene_timeline(client: httpx.AsyncClient) -> None:
@@ -52,7 +52,7 @@ async def test_create_conversation_seeds_scene_timeline(client: httpx.AsyncClien
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data["id"], int)
-    assert data["world_state"]["entities"]["baizhantang"]["kind"] == "npc"
+    assert data["worldState"]["entities"]["baizhantang"]["kind"] == "npc"
 
     timeline_resp = await client.get(
         f"/api/conversations/{data['id']}/timeline",
@@ -60,7 +60,7 @@ async def test_create_conversation_seeds_scene_timeline(client: httpx.AsyncClien
     )
     assert timeline_resp.status_code == 200
     entries = timeline_resp.json()
-    assert any(e["actor_id"] is None and e["kind"] == "scene" for e in entries)
+    assert any(e["actorId"] is None and e["kind"] == "scene" for e in entries)
 
 
 async def test_create_conversation_requires_login(client: httpx.AsyncClient) -> None:
@@ -102,8 +102,10 @@ async def test_player_action_writes_npc_speak_to_timeline(
         },
     )
     assert action_resp.status_code == 200
-    delta = action_resp.json()["timeline_delta"]
-    assert any(e["actor_id"] == "baizhantang" and e["speak"] == "客官您吩咐。" for e in delta)
+    delta = action_resp.json()["timelineDelta"]
+    assert delta, "timelineDelta must be non-empty"
+    assert all(isinstance(e.get("id"), int) for e in delta), "timelineDelta entries must carry persisted ids"
+    assert any(e["actorId"] == "baizhantang" and e["speak"] == "客官您吩咐。" for e in delta)
 
 
 async def test_player_action_rejects_mismatched_conversation_id(

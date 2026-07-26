@@ -1,0 +1,29 @@
+{
+  "motion": {
+    "duration": {
+      "instant": { "value": "60ms", "type": "duration" },
+      "fast": { "value": "120ms", "type": "duration" },
+      "normal": { "value": "200ms", "type": "duration" },
+      "slow": { "value": "320ms", "type": "duration" },
+      "gentle": { "value": "420ms", "type": "duration" },
+      "curtain": { "value": "600ms", "type": "duration" },
+      "scene": { "value": "900ms", "type": "duration" }
+    },
+    "easing": {
+      "standard": { "value": "cubic-bezier(0.2, 0, 0, 1)", "type": "cubicBezier" },
+      "entrance": { "value": "cubic-bezier(0.16, 1, 0.3, 1)", "type": "cubicBezier" },
+      "exit": { "value": "cubic-bezier(0.7, 0, 0.84, 0)", "type": "cubicBezier" },
+      "spring": {
+        "value": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "type": "cubicBezier",
+        "description": "轻微回弹"
+      },
+      "linear": { "value": "linear", "type": "cubicBezier" }
+    },
+    "delay": {
+      "none": { "value": "0ms", "type": "duration" },
+      "beat": { "value": "80ms", "type": "duration", "description": "节拍入场时差" },
+      "step": { "value": "120ms", "type": "duration" }
+    }
+  }
+}

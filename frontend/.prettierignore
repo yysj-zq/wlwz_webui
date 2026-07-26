@@ -1,0 +1,17 @@
+node_modules
+dist
+build
+storybook-static
+coverage
+_legacy
+pnpm-lock.yaml
+*.min.js
+
+# Agent skills：上游文档，勿被仓库 Prettier 改写
+.agents/
+
+# Orval 生成物
+src/shared/api/generated/
+
+# Style Dictionary 构建产物
+src/design-system/build/

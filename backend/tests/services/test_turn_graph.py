@@ -128,10 +128,19 @@ async def _make_controller(
     user: User,
     conversation_id: int | None = None,
     title: str | None = None,
+    *,
+    expected_state_version: int | None = 1,
 ) -> WorldController:
+    """构造 WorldController；默认先走乐观锁入口（与 HTTP 层一致）。
+
+    ``expected_state_version=None`` 时跳过 ``commit``，仅用于只读上下文加载。
+    """
     conversation, world_state = await ensure_conversation_world(db, user, conversation_id, title=title)
     assert conversation is not None
-    return WorldController(db=db, conversation=conversation, world_state=world_state)
+    controller = WorldController(db=db, conversation=conversation, world_state=world_state)
+    if expected_state_version is not None:
+        await controller.commit(expected_state_version=expected_state_version)
+    return controller
 
 
 @pytest.mark.asyncio
@@ -154,14 +163,16 @@ async def test_game_say_triggers_director_then_npc(
     response = await run_game(
         await _make_controller(async_db_session, user),
         GameActionRequest(
-            actorId="player",
-            targetId="baizhantang",
+            actor_id="player",
+            target_id="baizhantang",
             speak="老白！",
-            stateVersion=1,
+            state_version=1,
         ),
     )
 
-    # 时间线增量含玩家 speak + NPC speak
+    # 时间线增量含玩家 speak + NPC speak；落库后必须带回持久化 id
+    assert response.timeline_delta
+    assert all(isinstance(e.id, int) for e in response.timeline_delta)
     speaks = [e for e in response.timeline_delta if e.kind == "speak"]
     assert any(e.actor_id == "player" and e.speak == "老白！" for e in speaks)
     assert any(e.actor_id == "baizhantang" and e.speak == "客官请讲。" for e in speaks)
@@ -182,8 +193,8 @@ async def test_game_move_via_unified_graph(async_db_session: AsyncSession, monke
     response = await run_game(
         await _make_controller(async_db_session, user),
         GameActionRequest(
-            actorId="player",
-            stateVersion=1,
+            actor_id="player",
+            state_version=1,
             act_patch=[WorldEntityPatch(entity_id="player", position=Position(x=6, y=7), direction=Direction.SOUTH)],
         ),
     )
@@ -208,8 +219,9 @@ async def test_chat_turn_skips_director(async_db_session: AsyncSession, monkeypa
         controller,
         controller.conversation_id,
         ChatTurnRequest(
-            targetActorId="tongxiangyu",
+            target_actor_id="tongxiangyu",
             content="掌柜的，结账。",
+            state_version=1,
         ),
     )
     speaks = [e for e in response.timeline_delta if e.kind == "speak"]
@@ -233,14 +245,14 @@ async def test_actor_mind_isolation(async_db_session: AsyncSession, monkeypatch:
     _patch_npc_response(monkeypatch, {"memory_writes": [{"content": "密令X"}]})
     await run_game(
         await _make_controller(async_db_session, user),
-        GameActionRequest(targetId="baizhantang", speak="嗨", stateVersion=1),
+        GameActionRequest(target_id="baizhantang", speak="嗨", state_version=1),
     )
 
     # 渲染 guofurong 的 prompt
     from app.graph.prompt_render import render_npc_messages
     from app.services import actor_mind_service
 
-    controller = await _make_controller(async_db_session, user)
+    controller = await _make_controller(async_db_session, user, expected_state_version=None)
     ctx = await controller.load_turn_context()
     entity = controller.world_state.entities["guofurong"]
     mind = await actor_mind_service.load_for_prompt(async_db_session, controller.conversation_id, "guofurong")
@@ -266,10 +278,10 @@ async def test_npc_silence_creates_no_timeline_entry(
     response = await run_game(
         await _make_controller(async_db_session, user),
         GameActionRequest(
-            actorId="player",
-            targetId="baizhantang",
+            actor_id="player",
+            target_id="baizhantang",
             speak="…",
-            stateVersion=1,
+            state_version=1,
         ),
     )
     npc_entries = [e for e in response.timeline_delta if e.actor_id == "baizhantang"]
@@ -295,7 +307,7 @@ async def test_timeline_intra_turn_seq_monotonic(
 
     await run_game(
         await _make_controller(async_db_session, user),
-        GameActionRequest(targetId="baizhantang", speak="大家好", stateVersion=1),
+        GameActionRequest(target_id="baizhantang", speak="大家好", state_version=1),
     )
 
     rows = (
@@ -342,7 +354,7 @@ async def test_director_retry_on_missing_tool_call(
 
     response = await run_game(
         await _make_controller(async_db_session, user),
-        GameActionRequest(actorId="player", targetId="baizhantang", speak="老白", stateVersion=1),
+        GameActionRequest(actor_id="player", target_id="baizhantang", speak="老白", state_version=1),
     )
 
     # director_step 被调 2 次（每次恰一次 ainvoke）
@@ -388,7 +400,7 @@ async def test_director_query_then_submit(async_db_session: AsyncSession, monkey
 
     response = await run_game(
         await _make_controller(async_db_session, user),
-        GameActionRequest(actorId="player", targetId="baizhantang", speak="附近有谁", stateVersion=1),
+        GameActionRequest(actor_id="player", target_id="baizhantang", speak="附近有谁", state_version=1),
     )
 
     assert len(calls) == 2
@@ -415,7 +427,7 @@ async def test_director_illegal_args_never_commit(
     with pytest.raises(GraphRecursionError):
         await run_game(
             await _make_controller(async_db_session, user),
-            GameActionRequest(actorId="player", targetId="baizhantang", speak="x", stateVersion=1),
+            GameActionRequest(actor_id="player", target_id="baizhantang", speak="x", state_version=1),
         )
 
 
@@ -455,10 +467,10 @@ async def test_npc_retry_on_missing_tool_call(async_db_session: AsyncSession, mo
     response = await run_game(
         await _make_controller(async_db_session, user),
         GameActionRequest(
-            actorId="player",
-            targetId="baizhantang",
+            actor_id="player",
+            target_id="baizhantang",
             speak="老白？",
-            stateVersion=1,
+            state_version=1,
         ),
     )
 

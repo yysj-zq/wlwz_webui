@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import get_logger, settings
 from app.models import RoleProfile, User
 from app.repositories import role_repository
-from app.schemas import Direction, RoleRegistryEntry, RoleSpawn
+from app.schemas import Direction, RoleOut, RoleRegistryEntry, RoleSpawn
 
 logger = get_logger(__name__)
 
@@ -120,31 +120,22 @@ def _role_in_game(r: RoleProfile) -> bool:
     return bool((r.config_json or {}).get("in_game", False))
 
 
-async def get_available_roles_for_user(db: AsyncSession, user: User | None) -> dict[str, Any]:
+async def get_available_roles_for_user(db: AsyncSession, user: User | None) -> list[RoleOut]:
     roles = await role_repository.get_builtin_and_user_roles(db, user.id if user else None)
-    names = [r.name for r in roles]
-    voice_map = {r.name: (r.default_speaker_id or "") for r in roles}
-    role_list = [
-        {
-            "id": r.id,
-            "slug": _role_slug(r),
-            "name": r.name,
-            "system_prompt": r.system_prompt,
-            "default_speaker_id": r.default_speaker_id,
-            "avatar_url": avatar_api_path(r.id) if r.avatar_blob else None,
-            "is_builtin": r.is_builtin,
-            "is_mine": user is not None and r.user_id == user.id,
-            "in_game": _role_in_game(r),
-        }
+    return [
+        RoleOut(
+            id=r.id,
+            slug=_role_slug(r),
+            name=r.name,
+            system_prompt=r.system_prompt,
+            default_speaker_id=r.default_speaker_id,
+            avatar_url=avatar_api_path(r.id) if r.avatar_blob else None,
+            is_builtin=r.is_builtin,
+            is_mine=user is not None and r.user_id == user.id,
+            in_game=_role_in_game(r),
+        )
         for r in roles
     ]
-    return {
-        "userRoles": names,
-        "assistantRoles": names,
-        "assistantVoiceMap": voice_map,
-        "defaultSpeakerId": "",
-        "roles": role_list,
-    }
 
 
 def _registry_entry_from_builtin(r: RoleProfile) -> RoleRegistryEntry:

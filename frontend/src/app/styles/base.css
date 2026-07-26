@@ -1,0 +1,166 @@
+/**
+ * 全局样式基线。
+ *
+ *  - tokens.css（Style Dictionary）+ tailwind.css
+ *  - 字体：Instrument Sans + Noto Sans SC（对齐 _legacy index.css）
+ *  - 明暗主题 body 渐变 / 语义色覆写
+ *  - 短别名 --color-lacquer / --color-paper / --color-ink（业务侧历史引用）
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;600;700&display=swap');
+@import '../../design-system/styles/tokens.css';
+@import '../../design-system/styles/tailwind.css';
+
+:root {
+  /* 短别名：兼容既有 var(--color-lacquer) 等引用 */
+  --color-lacquer: var(--color-brand-lacquer);
+  --color-paper: var(--color-brand-paper);
+  --color-ink: var(--color-brand-ink);
+  --color-mute: var(--color-brand-mute);
+  --color-lantern: var(--color-brand-lantern);
+
+  /* 产品壳专用（顶栏毛玻璃 / 侧栏） */
+  --shell-header-bg: rgba(255, 251, 245, 0.72);
+  --shell-header-border: rgba(26, 20, 16, 0.1);
+  --shell-header-title: var(--color-brand-ink);
+  --shell-header-subtitle: var(--color-brand-mute);
+  --shell-action-fg: var(--color-brand-ink);
+  --shell-action-hover: rgba(26, 20, 16, 0.06);
+  --shell-mode-bg: rgba(255, 251, 245, 0.55);
+  --shell-mode-border: rgba(61, 52, 44, 0.22);
+  --shell-sidebar-bg: linear-gradient(180deg, rgba(255, 251, 245, 0.94), rgba(240, 234, 223, 0.88));
+  --shell-sidebar-shadow: 0 14px 40px rgba(26, 20, 16, 0.12);
+  --shell-sidebar-border: transparent;
+  --shell-panel-bg: linear-gradient(180deg, rgba(255, 251, 245, 0.96), rgba(247, 242, 232, 0.9));
+  --shell-drawer-width: 280px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-size-base);
+  line-height: var(--text-line-height-normal);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background:
+    radial-gradient(circle at 14% -10%, rgba(180, 35, 24, 0.08), transparent 44%),
+    radial-gradient(circle at 90% 112%, rgba(212, 160, 23, 0.1), transparent 42%),
+    linear-gradient(180deg, #f7f2e8 0%, #ebe4d8 100%);
+  scrollbar-width: thin;
+}
+
+/* ---------- 深色主题（对齐 _legacy ThemeContext + index.css） ---------- */
+body.dark-theme {
+  --color-brand-ink: #f3efe7;
+  --color-brand-lacquer: #d6b25e;
+  --color-brand-lantern: #f2d48a;
+  --color-brand-paper: #0b0c0f;
+  --color-brand-mute: #b8afa2;
+
+  --color-surface-0: #0b0c0f;
+  --color-surface-1: #141315;
+  --color-surface-2: #101012;
+  --color-surface-3: #101012;
+
+  --color-text-primary: #f3efe7;
+  --color-text-secondary: #b8afa2;
+  --color-text-muted: rgba(184, 175, 162, 0.9);
+  --color-text-inverse: #1a1307;
+
+  --color-border-default: #2a2520;
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
+  --color-border-strong: rgba(215, 222, 239, 0.4);
+  --color-border-focus: #d6b25e;
+  --color-border-danger: #b71c1c;
+
+  --color-overlay-scrim: rgba(0, 0, 0, 0.62);
+  --color-overlay-ink-soft: rgba(255, 255, 255, 0.06);
+  --color-overlay-ink-strong: rgba(11, 12, 15, 0.92);
+  --color-overlay-paper-soft: rgba(11, 12, 15, 0.56);
+
+  --shadow-glow-lacquer: 0 4px 12px rgba(0, 0, 0, 0.32);
+  --shadow-glow-lantern: 0 0 24px rgba(214, 178, 94, 0.34);
+  --shadow-focus-ring: 0 0 0 3px rgba(214, 178, 94, 0.34);
+  --shadow-md: 0 20px 44px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.52);
+  --shadow-xl: 0 26px 80px rgba(0, 0, 0, 0.7);
+
+  --shell-header-bg: rgba(11, 12, 15, 0.56);
+  --shell-header-border: rgba(255, 255, 255, 0.1);
+  --shell-header-title: rgba(243, 239, 231, 0.96);
+  --shell-header-subtitle: rgba(184, 175, 162, 0.9);
+  --shell-action-fg: #d7deef;
+  --shell-action-hover: rgba(255, 255, 255, 0.08);
+  --shell-mode-bg: rgba(255, 255, 255, 0.05);
+  --shell-mode-border: rgba(215, 222, 239, 0.24);
+  --shell-sidebar-bg: linear-gradient(180deg, rgba(20, 19, 18, 0.92), rgba(20, 19, 18, 0.76));
+  --shell-sidebar-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+  --shell-sidebar-border: 1px solid rgba(255, 255, 255, 0.1);
+  --shell-panel-bg: linear-gradient(180deg, rgba(16, 15, 14, 0.95), rgba(16, 15, 14, 0.84));
+
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.012) 0px,
+      rgba(255, 255, 255, 0.012) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.008) 0px,
+      rgba(255, 255, 255, 0.008) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    radial-gradient(circle at 12% -14%, rgba(214, 178, 94, 0.14), transparent 46%),
+    radial-gradient(circle at 92% 116%, rgba(255, 255, 255, 0.06), transparent 44%),
+    linear-gradient(180deg, #0b0c0f 0%, #111114 100%);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-lacquer);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 2000;
+}
+
+.skip-link:focus {
+  left: 16px;
+  top: 16px;
+  width: auto;
+  height: auto;
+  padding: 8px 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-1);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-md);
+}

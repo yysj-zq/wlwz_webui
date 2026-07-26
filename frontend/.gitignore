@@ -1,30 +1,34 @@
-# 依赖
-/node_modules
-/.pnp
-.pnp.js
+# Dependencies
+node_modules/
+.pnpm-store/
 
-# 测试
-/coverage
-
-# 生产构建
-/build
-
-# 杂项
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# 日志
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# 编辑器目录和文件
-.idea
-.vscode
-*.swp
-*.swo
-
+# Env (keep .env.example tracked)
 .env
+.env.local
+.env.*.local
+
+# Build / bundler output
+dist/
+.vite/
+storybook-static/
+*.tsbuildinfo
+
+# Generated — do not commit; CI / local scripts regenerate
+src/shared/api/generated/
+src/design-system/build/
+openapi.json
+
+# Test / coverage artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Caches & OS junk
+.eslintcache
+.DS_Store
+*.log
+
+# Local leftovers
+_legacy/

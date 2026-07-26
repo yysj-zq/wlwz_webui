@@ -1,0 +1,56 @@
+{
+  "font": {
+    "ui": {
+      "value": "'Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif",
+      "type": "fontFamily",
+      "description": "UI 人文无衬线（非 Inter/Roboto）"
+    },
+    "serif": {
+      "value": "'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif",
+      "type": "fontFamily",
+      "description": "叙事戏文 — Noto Serif SC"
+    },
+    "mono": {
+      "value": "'SF Mono', 'Noto Sans Mono', ui-monospace, Menlo, monospace",
+      "type": "fontFamily"
+    }
+  },
+  "text": {
+    "size": {
+      "xs": { "value": "12px", "type": "dimension" },
+      "sm": { "value": "14px", "type": "dimension" },
+      "base": { "value": "16px", "type": "dimension" },
+      "lg": { "value": "18px", "type": "dimension" },
+      "xl": { "value": "20px", "type": "dimension" },
+      "2xl": { "value": "24px", "type": "dimension" },
+      "3xl": { "value": "32px", "type": "dimension" },
+      "4xl": { "value": "40px", "type": "dimension" },
+      "5xl": { "value": "56px", "type": "dimension" }
+    },
+    "weight": {
+      "regular": { "value": "400", "type": "fontWeight" },
+      "medium": { "value": "500", "type": "fontWeight" },
+      "semibold": { "value": "600", "type": "fontWeight" },
+      "bold": { "value": "700", "type": "fontWeight" }
+    },
+    "lineHeight": {
+      "tight": { "value": "1.2", "type": "lineHeight" },
+      "snug": { "value": "1.35", "type": "lineHeight" },
+      "normal": { "value": "1.5", "type": "lineHeight" },
+      "relaxed": { "value": "1.75", "type": "lineHeight" }
+    },
+    "letter": {
+      "tight": { "value": "-0.02em", "type": "dimension" },
+      "normal": { "value": "0", "type": "dimension" },
+      "wide": { "value": "0.04em", "type": "dimension" }
+    },
+    "rail": {
+      "maxWidth": {
+        "value": "36em",
+        "type": "dimension",
+        "description": "叙事栏最大宽度 — 32-40 字/行"
+      },
+      "minWidth": { "value": "28em", "type": "dimension" }
+    }
+  }
+}

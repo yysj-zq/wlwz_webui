@@ -43,7 +43,7 @@ async def _register_and_login(client: httpx.AsyncClient) -> str:
     )
     assert login_resp.status_code == 200
     login_data = cast(dict[str, Any], login_resp.json())
-    return cast(str, login_data["access_token"])
+    return cast(str, login_data["accessToken"])
 
 
 async def test_auth_register_login_me(client: httpx.AsyncClient) -> None:
@@ -52,7 +52,7 @@ async def test_auth_register_login_me(client: httpx.AsyncClient) -> None:
     assert me_resp.status_code == 200
     data = me_resp.json()
     assert data["email"] == "tester@example.com"
-    assert data["is_admin"] is False
+    assert data["isAdmin"] is False
 
 
 async def test_chat_runs_through_unified_turn_graph(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -77,18 +77,20 @@ async def test_chat_runs_through_unified_turn_graph(client: httpx.AsyncClient, m
 
     chat_resp = await client.post(
         f"/api/conversations/{conversation_id}/chat",
-        json={"targetActorId": "tongxiangyu", "content": "掌柜的"},
+        json={"targetActorId": "tongxiangyu", "content": "掌柜的", "stateVersion": 1},
         headers=headers,
     )
     assert chat_resp.status_code == 200
-    delta = chat_resp.json()["timeline_delta"]
-    assert any(e["actor_id"] == "tongxiangyu" and e["speak"] == "我滴个神啊。" for e in delta)
+    delta = chat_resp.json()["timelineDelta"]
+    assert delta, "timelineDelta must be non-empty"
+    assert all(isinstance(e.get("id"), int) for e in delta), "timelineDelta entries must carry persisted ids"
+    assert any(e["actorId"] == "tongxiangyu" and e["speak"] == "我滴个神啊。" for e in delta)
 
     timeline_resp = await client.get(f"/api/conversations/{conversation_id}/timeline", headers=headers)
     entries = timeline_resp.json()
     # 应同时含玩家 speak + NPC speak（外加 turn 0 scene）
-    assert any(e["actor_id"] == "player" and e["speak"] == "掌柜的" for e in entries)
-    assert any(e["actor_id"] == "tongxiangyu" for e in entries)
+    assert any(e["actorId"] == "player" and e["speak"] == "掌柜的" for e in entries)
+    assert any(e["actorId"] == "tongxiangyu" for e in entries)
 
     rename_resp = await client.post(
         f"/api/conversations/{conversation_id}/rename",

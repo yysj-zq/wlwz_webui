@@ -1,0 +1,29 @@
+{
+  "shadow": {
+    "xs": { "value": "0 1px 1px rgba(13, 34, 80, 0.06)", "type": "boxShadow" },
+    "sm": { "value": "0 2px 8px rgba(13, 34, 80, 0.10)", "type": "boxShadow" },
+    "md": { "value": "0 14px 40px rgba(13, 34, 80, 0.14)", "type": "boxShadow" },
+    "lg": { "value": "0 18px 44px rgba(0, 0, 0, 0.28)", "type": "boxShadow" },
+    "xl": { "value": "0 20px 60px rgba(0, 0, 0, 0.45)", "type": "boxShadow" },
+    "glow-lantern": {
+      "value": "0 0 24px rgba(214, 178, 94, 0.34)",
+      "type": "boxShadow",
+      "description": "灯金晕染"
+    },
+    "glow-lacquer": {
+      "value": "0 4px 12px rgba(59, 92, 204, 0.28)",
+      "type": "boxShadow",
+      "description": "主色强调晕"
+    },
+    "focus-ring": {
+      "value": "0 0 0 3px rgba(59, 92, 204, 0.35)",
+      "type": "boxShadow",
+      "description": "全局焦点环"
+    },
+    "inset-paper": {
+      "value": "inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+      "type": "boxShadow",
+      "description": "深色纸面内高光"
+    }
+  }
+}

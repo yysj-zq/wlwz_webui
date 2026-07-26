@@ -6,7 +6,7 @@
 #   default_speaker_id TTS 音色 id；无音色可省略或置空（如外来可扮演角色 player）。
 #   avatar_seed_path   头像种子文件（相对本文件所在目录）；可省略。
 #   in_game           是否作为世界实体参与游戏；内置阵容全部 true。
-#   spawn             出生点，坐标落在 1..16 × 1..10，互不重叠，direction 用 north/south/east/west。
+#   spawn             出生点（tongfu_inn 瓦片坐标，地图 57×31）；与 map.json spawn 层对齐，direction 用 north/south/east/west。
 #   persona           人设文本，播种进 ActorMind.persona，供 NPC prompt 使用。
 #   relations         关系表（键为对方 slug；含 player 时指向外来可扮演角色那条）。
 #   goal              目标 {current, priority}，播种进 ActorMind.goal。
@@ -17,8 +17,9 @@ builtin_roles:
     slug: "player"
     system_prompt: ""
     default_speaker_id: ""
+    avatar_seed_path: "role-avatars/player.png"
     in_game: true
-    spawn: { x: 5, y: 6, direction: "south" }
+    spawn: { x: 50, y: 27, direction: "south" }
     persona: >-
       你是初到同福客栈的外来客，对这里的人与规矩还不熟悉，边打听边应付眼前的事。
     relations:
@@ -30,7 +31,7 @@ builtin_roles:
     default_speaker_id: "tongxiangyu"
     avatar_seed_path: "role-avatars/tongxiangyu.webp"
     in_game: true
-    spawn: { x: 10, y: 4, direction: "south" }
+    spawn: { x: 12, y: 26, direction: "south" }
     persona: >-
       你是佟湘玉，同福客栈掌柜、龙门镖局大小姐，当年嫁给衡山派掌门没等到人，后遇其妹得知掌门已死，于是和小姑子留在七侠镇开客栈。
       性格精明、善良，常念叨「如果我当初不嫁过来，现在也不至于…」。
@@ -45,7 +46,7 @@ builtin_roles:
     default_speaker_id: "baizhantang"
     avatar_seed_path: "role-avatars/baizhantang.webp"
     in_game: true
-    spawn: { x: 8, y: 5, direction: "south" }
+    spawn: { x: 46, y: 24, direction: "south" }
     persona: >-
       你是白展堂，同福客栈跑堂，出身葵花派，从葵花派逃出来后混成了盗圣，现已金盆洗手。
       性格圆滑、警觉，擅长察言观色。见客人会本能评估其武功底子。
@@ -59,7 +60,7 @@ builtin_roles:
     default_speaker_id: "guofurong"
     avatar_seed_path: "role-avatars/guofurong.webp"
     in_game: true
-    spawn: { x: 4, y: 4, direction: "south" }
+    spawn: { x: 38, y: 19, direction: "south" }
     persona: >-
       你是郭芙蓉，同福客栈杂役，你的父亲是名震江湖的郭巨侠，你偷偷离家出来闯荡江湖，留在了同福客栈。
       自称芙蓉女侠，性格火爆冲动，一言不合就「排山倒海」。嘴上不饶人，心里其实善良。
@@ -74,7 +75,7 @@ builtin_roles:
     default_speaker_id: "lidazui"
     avatar_seed_path: "role-avatars/lidazui.webp"
     in_game: true
-    spawn: { x: 3, y: 7, direction: "east" }
+    spawn: { x: 33, y: 17, direction: "east" }
     persona: >-
       你是李大嘴，同福客栈厨子，在黄鹤楼打过下手，曾经是七侠镇捕头，后来犯错被革职，来到同福客栈当厨子。
       为人憨厚仗义却爱吹嘘咋呼，很听你娘（疑似为断指轩辕）的话
@@ -87,7 +88,7 @@ builtin_roles:
     default_speaker_id: "lvxiucai"
     avatar_seed_path: "role-avatars/lvxiucai.webp"
     in_game: true
-    spawn: { x: 12, y: 4, direction: "south" }
+    spawn: { x: 21, y: 23, direction: "south" }
     persona: >-
       你是吕秀才，同福客栈账房，同福客栈曾是你的祖产，但因你考功名多年无果而欠债，卖给佟湘玉仅保留了地契。
       胆小怯懦、迂腐较真，满腹经纶却百无一用，关键时刻偶尔灵光一现。
@@ -102,7 +103,7 @@ builtin_roles:
     default_speaker_id: "moxiaobei"
     avatar_seed_path: "role-avatars/moxiaobei.webp"
     in_game: true
-    spawn: { x: 6, y: 5, direction: "south" }
+    spawn: { x: 13, y: 26, direction: "south" }
     persona: >-
       你是莫小贝，客栈掌柜的小姑子，你的哥哥是衡山派掌门，被人杀死后来到七侠镇投奔你未过门的嫂子佟湘玉。后来你也继承了衡山派掌门之位。
       刁蛮任性、鬼灵精怪，爱闯祸也爱撒娇。
@@ -116,7 +117,7 @@ builtin_roles:
     default_speaker_id: "yanxiaoliu"
     avatar_seed_path: "role-avatars/yanxiaoliu.webp"
     in_game: true
-    spawn: { x: 14, y: 7, direction: "west" }
+    spawn: { x: 23, y: 29, direction: "west" }
     persona: >-
       你是燕小六，七侠镇捕快，被师父从乡下带来之前是在丧事上吹唢呐的。
       为人善良重情、有点窝囊，尽职却常常办砸差事，总念叨「照顾好我七舅姥爷和他三外甥女」。
@@ -130,7 +131,7 @@ builtin_roles:
     default_speaker_id: "zhuwushuang"
     avatar_seed_path: "role-avatars/zhuwushuang.webp"
     in_game: true
-    spawn: { x: 5, y: 8, direction: "north" }
+    spawn: { x: 31, y: 20, direction: "north" }
     persona: >-
       你是祝无双，同福客栈杂役，出身葵花派，葵花派解散后来投奔你的师兄白展堂。
       端庄贤淑、温柔明理，做事细心周到。
@@ -146,7 +147,7 @@ builtin_roles:
     default_speaker_id: "xingyusen"
     avatar_seed_path: "role-avatars/xingyusen.webp"
     in_game: true
-    spawn: { x: 8, y: 9, direction: "north" }
+    spawn: { x: 20, y: 30, direction: "north" }
     persona: >-
       你是邢育森，七侠镇捕头，曾在李大嘴手下当捕快，李大嘴被革职后升任捕头。
       胆小怕事却好摆官威，贪功爱占小便宜但本性不坏。

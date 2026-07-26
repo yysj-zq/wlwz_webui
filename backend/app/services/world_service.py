@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ActorMind, Conversation, User
@@ -19,6 +20,7 @@ from app.schemas import (
     WorldState,
 )
 from app.services import actor_mind_service, digest_service, roles_service, timeline_service
+from app.services.conflict import assert_state_version_matches
 from app.services.conversation_service import create_conversation, get_conversation
 
 DEFAULT_MAP_ID = "tongfu_inn"
@@ -254,7 +256,10 @@ async def ensure_chat_target_entity(
 ) -> None:
     """chat 目标健壮化：目标不在世界实体中但为该用户合法注册表角色时，惰性以 NPC 形式补入。
 
-    补入只改内存 world_state 并播种心智（不 commit、不 bump 版本）；随后 run_chat 的
+    必须在 :meth:`WorldController.commit` 之后调用：``commit`` 会用 DB 覆盖内存
+    ``world_state``，若先补入再 ``commit``，补入会被冲掉。
+
+    补入只改内存 world_state 并播种心智（不落库、不 bump 版本）；随后 run_chat 的
     commit_turn 会把该实体一并持久化。目标完全非法则抛 ValueError（端点转 4xx）。
     """
     ws = controller.world_state
@@ -300,6 +305,14 @@ class WorldController:
         self._conversation = conversation
         self.world_state: WorldState = world_state
         self._last_loaded_timeline: list[TimelineEntry] | None = None
+        self._expected_state_version: int | None = None
+
+    async def _lock_conversation_row(self) -> Conversation:
+        """``SELECT … FOR UPDATE`` 锁定会话行，闭合长回合 TOCTOU。"""
+        stmt = select(Conversation).where(Conversation.id == self.conversation_id).with_for_update()
+        locked = (await self.db.execute(stmt)).scalar_one()
+        self._conversation = locked
+        return locked
 
     async def load_turn_context(self) -> TurnContext:
         digest = await digest_service.get_digest(self.db, self.conversation_id)
@@ -323,6 +336,26 @@ class WorldController:
     async def load_actor_mind(self, actor_id: str) -> ActorMind | None:
         return await actor_mind_service.get_or_create(self.db, self.conversation_id, actor_id)
 
+    async def commit(
+        self,
+        *,
+        expected_state_version: int,
+    ) -> None:
+        """乐观锁入口：在跑图/落库前校验客户端传来的 state_version。
+
+        - ``SELECT … FOR UPDATE`` 锁定会话行后校验。
+        - 一致时刷新内存 ``self.world_state``，并记住 expected 供
+          :meth:`commit_turn` 落库前再校验（闭合 LLM 长回合 TOCTOU）。
+        - 不一致时抛 :class:`~app.services.conflict.StateVersionConflict`。
+
+        本方法只做版本校验，**不**调用 ``commit_turn`` 也不跑图。
+        """
+        locked = await self._lock_conversation_row()
+        current = WorldState.model_validate(locked.world_state_json)
+        assert_state_version_matches(current, expected_state_version)
+        self.world_state = current
+        self._expected_state_version = expected_state_version
+
     # TODO: timeline 只存最终交互结果，NPC/Director 的中间推理过程（tool 查询、多轮思考、重试）全部丢弃。
     #  后续考虑是否需要持久化 reasoning trace 用于 debug/replay/可解释性。
     async def commit_turn(
@@ -333,6 +366,12 @@ class WorldController:
         npc_responses: list[tuple[str, NPCResponse]],
         scene_note: str | None,
     ) -> CommittedTurn:
+        if self._expected_state_version is None:
+            raise RuntimeError("commit_turn requires a prior successful commit(expected_state_version=…)")
+        locked = await self._lock_conversation_row()
+        db_world = WorldState.model_validate(locked.world_state_json)
+        assert_state_version_matches(db_world, self._expected_state_version)
+
         self._validate_patches(director_writes)
         for _, response in npc_responses:
             self._validate_patches(response.act_patch)
@@ -388,11 +427,18 @@ class WorldController:
             )
         self._conversation.world_state_json = next_world.model_dump(mode="json")
         self._conversation.state_version = new_version
+        # flush 先拿到自增 PK，再写入响应；否则 timelineDelta.id 恒为 null，
+        # 前端 cache 与 GET /timeline 再合并时会重复或无法用 afterId 增量。
+        await self.db.flush()
+        timeline_delta = [
+            entry.model_copy(update={"id": row.id, "created_at": row.created_at})
+            for entry, row in zip(entries, orm_rows, strict=True)
+        ]
         await self.db.commit()
         await self.db.refresh(self._conversation)
 
         self.world_state = next_world
-        return CommittedTurn(world_state=next_world, timeline_delta=entries, narration=scene_note)
+        return CommittedTurn(world_state=next_world, timeline_delta=timeline_delta, narration=scene_note)
 
     def _validate_patches(self, patches: list[WorldEntityPatch]) -> None:
         for ep in patches:

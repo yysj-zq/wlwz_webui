@@ -1,10 +1,12 @@
+from app.schemas._alias import CamelModel
 from app.schemas.auth import Token, UserCreate, UserLogin, UserOut
-from app.schemas.conversation import ConversationOut, ConversationRename, TimelineEntryOut
+from app.schemas.conversation import ConversationOut, ConversationRename
 from app.schemas.enums import Direction, EntityKind, MemoryScope, TimelineKind, TurnMode
 from app.schemas.roles import RoleCreate, RoleOut, RoleRegistryEntry, RoleSpawn, RoleUpdate
 from app.schemas.tts import TTSRequest
 from app.schemas.turn import (
     ChatTurnRequest,
+    ConflictResponse,
     ConversationWorldRead,
     EnsureConversationRequest,
     GameActionRequest,
@@ -28,8 +30,10 @@ from app.schemas.world import (
 )
 
 __all__ = [
+    "CamelModel",
     "ChatTurnRequest",
     "CommittedTurn",
+    "ConflictResponse",
     "ConversationOut",
     "ConversationRename",
     "ConversationWorldRead",
@@ -53,7 +57,6 @@ __all__ = [
     "RoleUpdate",
     "TTSRequest",
     "TimelineEntry",
-    "TimelineEntryOut",
     "TimelineKind",
     "Token",
     "TurnContext",

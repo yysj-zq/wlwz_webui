@@ -1,0 +1,49 @@
+name: Frontend with OpenAPI
+description: Install pnpm deps, export backend OpenAPI, generate orval client
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: |
+          backend/uv.lock
+          backend/pyproject.toml
+
+    - name: Sync backend deps (for openapi export)
+      run: uv sync
+      shell: bash
+      working-directory: backend
+
+    - name: Export OpenAPI to frontend
+      run: make openapi OUTPUT=../frontend/openapi.json
+      shell: bash
+      working-directory: backend
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: pnpm
+        cache-dependency-path: frontend/pnpm-lock.yaml
+
+    - name: Install frontend deps
+      run: pnpm install --frozen-lockfile
+      shell: bash
+      working-directory: frontend
+
+    - name: Generate orval client
+      run: pnpm exec orval --config orval.config.ts
+      shell: bash
+      working-directory: frontend

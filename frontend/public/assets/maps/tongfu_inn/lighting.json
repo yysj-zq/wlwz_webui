@@ -1,0 +1,112 @@
+{
+  "ambient": {
+    "r": 0.85,
+    "g": 0.82,
+    "b": 0.72,
+    "intensity": 0.6
+  },
+  "lights": [
+    {
+      "id": "window-1",
+      "kind": "window",
+      "position": {
+        "x": 46.777,
+        "y": 12.667
+      },
+      "radius": 180,
+      "color": {
+        "r": 0.6274509803921569,
+        "g": 0.7529411764705882,
+        "b": 1.0,
+        "intensity": 0.7
+      }
+    },
+    {
+      "id": "window-2",
+      "kind": "window",
+      "position": {
+        "x": 44.196,
+        "y": 1.827
+      },
+      "radius": 180,
+      "color": {
+        "r": 0.6274509803921569,
+        "g": 0.7529411764705882,
+        "b": 1.0,
+        "intensity": 0.7
+      }
+    },
+    {
+      "id": "window-3",
+      "kind": "window",
+      "position": {
+        "x": 33.594,
+        "y": 1.668
+      },
+      "radius": 180,
+      "color": {
+        "r": 0.6274509803921569,
+        "g": 0.7529411764705882,
+        "b": 1.0,
+        "intensity": 0.7
+      }
+    },
+    {
+      "id": "lantern-1",
+      "kind": "lantern",
+      "position": {
+        "x": 19.418,
+        "y": 2.502
+      },
+      "radius": 120,
+      "color": {
+        "r": 1.0,
+        "g": 0.6901960784313725,
+        "b": 0.3764705882352941,
+        "intensity": 1.0
+      },
+      "flicker": {
+        "periodMs": 1800,
+        "amplitude": 0.12
+      }
+    },
+    {
+      "id": "lantern-2",
+      "kind": "lantern",
+      "position": {
+        "x": 32.303,
+        "y": 2.422
+      },
+      "radius": 120,
+      "color": {
+        "r": 1.0,
+        "g": 0.6901960784313725,
+        "b": 0.3764705882352941,
+        "intensity": 1.0
+      },
+      "flicker": {
+        "periodMs": 1800,
+        "amplitude": 0.12
+      }
+    },
+    {
+      "id": "lantern-3",
+      "kind": "lantern",
+      "position": {
+        "x": 40.86,
+        "y": 2.581
+      },
+      "radius": 120,
+      "color": {
+        "r": 1.0,
+        "g": 0.6901960784313725,
+        "b": 0.3764705882352941,
+        "intensity": 1.0
+      },
+      "flicker": {
+        "periodMs": 1800,
+        "amplitude": 0.12
+      }
+    }
+  ]
+}

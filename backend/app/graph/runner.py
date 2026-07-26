@@ -46,8 +46,8 @@ async def run_chat(controller: WorldController, conversation_id: int, request: C
 def _build_response(controller: WorldController, state: TurnGraphState) -> TurnResponse:
     committed = state["committed_turn"]
     return TurnResponse(
-        conversationId=controller.conversation_id,
-        stateVersion=committed.world_state.state_version,
+        conversation_id=controller.conversation_id,
+        state_version=committed.world_state.state_version,
         world_state=committed.world_state,
         timeline_delta=committed.timeline_delta,
         narration=committed.narration,

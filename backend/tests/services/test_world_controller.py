@@ -26,7 +26,9 @@ async def _setup_controller(db: AsyncSession, email: str) -> WorldController:
     await db.refresh(user)
     conversation, world_state = await ensure_conversation_world(db, user, conversation_id=None)
     assert conversation is not None
-    return WorldController(db, conversation, world_state)
+    controller = WorldController(db, conversation, world_state)
+    await controller.commit(expected_state_version=world_state.state_version)
+    return controller
 
 
 @pytest.mark.asyncio

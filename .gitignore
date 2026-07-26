@@ -1,2 +1,8 @@
+# IDE / local tooling
 .idea/
 .superpowers/
+.cursor/
+
+# Runtime logs (repo-root)
+logs/
+*.log

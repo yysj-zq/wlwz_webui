@@ -31,7 +31,8 @@ async def test_ingest_game_move_applies_to_world_state(
 ) -> None:
     controller = await _controller(async_db_session, "ingestmove@example.com")
     game_req = GameActionRequest(
-        actorId="player",
+        actor_id="player",
+        state_version=1,
         act_patch=[WorldEntityPatch(entity_id="player", position=Position(x=9, y=9), direction=Direction.NORTH)],
     )
     config = cast(

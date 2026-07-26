@@ -1,58 +1,64 @@
-# 武林外传 AI 对话前端应用
+# 武林外传 AI 对话 — 前端
 
-React 单页应用，角色扮演聊天界面，支持多会话、流式回复与 TTS 播放。
+Vite + React 单页客户端：文本对话（Chat）与同福舞台（Play）。
 
-## 功能概览
+开发架构、脚本与规范见 **[DEVELOPERS.md](DEVELOPERS.md)**。
 
-- **角色扮演**：选择用户角色与 AI 角色进行对话，角色列表由后端 API 提供
-- **多轮对话**：连续对话，消息列表与流式打字机效果
-- **会话管理**：创建、切换、删除会话，会话与登录用户关联
-- **TTS 播放**：对单条消息请求语音并播放
-- **明暗主题**：明亮 / 暗黑模式
-- **响应式**：适配桌面与移动端
+## 功能
 
-## 快速启动
+- 角色扮演对话与会话管理（创建 / 切换 / 删除）
+- Play：像素舞台移动、点选 NPC/物件交互、叙事时间线
+- Chat：戏文式对话界面
+- 角色册、设置、登录注册
+- TTS 朗读、明暗主题
+
+## 环境要求
+
+- Node.js `>=20.19.0`
+- pnpm `>=9`
+
+后端需另行启动（仓库 `backend/`，默认 `:8081`）。
+
+## 启动
 
 ```bash
-npm install
-npm start
+pnpm install
+cp .env.example .env
+pnpm dev
 ```
 
-应用默认在 **http://localhost:3000** 运行。
+浏览器打开 **http://localhost:5173**。
 
-## 配置
+### 环境变量
 
-在本目录创建 `.env`，指定后端地址：
+| 变量                | 说明                                                           |
+| ------------------- | -------------------------------------------------------------- |
+| `VITE_API_BASE_URL` | 后端 origin，默认 `http://localhost:8081`（**不要**带 `/api`） |
+| `VITE_OPENAPI_URL`  | 可选；仅仓库根无 `openapi.json` 时，生成客户端才回退拉取       |
 
-```
-REACT_APP_API_URL=http://localhost:8081
-```
-
-未配置时，请求会发往当前域名（同源）。
-
-## 项目结构
+## 目录概览
 
 ```
 frontend/
-├── public/
+├── public/assets/   # 舞台资源（manifest.json 为入口）
 ├── src/
-│   ├── components/      # UI 组件
-│   │   ├── Chat.js          # 聊天区域与消息列表
-│   │   ├── Header.js        # 顶栏、会话与设置
-│   │   ├── RoleSelector.js  # 角色选择
-│   │   └── RolesConfig.js   # 角色/配置相关
-│   ├── services/
-│   │   └── api.js       # 后端 API 封装（聊天、会话、角色、TTS、认证）
-│   ├── App.js           # 根组件与全局状态
-│   └── index.js         # 入口
+│   ├── app/         # 应用入口与全局样式
+│   ├── pages/       # 路由页面
+│   ├── widgets/     # 页面级组合（壳、侧栏、舞台 UI）
+│   ├── features/    # 业务能力（认证、回合、TTS…）
+│   ├── entities/    # 领域模型投影
+│   ├── shared/      # API 客户端、舞台引擎、路由
+│   └── design-system/
+├── tests/
 └── package.json
 ```
 
-## 技术栈
+## 常用命令
 
-- React 18、Create React App
-- Material UI（MUI）
-- Axios、react-markdown
-- 本地状态 + localStorage 持久化部分设置
-
-与后端的交互（登录态、会话、消息格式等）均通过 `src/services/api.js` 完成，角色列表来自后端 `/api/roles`。
+| 命令             | 说明            |
+| ---------------- | --------------- |
+| `pnpm dev`       | 开发服务器      |
+| `pnpm build`     | 生产构建        |
+| `pnpm test`      | 单元 / 组件测试 |
+| `pnpm test:e2e`  | E2E             |
+| `pnpm storybook` | 组件文档        |

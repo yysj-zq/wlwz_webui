@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "maps": {
+    "tongfu_inn": {
+      "json": "/assets/maps/tongfu_inn/map.json",
+      "tileset": "/assets/maps/tongfu_inn/tileset.png",
+      "lighting": "/assets/maps/tongfu_inn/lighting.json",
+      "collision": "/assets/maps/tongfu_inn/collision.json"
+    }
+  },
+  "characters": {
+    "player": {
+      "atlas": "/assets/characters/player/atlas.png",
+      "normal": "/assets/characters/player/atlas_normal.png",
+      "meta": "/assets/characters/player/atlas.json"
+    },
+    "baizhantang": {
+      "atlas": "/assets/characters/baizhantang/atlas.png",
+      "normal": "/assets/characters/baizhantang/atlas_normal.png",
+      "meta": "/assets/characters/baizhantang/atlas.json"
+    },
+    "tongxiangyu": {
+      "atlas": "/assets/characters/tongxiangyu/atlas.png",
+      "normal": "/assets/characters/tongxiangyu/atlas_normal.png",
+      "meta": "/assets/characters/tongxiangyu/atlas.json"
+    },
+    "guofurong": {
+      "atlas": "/assets/characters/guofurong/atlas.png",
+      "normal": "/assets/characters/guofurong/atlas_normal.png",
+      "meta": "/assets/characters/guofurong/atlas.json"
+    },
+    "lvxiucai": {
+      "atlas": "/assets/characters/lvxiucai/atlas.png",
+      "normal": "/assets/characters/lvxiucai/atlas_normal.png",
+      "meta": "/assets/characters/lvxiucai/atlas.json"
+    },
+    "lidazui": {
+      "atlas": "/assets/characters/lidazui/atlas.png",
+      "normal": "/assets/characters/lidazui/atlas_normal.png",
+      "meta": "/assets/characters/lidazui/atlas.json"
+    },
+    "moxiaobei": {
+      "atlas": "/assets/characters/moxiaobei/atlas.png",
+      "normal": "/assets/characters/moxiaobei/atlas_normal.png",
+      "meta": "/assets/characters/moxiaobei/atlas.json"
+    },
+    "zhuwushuang": {
+      "atlas": "/assets/characters/zhuwushuang/atlas.png",
+      "normal": "/assets/characters/zhuwushuang/atlas_normal.png",
+      "meta": "/assets/characters/zhuwushuang/atlas.json"
+    },
+    "yanxiaoliu": {
+      "atlas": "/assets/characters/yanxiaoliu/atlas.png",
+      "normal": "/assets/characters/yanxiaoliu/atlas_normal.png",
+      "meta": "/assets/characters/yanxiaoliu/atlas.json"
+    },
+    "xingyusen": {
+      "atlas": "/assets/characters/xingyusen/atlas.png",
+      "normal": "/assets/characters/xingyusen/atlas_normal.png",
+      "meta": "/assets/characters/xingyusen/atlas.json"
+    }
+  },
+  "objects": {}
+}

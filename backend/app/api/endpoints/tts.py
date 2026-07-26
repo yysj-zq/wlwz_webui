@@ -16,7 +16,35 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@router.post("/tts")
+@router.post(
+    "/tts",
+    tags=["TTS"],
+    summary="文本转语音（TTS）",
+    description=(
+        "将文本合成为 WAV 音频并以 `audio/wav` 返回。\n\n"
+        "解析顺序：\n"
+        "1. 若请求中传入 `speakerId`，直接使用。\n"
+        "2. 否则根据 `assistantRole` 查询该用户可用的默认 `default_speaker_id`。\n"
+        "3. 若都拿不到 speaker：返回 400。\n\n"
+        "成功后按 (user_id, text, speaker_id) 写入 Redis 缓存，下次命中直接返回缓存。\n\n"
+        "错误：\n"
+        "- 400：角色未配置语音且未传入 speakerId。\n"
+        "- 401：未登录。\n"
+        "- 500：TTS 上游或本地推理异常。\n"
+        "- 502：TTS 服务不可用 / 响应错误。"
+    ),
+    response_description="WAV 音频二进制流（Content-Type: audio/wav）。",
+    responses={
+        200: {
+            "description": "成功合成并返回 WAV 音频。",
+            "content": {"audio/wav": {}},
+        },
+        400: {"description": "角色未配置语音且未传入 speakerId。"},
+        401: {"description": "未提供有效 JWT。"},
+        500: {"description": "TTS 上游或本地推理异常。"},
+        502: {"description": "TTS 服务不可用或响应错误。"},
+    },
+)
 async def tts(
     request: TTSRequest,
     db: AsyncSession = Depends(get_db),

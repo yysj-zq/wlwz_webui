@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ActorMind, Timeline, User
 from app.schemas.world import Position, WorldEntityPatch, WorldState
 from app.services import (
+    WorldController,
     apply_world_patches,
     build_world_state,
+    create_custom_role,
+    ensure_chat_target_entity,
     ensure_conversation_world,
     switch_played_role,
 )
@@ -187,3 +190,59 @@ async def test_switch_played_role_rejects_absent_entity(async_db_session: AsyncS
 
     with pytest.raises(ValueError, match="不在当前世界"):
         await switch_played_role(async_db_session, conversation, "guofurong")
+
+
+@pytest.mark.asyncio
+async def test_ensure_chat_target_after_commit_keeps_custom_npc(
+    async_db_session: AsyncSession,
+) -> None:
+    """回归：commit() 用 DB 覆盖内存；必须先乐观锁再惰性补实体，否则自定义目标会被冲掉。"""
+    user = await _make_user(async_db_session, "custom-chat@example.com")
+    custom = await create_custom_role(async_db_session, user, name="客串说书人", system_prompt="你是说书人。")
+    conversation, world = await ensure_conversation_world(
+        async_db_session, user, conversation_id=None, title="chat 补实体"
+    )
+    assert conversation is not None
+    assert custom.slug is not None
+    assert custom.slug not in world.entities
+
+    controller = WorldController(async_db_session, conversation, world)
+    await controller.commit(expected_state_version=world.state_version)
+    await ensure_chat_target_entity(async_db_session, user, controller, custom.slug)
+
+    assert custom.slug in controller.world_state.entities
+    assert controller.world_state.entities[custom.slug].kind == "npc"
+    assert controller.world_state.entities[custom.slug].name == "客串说书人"
+
+    minds = (
+        (
+            await async_db_session.execute(
+                select(ActorMind).where(
+                    ActorMind.conversation_id == conversation.id,
+                    ActorMind.actor_id == custom.slug,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(minds) == 1
+
+
+@pytest.mark.asyncio
+async def test_ensure_chat_target_before_commit_is_wiped_by_db_refresh(
+    async_db_session: AsyncSession,
+) -> None:
+    """文档化错误顺序：先补入再 commit，内存补入会被 DB 覆盖冲掉。"""
+    user = await _make_user(async_db_session, "wipe-order@example.com")
+    custom = await create_custom_role(async_db_session, user, name="会被冲掉的角色", system_prompt="…")
+    conversation, world = await ensure_conversation_world(async_db_session, user, conversation_id=None)
+    assert conversation is not None
+    assert custom.slug is not None
+
+    controller = WorldController(async_db_session, conversation, world)
+    await ensure_chat_target_entity(async_db_session, user, controller, custom.slug)
+    assert custom.slug in controller.world_state.entities
+
+    await controller.commit(expected_state_version=world.state_version)
+    assert custom.slug not in controller.world_state.entities

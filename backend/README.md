@@ -1,82 +1,75 @@
-# 武林外传 AI 对话后端服务
+# 武林外传 AI 对话 — 后端
 
-FastAPI 后端，提供聊天、会话、角色、TTS 与认证等 API。
+FastAPI 服务：认证、会话与世界状态、LLM 回合、角色与 TTS。
 
-## 功能概览
+开发架构、迁移与规范见 **[DEVELOPERS.md](DEVELOPERS.md)**。
 
-- **聊天**：普通对话与流式对话（SSE），对接兼容 OpenAI Chat Completions 的 LLM
-- **会话**：会话 CRUD，与用户关联并持久化到数据库
-- **角色**：从 YAML 配置加载内置角色与头像，并支持自定义角色
-- **TTS**：文本转语音（对接 Triton），可选 Redis 缓存
-- **认证**：JWT 登录/注册，密码 Argon2 哈希
+## 功能
 
-## 快速启动
+- 注册 / 登录（JWT）
+- 会话 CRUD；世界状态与时间线读写
+- 对话回合与舞台动作回合（经 LangGraph 编排 Director / NPC）
+- 内置角色（`config/roles.yaml`）与自定义角色、头像
+- TTS（Triton），可选 Redis 缓存
 
-在 `backend/` 目录：
+## 启动
 
 ```bash
 uv sync
-cp .env.example .env
-# 编辑 .env 后
-make dev
+cp .env.example .env   # 至少配置 DATABASE_URL、LLM；按需 TTS / Redis
+make dev               # alembic upgrade head + 启动
 ```
 
-服务默认在 **http://localhost:8081**，API 文档：http://localhost:8081/docs 。
+默认 **http://localhost:8081**，交互文档：**http://localhost:8081/docs**。
 
-**开发与贡献**（迁移、测试、规范等）见 **[DEVELOPERS.md](DEVELOPERS.md)**。
+## 环境变量（常用）
 
-## 环境变量
+| 类别 | 示例 | 说明 |
+|------|------|------|
+| 应用 | `PORT`、`CORS_ORIGINS` | 端口与跨域 |
+| 数据库 | `DATABASE_URL` | 应用库；改模型后需迁移 |
+| 测试 | `TEST_DATABASE_URL` | 仅 pytest，勿与开发库混用 |
+| LLM | `MODEL_BASE_URL`、`MODEL_API_KEY`、`MODEL_NAME` | 回合推理 |
+| TTS | `TTS_TRITON_URL`、`TTS_MODEL_NAME` | 语音合成 |
+| 认证 | `JWT_SECRET_KEY` | JWT |
+| 角色 | `INIT_BUILTIN_ROLES_ON_START`、`ROLES_CONFIG_PATH` | 启动播种 |
 
-复制 `.env.example` 为 `.env` 后按需修改。主要项：
+完整项见 `.env.example`。
 
-| 类别 | 变量示例 | 说明 |
-|------|----------|------|
-| 应用 | `PORT=8081`、`CORS_ORIGINS` | 端口与跨域 |
-| 内置角色 | `INIT_BUILTIN_ROLES_ON_START`、`ROLES_CONFIG_PATH` | 是否从 YAML 初始化角色 |
-| 大模型 | `MODEL_BASE_URL`、`MODEL_API_KEY`、`MODEL_NAME` | LLM API |
-| TTS | `TTS_TRITON_URL`、`TTS_MODEL_NAME` | Triton TTS |
-| 数据库 | `DATABASE_URL` | 应用连接串；改库后需 `upgrade` 或 `make dev` |
-| 测试 | `TEST_DATABASE_URL`（可选） | 仅 pytest 使用；与 `DATABASE_URL` 分开，避免误用开发库 |
-| 认证 | `JWT_SECRET_KEY`、`ACCESS_TOKEN_EXPIRE_MINUTES` | JWT |
-| 缓存 | `REDIS_URL`、`TTS_CACHE_TTL_SECONDS` | TTS 缓存（可选） |
-
-完整列表见 `.env.example`。
-
-## 项目结构
+## 目录概览
 
 ```
 backend/
-├── Makefile                     # make dev：upgrade head 后启动
-├── alembic/
-│   └── versions/
 ├── app/
-│   ├── api/
-│   │   ├── dependencies/
-│   │   ├── middleware/
-│   │   ├── routers/
-│   │   ├── schemas/
-│   │   └── router.py
-│   ├── common/
-│   ├── core/
-│   ├── db/
-│   │   ├── models/
-│   │   └── session.py
-│   ├── infra/
-│   ├── services/
-│   └── main.py
-├── config/
-│   └── roles.yaml
-├── tests/
-│   ├── api/
-│   └── services/
-└── main.py
+│   ├── api/           # HTTP 端点与依赖
+│   ├── core/          # 配置、数据库、安全、LLM
+│   ├── graph/         # 回合图（LangGraph）
+│   ├── models/        # ORM
+│   ├── repositories/
+│   ├── schemas/       # 请求/响应模型
+│   └── services/      # 领域服务
+├── alembic/
+├── config/roles.yaml
+├── scripts/           # 含 OpenAPI 导出
+└── tests/
 ```
-## 主要 API
 
-- `POST /api/auth/register`、`POST /api/auth/login`：注册、登录
-- `GET/POST/DELETE /api/conversations`：会话列表、创建、删除
-- `POST /api/chat`、`POST /api/chat/stream`：普通对话、流式对话
-- `GET /api/roles`：可用角色列表
-- `POST /api/tts`：文本转语音，返回 WAV
+## API 入口（摘要）
 
-认证接口除登录/注册外，需在请求头携带 `Authorization: Bearer <token>`。
+以 `/docs` 与仓库根 `openapi.json` 为准。常用：
+
+- `POST /api/auth/register`、`POST /api/auth/login`
+- `GET/POST /api/conversations` 及 world / timeline / chat / actions
+- `GET /api/roles` 等角色接口
+- `POST /api/tts`
+
+除登录注册外需 `Authorization: Bearer <token>`。
+
+## OpenAPI 导出
+
+供前端 Orval 使用：
+
+```bash
+make openapi                         # → ../openapi.json
+make openapi OUTPUT=../frontend/openapi.json
+```

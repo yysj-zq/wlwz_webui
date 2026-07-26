@@ -60,11 +60,11 @@ async def ingest_player_input(state: TurnGraphState, config: RunnableConfig) -> 
             actor_id=player_actor_id,
             kind=TimelineKind.SPEAK,
             speak=chat_req.content,
-            target_id=chat_req.targetActorId,
+            target_id=chat_req.target_actor_id,
         )
         dispatch = DirectorDispatch(
             world_writes=[],
-            perceivers=[Perceiver(actor_id=chat_req.targetActorId, perception_reason="用户直接对你说话")],
+            perceivers=[Perceiver(actor_id=chat_req.target_actor_id, perception_reason="用户直接对你说话")],
         )
         return {"player_entry": player_entry, "dispatch": dispatch}
 
@@ -72,11 +72,11 @@ async def ingest_player_input(state: TurnGraphState, config: RunnableConfig) -> 
     game_req = cfg["game_request"]
     player_entry = TimelineEntry(
         turn_id=turn_id,
-        actor_id=game_req.actorId,
+        actor_id=game_req.actor_id,
         speak=game_req.speak,
-        target_id=game_req.targetId,
+        target_id=game_req.target_id,
         act_patch=game_req.act_patch,
-        narration=_player_move_narration(game_req.actorId, game_req.act_patch),
+        narration=_player_move_narration(game_req.actor_id, game_req.act_patch),
     )
     # 玩家动作即既定事实：落地到内存 world_state，让后续 director/NPC 的
     # query_entity / query_neighbors 观察到玩家动作之后的世界。

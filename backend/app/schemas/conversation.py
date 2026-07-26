@@ -1,34 +1,22 @@
 from datetime import datetime
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import Field
 
-
-class ConversationOut(BaseModel):
-    id: int
-    title: str
-    description: str | None = None
-    model_name: str | None = None
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+from app.schemas._alias import CamelModel
 
 
-class ConversationRename(BaseModel):
-    title: str
+class ConversationOut(CamelModel):
+    """会话摘要（不含会话体）。"""
+
+    id: int = Field(..., description="会话主键 ID。", examples=[1])
+    title: str = Field(..., description="会话标题，前端默认展示。", examples=["百战堂血案"])
+    description: str | None = Field(default=None, description="可选会话描述/摘要。", examples=["悬疑推理 · 第一案"])
+    model_name: str | None = Field(default=None, description="创建时使用的模型名。", examples=["gpt-4o-mini"])
+    created_at: datetime = Field(..., description="创建时间（UTC ISO-8601）。")
+    updated_at: datetime = Field(..., description="最近一次更新时间（UTC ISO-8601）。")
 
 
-class TimelineEntryOut(BaseModel):
-    id: int
-    turn_id: str
-    intra_turn_seq: int
-    actor_id: str | None = None
-    kind: str
-    speak: str | None = None
-    target_id: str | None = None
-    narration: str | None = None
-    act_patch: list[dict[str, Any]] | None = None
-    created_at: datetime
+class ConversationRename(CamelModel):
+    """重命名会话请求体。"""
 
-    model_config = ConfigDict(from_attributes=True)
+    title: str = Field(..., min_length=1, max_length=120, description="新会话标题。", examples=["百战堂血案（重试）"])
