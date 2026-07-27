@@ -2,11 +2,11 @@
 
 本目录文件按路径直接加载。美术交付时**同路径覆盖**即可，无需改代码或改 `manifest.json` 键名（新增实体除外）。
 
-| 真相源 | 路径 |
-|--------|------|
-| 舞台路径 | `manifest.json` |
-| 角色注册表（slug / spawn / 人格 / 头像） | `backend/config/roles.yaml` |
-| 对齐门禁 | `pnpm check:assets`（CI 会跑） |
+| 真相源                                   | 路径                           |
+| ---------------------------------------- | ------------------------------ |
+| 舞台路径                                 | `manifest.json`                |
+| 角色注册表（slug / spawn / 人格 / 头像） | `backend/config/roles.yaml`    |
+| 对齐门禁                                 | `pnpm check:assets`（CI 会跑） |
 
 地图领域 ID：`tongfu_inn`。
 
@@ -14,10 +14,10 @@
 
 ## 职责边界
 
-| 层 | 放什么 | 谁用 |
-|----|--------|------|
-| 前端 `public/assets` + manifest | 地图、角色图集+法线、（可选）物件贴图 | Phaser 舞台 |
-| 后端 `roles.yaml` → DB | slug、姓名、人格、spawn、头像 | 世界播种、LLM、Chat / 轮盘 |
+| 层                              | 放什么                                | 谁用                       |
+| ------------------------------- | ------------------------------------- | -------------------------- |
+| 前端 `public/assets` + manifest | 地图、角色图集+法线、（可选）物件贴图 | Phaser 舞台                |
+| 后端 `roles.yaml` → DB          | slug、姓名、人格、spawn、头像         | 世界播种、LLM、Chat / 轮盘 |
 
 约定：
 
@@ -51,13 +51,13 @@ public/assets/
 
 ## 状态
 
-| 类别 | 状态 | 说明 |
-|------|------|------|
-| `baizhantang` / `player` | 已就绪 | 正式图集（`meta.app = webui_2-atlas-packer`） |
-| 其余 in_game 角色 | 待替换 | 64×96 色块 interim（`meta.app = placeholder`） |
-| 地图 `tongfu_inn` | 已就绪 | 57×31 整图背景 + 碰撞多边形 + 灯光；键盘移动会吃碰撞栅格 |
-| 世界物件 | 延期 | 后端播种实体；舞台矩形占位，不要求 FE 贴图 |
-| 多地图 | — | 不在近期 |
+| 类别                     | 状态   | 说明                                                     |
+| ------------------------ | ------ | -------------------------------------------------------- |
+| `baizhantang` / `player` | 已就绪 | 正式图集（`meta.app = webui_2-atlas-packer`）            |
+| 其余 in_game 角色        | 待替换 | 64×96 色块 interim（`meta.app = placeholder`）           |
+| 地图 `tongfu_inn`        | 已就绪 | 57×31 整图背景 + 碰撞多边形 + 灯光；键盘移动会吃碰撞栅格 |
+| 世界物件                 | 延期   | 后端播种实体；舞台矩形占位，不要求 FE 贴图               |
+| 多地图                   | —      | 不在近期                                                 |
 
 ### 已就绪路径
 
@@ -90,8 +90,8 @@ pnpm check:assets
 
 ## 交图 checklist
 
-1. 路径与 `manifest.json` 一致  
-2. `atlas.png` 与 `atlas_normal.png` 同宽同高  
-3. `atlas.json` 帧不越界  
-4. `pnpm check:assets` 通过  
-5. 硬刷新即可，无需改业务代码  
+1. 路径与 `manifest.json` 一致
+2. `atlas.png` 与 `atlas_normal.png` 同宽同高
+3. `atlas.json` 帧不越界
+4. `pnpm check:assets` 通过
+5. 硬刷新即可，无需改业务代码

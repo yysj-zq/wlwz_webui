@@ -56,11 +56,12 @@ cp .env.example .env
 pnpm dev
 ```
 
-### 契约生成（改后端 API 后必做）
+### 同步 API 契约
+
+后端更新 `openapi.json` 后（后端侧流程见 [backend/DEVELOPERS.md](../backend/DEVELOPERS.md#改-api--schema-后)），前端拉取最新契约生成 orval client：
 
 ```bash
-cd ../backend && make openapi    # 写入仓库根 openapi.json
-cd ../frontend && pnpm openapi   # orval → src/shared/api/generated
+pnpm openapi   # 读取仓库根 openapi.json → src/shared/api/generated
 ```
 
 `VITE_API_BASE_URL` 只作运行时 origin；生成代码不写死 host（见 `shared/api/mutator.ts`）。
@@ -79,18 +80,45 @@ pnpm tokens:build
 - 交图与目录约定：`public/assets/README.md`
 - 与后端 `roles.yaml` 对齐门禁：`pnpm check:assets`
 
-## 质量命令
+## 代码质量
+
+本地命令：
 
 ```bash
 pnpm typecheck
 pnpm lint
+pnpm format         # Prettier 写盘；pnpm format:check 只校验
 pnpm test
-pnpm test:e2e          # 需先 pnpm test:e2e:install（首次）
+pnpm test:e2e       # 需先 pnpm test:e2e:install（首次）
 pnpm build
 pnpm storybook
 ```
 
-CI：仓库根 [`.github/workflows/frontend-ci.yml`](../.github/workflows/frontend-ci.yml)（含 openapi → orval → typecheck / lint / test / build / e2e）。
+三道关卡各自覆盖的范围（`pnpm openapi` 生成 orval 契约，是 lint/typecheck 的前置）：
+
+| 检查项             | 本地命令         | pre-commit | CI (`frontend-ci`) |
+| ------------------ | ---------------- | :--------: | :----------------: |
+| 契约生成（orval）  | `pnpm openapi`   |     ✓      |   ✓（前置步骤）    |
+| 类型（tsc strict） | `pnpm typecheck` |     ✓      |         ✓          |
+| ESLint             | `pnpm lint`      |     ✓      |         ✓          |
+| 格式（Prettier）   | `pnpm format`    | ✓（写盘）  |   ✓（`:check`）    |
+| 单元测试（Vitest） | `pnpm test`      |     —      |         ✓          |
+| 构建               | `pnpm build`     |     —      |         ✓          |
+| E2E（Playwright）  | `pnpm test:e2e`  |     —      |         ✓          |
+
+- **pre-commit**：`git commit` 时对 frontend 改动自动跑前四项（先生成契约再 lint/type/format），与 CI 同源，避免格式/lint 问题推到 CI 才暴露。测试与构建太重，只在 CI 跑。安装见下节「提交前检查」。
+- **CI**：仓库根 [`.github/workflows/frontend-ci.yml`](../.github/workflows/frontend-ci.yml)，经 `frontend-with-openapi`（导出 OpenAPI → orval）后并行跑 typecheck / lint+format:check / test / build / e2e。
+
+## 提交前检查（pre-commit）
+
+前后端共用仓库根 `.pre-commit-config.yaml`，按改动路径触发（frontend 改动跑上表前四项）。`pre-commit` 是独立的 Python CLI，全局安装一次即可，对前后端同时生效：
+
+```bash
+pipx install pre-commit      # 或 brew install pre-commit
+pre-commit install           # 在仓库任意位置执行
+```
+
+配置全貌与后端侧检查见 [backend/DEVELOPERS.md](../backend/DEVELOPERS.md#提交前检查pre-commit)。
 
 ## 代码规范（摘要）
 
@@ -98,7 +126,6 @@ CI：仓库根 [`.github/workflows/frontend-ci.yml`](../.github/workflows/fronte
 - 遵循 FSD 边界：上层可依赖下层，禁止下层依赖上层、禁止跨 slice 随意深耦。
 - 交互副作用放在事件处理里；派生数据在渲染期计算，避免「props → effect → setState」同步。
 - UI：使用 design-system tokens / primitives，业务里避免魔法色值与重复造轮子。
-- 格式：Prettier；提交前可用 lint-staged（未强制接 Husky）。
 
 ## 测试布局
 

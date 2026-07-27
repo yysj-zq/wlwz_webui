@@ -70,7 +70,7 @@ def upgrade() -> None:
         sa.Column("system_prompt", sa.Text(), nullable=True),
         sa.Column("default_speaker_id", sa.String(length=64), nullable=True),
         sa.Column(
-            "config_json", postgresql.JSONB(astext_type=sa.Text()).with_variant(sa.Text(), "sqlite"), nullable=True
+            "config_json", postgresql.JSONB(astext_type=sa.Text()).with_variant(sa.JSON(), "sqlite"), nullable=True
         ),
         sa.Column("is_builtin", sa.Boolean(), nullable=False),
         sa.Column("avatar_blob", sa.LargeBinary(), nullable=True),

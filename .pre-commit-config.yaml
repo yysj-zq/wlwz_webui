@@ -1,0 +1,53 @@
+# 前后端共用：按改动路径分别触发 backend（ruff/mypy）与 frontend（openapi/prettier/eslint/tsc）。
+# 与各自 CI 门禁同源。需先全局安装 pre-commit（pipx install pre-commit）；安装见 backend/DEVELOPERS.md。
+repos:
+  - repo: local
+    hooks:
+      - id: backend-ruff-format
+        name: backend ruff format
+        entry: bash -lc 'cd backend && uv run ruff format .'
+        language: system
+        files: ^backend/
+        pass_filenames: false
+
+      - id: backend-ruff-check
+        name: backend ruff check
+        entry: bash -lc 'cd backend && uv run ruff check . --fix'
+        language: system
+        files: ^backend/
+        pass_filenames: false
+
+      - id: backend-mypy
+        name: backend mypy
+        entry: bash -lc 'cd backend && uv run mypy .'
+        language: system
+        files: ^backend/
+        pass_filenames: false
+
+      - id: frontend-openapi
+        name: frontend openapi (orval)
+        entry: bash -lc 'cd frontend && pnpm openapi'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+
+      - id: frontend-prettier
+        name: frontend prettier
+        entry: bash -lc 'cd frontend && pnpm format'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+
+      - id: frontend-eslint
+        name: frontend eslint
+        entry: bash -lc 'cd frontend && pnpm lint'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+
+      - id: frontend-typecheck
+        name: frontend typecheck
+        entry: bash -lc 'cd frontend && pnpm typecheck'
+        language: system
+        files: ^frontend/
+        pass_filenames: false

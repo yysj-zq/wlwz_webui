@@ -53,7 +53,7 @@ make dev
 2. `uv run alembic revision --autogenerate -m "描述"`
 3. 检查 diff 后 `uv run alembic upgrade head`
 
-CI（`.github/workflows/backend-quality.yml`）在 SQLite 与 PostgreSQL 上跑 `upgrade` + `alembic check` + pytest。
+迁移在 CI 的 SQLite 与 PostgreSQL 双 job 上验证（`alembic upgrade` + `alembic check`），本地 pytest 用 `create_all` 不覆盖迁移脚本，见下文「测试」与「代码质量」。
 
 ## 测试
 
@@ -66,7 +66,9 @@ CI（`.github/workflows/backend-quality.yml`）在 SQLite 与 PostgreSQL 上跑 
 - 指定库时只用 `TEST_DATABASE_URL`，不要用 `DATABASE_URL` 跑测。
 - 目录：`tests/api/`、`tests/services/`、`tests/graph/`、`tests/repositories/` 等。
 
-## 质量命令
+## 代码质量
+
+本地命令：
 
 ```bash
 uv run ruff format .
@@ -75,7 +77,31 @@ uv run mypy .
 uv run pytest
 ```
 
-可选 pre-commit：`uv sync --group dev && uv run pre-commit install`。
+各检查项覆盖范围：
+
+| 检查项             | 本地命令               | pre-commit | CI (`backend-quality`) |
+| ------------------ | ---------------------- | :--------: | :--------------------: |
+| 格式（ruff）       | `uv run ruff format .` | ✓（写盘）  |    ✓（`--check`）     |
+| lint（ruff）       | `uv run ruff check .`  |     ✓      |           ✓           |
+| 类型（mypy strict）| `uv run mypy .`        |     ✓      |           ✓           |
+| 迁移（alembic）    | —                      |     —      |  ✓（upgrade + check） |
+| 测试（pytest）     | `uv run pytest`        |     —      |    ✓（SQLite + PG）   |
+
+- **pre-commit**：`git commit` 时对 backend 改动自动跑 ruff format / ruff check / mypy（与本地命令同源，格式写盘修复），与 CI 门禁一致，避免格式/lint/类型问题推到 CI 才暴露。pytest 与迁移检查太重，只在 CI 跑。安装见下节。
+- **CI**：仓库根 [`.github/workflows/backend-quality.yml`](../.github/workflows/backend-quality.yml)，在 SQLite 与 PostgreSQL 双 job 上跑 ruff format:check / ruff check / mypy / alembic upgrade + check / pytest。
+
+## 提交前检查（pre-commit）
+
+前后端**共用**仓库根 `.pre-commit-config.yaml`：一次 `git commit` 按改动路径分别触发 —— backend 改动跑 ruff / mypy，frontend 改动跑 openapi 生成 + prettier / eslint / typecheck。
+
+`pre-commit` 是独立的 Python CLI，需全局安装一次（不随任一子项目环境走），钩子装到仓库根 `.git/hooks/pre-commit`，对前后端同时生效：
+
+```bash
+pipx install pre-commit      # 或 brew install pre-commit
+pre-commit install           # 在仓库任意位置执行
+```
+
+装完后每次 `git commit` 自动运行。手动全量检查：`pre-commit run --all-files`。
 
 ## 代码约定
 
