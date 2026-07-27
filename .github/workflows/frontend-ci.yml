@@ -1,52 +1,28 @@
 name: frontend-ci
 on:
   push:
-    branches: [main, master]
+    branches: [master]
   pull_request:
-    branches: [main, master]
+    branches: [master]
 
 jobs:
-  typecheck:
+  frontend-ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/frontend-with-openapi
       - run: pnpm typecheck
         working-directory: frontend
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/frontend-with-openapi
       - run: pnpm lint
         working-directory: frontend
       - run: pnpm format:check
         working-directory: frontend
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/frontend-with-openapi
       - run: pnpm check:assets
         working-directory: frontend
       - run: pnpm test
         working-directory: frontend
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/frontend-with-openapi
       - run: pnpm build
         working-directory: frontend
-
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/frontend-with-openapi
       - run: pnpm test:e2e:install
         working-directory: frontend
       - run: pnpm build-storybook

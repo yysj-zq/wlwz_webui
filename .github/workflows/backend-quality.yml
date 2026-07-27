@@ -2,17 +2,11 @@ name: backend-quality
 
 on:
   pull_request:
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-quality.yml"
-      - ".github/actions/backend-quality/**"
+    branches:
+      - master
   push:
     branches:
       - master
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-quality.yml"
-      - ".github/actions/backend-quality/**"
 
 jobs:
   backend-quality-sqlite:
