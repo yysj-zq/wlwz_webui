@@ -8,6 +8,7 @@
 #   in_game           是否作为世界实体参与游戏；内置阵容全部 true。
 #   spawn             出生点（tongfu_inn 瓦片坐标，地图 57×31）；与 map.json spawn 层对齐，direction 用 north/south/east/west。
 #   persona           人设文本，播种进 ActorMind.persona，供 NPC prompt 使用。
+#                     同目录 canon*.yaml 的 profiles[slug] 能解析出非空正文时覆盖本字段。
 #   relations         关系表（键为对方 slug；含 player 时指向外来可扮演角色那条）。
 #   goal              目标 {current, priority}，播种进 ActorMind.goal。
 #

@@ -52,7 +52,44 @@ def _load_roles_config() -> list[dict[str, Any]]:
         return []
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    return data.get("builtin_roles") or []
+    roles = data.get("builtin_roles") or []
+    overrides = _canon_persona_overrides(path.parent)
+    for item in roles:
+        slug = str(item.get("slug") or "").strip()
+        if slug in overrides:
+            item["persona"] = overrides[slug]
+    return roles
+
+
+def _canon_persona_overrides(config_dir: Path) -> dict[str, str]:
+    """同目录 canon*.yaml 的 profiles[slug]。同 slug 时后出现的文件覆盖先出现的。"""
+    overrides: dict[str, str] = {}
+    paths = sorted(
+        p
+        for p in config_dir.iterdir()
+        if p.is_file() and p.suffix.lower() == ".yaml" and p.name.lower().startswith("canon")
+    )
+    for path in paths:
+        overrides.update(_parse_canon_profiles(path))
+    return overrides
+
+
+def _parse_canon_profiles(path: Path) -> dict[str, str]:
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError):
+        logger.warning("canon_persona_unparsed", path=str(path))
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    profiles = data.get("profiles")
+    if not isinstance(profiles, dict):
+        return {}
+    parsed: dict[str, str] = {}
+    for slug, text in profiles.items():
+        if isinstance(slug, str) and isinstance(text, str) and text.strip():
+            parsed[slug] = text.strip()
+    return parsed
 
 
 def _read_avatar_seed(seed_path_raw: str, config_dir: Path) -> tuple[bytes | None, str | None]:
