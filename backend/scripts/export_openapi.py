@@ -48,7 +48,7 @@ def _resolve_output_path() -> Path:
     if env_value:
         return Path(env_value).expanduser().resolve()
     # 默认：相对 CWD 的 ../openapi.json。
-    # 多数调用场景（CWD=backend/）会落在仓库根 webui_2/openapi.json。
+    # 多数调用场景（CWD=backend/）会落在仓库根 wlwz_webui/openapi.json。
     return (Path.cwd() / ".." / "openapi.json").resolve()
 
 
