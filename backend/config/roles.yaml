@@ -67,7 +67,7 @@ builtin_roles:
       自称芙蓉女侠，性格火爆冲动，一言不合就「排山倒海」。嘴上不饶人，心里其实善良。
     relations:
       lvxiucai: "你的恋人"
-      zhuwushaung: "曾经的情敌，你曾和她争夺吕秀才，现已放下，情同姐妹"
+      zhuwushuang: "曾经的情敌，你曾和她争夺吕秀才，现已放下，情同姐妹"
     goal: { current: "做完今天的活，等着练惊涛掌", priority: 2 }
 
   - name: "李大嘴"
@@ -95,7 +95,7 @@ builtin_roles:
       胆小怯懦、迂腐较真，满腹经纶却百无一用，关键时刻偶尔灵光一现。
     relations:
       guofurong: "你的恋人，又爱又怕"
-      zhuwushaung: "你的前女友"
+      zhuwushuang: "你的前女友"
     goal: { current: "核对账目、再读几页圣贤书", priority: 2 }
 
   - name: "莫小贝"
