@@ -60,9 +60,8 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
         new_msgs.append(feedback)
         messages.append(feedback)
 
-    # tool_choice="any" 强制调工具，从源头杜绝"输出纯文本不调工具"的违规（对支持约束解码的模型生效；
-    # 对忽略该参数的模型，仍靠上面的无-tool_call 反馈重试兜底，与 director 同构）。
-    llm = get_chat_model(temperature=0.8, streaming=False).bind_tools(NPC_TOOLS, tool_choice="any")
+    # tool_choice 取值与 director 同构，理由见 app/graph/nodes/director.py。
+    llm = get_chat_model(temperature=0.8, streaming=False).bind_tools(NPC_TOOLS, tool_choice="auto")
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("NPC[%s] LLM 返回了非 AIMessage: %s", perceiver.actor_id, type(ai_msg))

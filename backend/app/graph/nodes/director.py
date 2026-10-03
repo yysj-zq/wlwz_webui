@@ -33,9 +33,11 @@ async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict[s
         new_msgs.append(feedback)
         messages.append(feedback)
 
-    # tool_choice="any" 强制调工具，从源头杜绝"输出纯文本不调工具"的违规（对支持约束解码的模型生效；
-    # MiniMax-M3 实测忽略此参数，故仍需上面的无-tool_call 反馈重试兜底）。
-    llm = get_chat_model(temperature=0.7, streaming=False).bind_tools(DIRECTOR_TOOLS, tool_choice="any")
+    # tool_choice 取 "auto"（OpenAI 规范值）而非 "any"：system prompt 已明文要求必须调
+    # submit_dispatch，"auto" 在多家供应商下均能稳定产出 tool_call；而 "any" 非规范值，
+    # 严格实现直接 422 报错、放宽容错则静默忽略并退回纯文本，两种失败都不会触发上面的重试。
+    # 强制力仍由上面的无-tool_call 反馈重试兜底。
+    llm = get_chat_model(temperature=0.7, streaming=False).bind_tools(DIRECTOR_TOOLS, tool_choice="auto")
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("LLM 返回了非 AIMessage 类型: %s", type(ai_msg))
