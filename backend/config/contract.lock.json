@@ -1,0 +1,19 @@
+{
+  "canon_source": "model_pipeline/data/profiles/canon.v1.yaml",
+  "components": {
+    "canon": "3a99229f610b086478ab0506a5ca4df1075c19262834975a13209029aa201703",
+    "metrics": "0abd8e9a51d386fd455bea546662bc0dd46d09b5cef8f0bd85367d5e96f3f45a",
+    "prompt_render": "9470f70707b095ac6f76dd9e1b1395a61375713de254cedf5497e48a0f7bfbdd",
+    "prompts": "8284368bd8ccf4346f3161fc0e174d34be54751fb780ce9c8bf6612a3248f528",
+    "roles": "8b075ebf381b17f01bcff1f772bed42ff33227336f63dd3fb8a502a66698d6b8",
+    "timeline_render": "150cca6aa418ccec11fac6324e5d3dbbb5218e298781a9a7ff0fb3466c15a263",
+    "tools_director": "dcd42f385ee1c55b677a0d69ff64fe7fe74b6933fb92e6938452016bbdacb08c",
+    "tools_npc": "302fdcf906cada3a3eec3386a8c6167ea3c7c63820982726f61c0045ab31d3e4",
+    "world_enums": "b8acb2056c6737adc86028ab0905c0fa2e67f22e40909ff64673d860f0f5874e",
+    "world_schema": "d8534b8679e945c3567002d913f2d9784d7d08f0c653269cb5bba93dd722c68d"
+  },
+  "contract_fingerprint": "sha256:feadbdb661ffab715dd6ffdb4d8e3b57f6bfd6658f27082db89d4f24fe173461",
+  "contract_version": "contract.v2",
+  "generated_by": "contracts.publish",
+  "generated_note": "do not hand-edit; regenerate via publish"
+}

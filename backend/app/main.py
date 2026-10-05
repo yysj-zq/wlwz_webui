@@ -14,6 +14,7 @@ from app.core import (
     ping_db,
     settings,
 )
+from app.core.contract_check import verify_or_raise
 from app.schemas import ConflictResponse
 from app.services import StateVersionConflict, init_builtin_roles_if_enabled
 
@@ -43,6 +44,7 @@ OPENAPI_TAGS: list[dict[str, str]] = [
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """应用生命周期钩子：验证数据库连接并（可选）初始化内置角色。"""
     await check_db_health()
+    verify_or_raise()
     async with AsyncSessionLocal() as db:
         await init_builtin_roles_if_enabled(db)
     yield
