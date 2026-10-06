@@ -16,6 +16,7 @@ from langgraph.prebuilt import ToolNode
 from app.graph.nodes.npc import npc_step
 from app.graph.state import NpcSubgraphState
 from app.graph.tools import NPC_TOOLS
+from app.runtime.trajectory import make_tool_observation_awrap
 
 
 def _after_npc_step(state: NpcSubgraphState) -> str:
@@ -70,6 +71,7 @@ def build_npc_subgraph() -> Any:
             NPC_TOOLS,
             messages_key="messages",  # 告诉 ToolNode 从哪个 state 字段读/写消息
             handle_tool_errors=True,  # 工具抛异常时返回错误 ToolMessage 而非中断图
+            awrap_tool_call=make_tool_observation_awrap(actor_type="npc"),
         ),
     )
 

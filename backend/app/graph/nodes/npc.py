@@ -11,15 +11,11 @@ from app.core import get_chat_model, get_logger
 from app.graph.prompt_render import render_npc_messages
 from app.graph.state import NpcSubgraphState
 from app.graph.tools import NPC_TOOLS
+from app.runtime.trajectory import recorder_from_config
 from app.schemas import NPCResponse
-from app.services import WorldController, actor_mind_service
+from app.services import WorldController
 
 logger = get_logger(__name__)
-
-
-async def _load_mind_view(controller: WorldController, actor_id: str) -> dict[str, Any]:
-    """从数据库加载该 NPC 的记忆/情感/目标视图，用于填充 system prompt。"""
-    return await actor_mind_service.load_for_prompt(controller.db, controller.conversation_id, actor_id)
 
 
 async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str, Any]:
@@ -34,6 +30,7 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
     6. 返回增量 messages（首次 = 初始 prompt + ai_msg；后续 = 仅 ai_msg）
     """
     controller: WorldController = config["configurable"]["controller"]
+    recorder = recorder_from_config(config)
     perceiver = state["npc_perceiver"]
     context = state["npc_context"]
     messages: list[BaseMessage] = list(state.get("messages") or [])
@@ -45,7 +42,7 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
 
     # 准备 LLM 所需的上下文数据
     entity = ws.entities[perceiver.actor_id]
-    mind_view = await _load_mind_view(controller, perceiver.actor_id)
+    mind_view = await controller.load_mind_view(perceiver.actor_id)
     name_lookup = ws.name_lookup()
 
     # new_msgs 追踪本次调用的增量（reducer 会追加到 state["messages"]）
@@ -57,6 +54,12 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
     elif isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:
         # 上一轮没调工具（违规）——补一条反馈让本次重试有效（与 director 同构）
         feedback = HumanMessage(content="你必须调用 submit_response 工具提交你的响应以结束回合。")
+        if recorder is not None:
+            recorder.record_reject(
+                actor_type="npc",
+                actor_id=perceiver.actor_id,
+                reason=str(feedback.content),
+            )
         new_msgs.append(feedback)
         messages.append(feedback)
 
@@ -65,5 +68,12 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("NPC[%s] LLM 返回了非 AIMessage: %s", perceiver.actor_id, type(ai_msg))
+    if recorder is not None and isinstance(ai_msg, AIMessage):
+        recorder.record_llm_output(
+            actor_type="npc",
+            actor_id=perceiver.actor_id,
+            content=ai_msg.content,
+            tool_calls=ai_msg.tool_calls,
+        )
     new_msgs.append(ai_msg)
     return {"messages": new_msgs}

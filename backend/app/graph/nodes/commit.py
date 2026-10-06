@@ -8,7 +8,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 
 from app.graph.state import TurnGraphState
-from app.services import WorldController, digest_service
+from app.services import WorldController
 
 
 async def commit(state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
@@ -24,14 +24,6 @@ async def commit(state: TurnGraphState, config: RunnableConfig) -> dict[str, Any
         scene_note=dispatch.narration,
     )
 
-    should = await digest_service.should_refresh(
-        controller.db,
-        controller.conversation_id,
-        committed.world_state,
-        dispatch.world_writes,
-        npc_responses,
-    )
-    if should:
-        digest_service.schedule_refresh(controller.conversation_id)
+    await controller.after_commit_digest(committed, dispatch.world_writes, npc_responses)
 
     return {"committed_turn": committed}

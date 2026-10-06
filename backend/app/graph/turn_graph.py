@@ -32,6 +32,7 @@ from app.graph.nodes.load_turn_context import load_turn_context
 from app.graph.npc_subgraph import build_npc_subgraph
 from app.graph.state import TurnGraphState
 from app.graph.tools import DIRECTOR_TOOLS
+from app.runtime.trajectory import make_tool_observation_awrap
 
 _LLM_RETRY = RetryPolicy(
     max_attempts=3,
@@ -100,6 +101,7 @@ def _build_graph() -> CompiledStateGraph[TurnGraphState, None, TurnGraphState, T
             DIRECTOR_TOOLS,
             messages_key="director_messages",
             handle_tool_errors=True,
+            awrap_tool_call=make_tool_observation_awrap(actor_type="director"),
         ),
     )
     g.add_node("npc_worker", build_npc_subgraph(), retry_policy=_LLM_RETRY)

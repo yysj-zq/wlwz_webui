@@ -12,6 +12,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 
 from app.graph.state import TurnGraphState
+from app.runtime.trajectory import recorder_from_config
 from app.schemas import (
     DirectorDispatch,
     Perceiver,
@@ -48,6 +49,9 @@ async def ingest_player_input(state: TurnGraphState, config: RunnableConfig) -> 
     cfg = config.get("configurable", {})
     mode = cfg["mode"]
     turn_id = uuid.uuid4().hex
+    recorder = recorder_from_config(config)
+    if recorder is not None:
+        recorder.set_turn_id(turn_id)
 
     if mode == TurnMode.CHAT:
         chat_req = cfg["chat_request"]

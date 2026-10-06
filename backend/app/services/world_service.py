@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -335,6 +336,27 @@ class WorldController:
 
     async def load_actor_mind(self, actor_id: str) -> ActorMind | None:
         return await actor_mind_service.get_or_create(self.db, self.conversation_id, actor_id)
+
+    async def load_mind_view(self, actor_id: str) -> dict[str, Any]:
+        """加载 NPC 心智视图，供 prompt 渲染（与 ``actor_mind_service.load_for_prompt`` 同构）。"""
+        return await actor_mind_service.load_for_prompt(self.db, self.conversation_id, actor_id)
+
+    async def after_commit_digest(
+        self,
+        committed: CommittedTurn,
+        director_writes: list[WorldEntityPatch],
+        npc_responses: list[tuple[str, NPCResponse]],
+    ) -> None:
+        """commit 落库后按需触发 digest 刷新（fire-and-forget；生产路径语义）。"""
+        should = await digest_service.should_refresh(
+            self.db,
+            self.conversation_id,
+            committed.world_state,
+            director_writes,
+            npc_responses,
+        )
+        if should:
+            digest_service.schedule_refresh(self.conversation_id)
 
     async def commit(
         self,

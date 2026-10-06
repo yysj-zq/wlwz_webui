@@ -11,6 +11,7 @@ from app.core import get_chat_model, get_logger
 from app.graph.prompt_render import render_director_messages
 from app.graph.state import TurnGraphState
 from app.graph.tools import DIRECTOR_TOOLS
+from app.runtime.trajectory import DIRECTOR_ACTOR_ID, recorder_from_config
 from app.services import WorldController
 
 logger = get_logger(__name__)
@@ -19,6 +20,7 @@ logger = get_logger(__name__)
 async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict[str, Any]:
     """单次 LLM 调用。首次调用时渲染 messages；后续循环复用 state 中的 director_messages。"""
     controller: WorldController = config["configurable"]["controller"]
+    recorder = recorder_from_config(config)
     messages: list[BaseMessage] = list(state.get("director_messages") or [])
 
     new_msgs: list[BaseMessage] = []
@@ -30,6 +32,12 @@ async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict[s
     elif isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:
         # 上一轮 director 没调工具（违规）——补一条反馈让本次重试有效
         feedback = HumanMessage(content="你必须调用 submit_dispatch 工具提交决策以结束回合。")
+        if recorder is not None:
+            recorder.record_reject(
+                actor_type="director",
+                actor_id=DIRECTOR_ACTOR_ID,
+                reason=str(feedback.content),
+            )
         new_msgs.append(feedback)
         messages.append(feedback)
 
@@ -41,5 +49,12 @@ async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict[s
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("LLM 返回了非 AIMessage 类型: %s", type(ai_msg))
+    if recorder is not None and isinstance(ai_msg, AIMessage):
+        recorder.record_llm_output(
+            actor_type="director",
+            actor_id=DIRECTOR_ACTOR_ID,
+            content=ai_msg.content,
+            tool_calls=ai_msg.tool_calls,
+        )
     new_msgs.append(ai_msg)
     return {"director_messages": new_msgs}
