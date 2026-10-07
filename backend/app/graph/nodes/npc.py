@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
-from app.core import get_chat_model, get_logger
+from app.core import get_logger, resolve_chat_model
 from app.graph.prompt_render import render_npc_messages
 from app.graph.state import NpcSubgraphState
 from app.graph.tools import NPC_TOOLS
@@ -64,7 +64,8 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
         messages.append(feedback)
 
     # tool_choice 取值与 director 同构，理由见 app/graph/nodes/director.py。
-    llm = get_chat_model(temperature=0.8, streaming=False).bind_tools(NPC_TOOLS, tool_choice="auto")
+    # 模型来源同 director：configurable["chat_model_factory"]，缺省 get_chat_model。
+    llm = resolve_chat_model(config, temperature=0.8, streaming=False).bind_tools(NPC_TOOLS, tool_choice="auto")
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("NPC[%s] LLM 返回了非 AIMessage: %s", perceiver.actor_id, type(ai_msg))

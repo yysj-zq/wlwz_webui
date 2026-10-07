@@ -70,16 +70,16 @@ def _install_llm_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     """director 提交一个 perceiver，npc 提交一个空 speak。"""
     monkeypatch.setattr(
         director_node,
-        "get_chat_model",
-        lambda **_: _StubChat(
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat(
             "submit_dispatch",
             {"world_writes": [], "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被点名"}]},
         ),
     )
     monkeypatch.setattr(
         npc_node,
-        "get_chat_model",
-        lambda **_: _StubChat(
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat(
             "submit_response",
             {"speak": "好的。", "act_patch": [], "memory_writes": [], "inventory_ops": []},
         ),

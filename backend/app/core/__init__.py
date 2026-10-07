@@ -8,7 +8,13 @@ from app.core.database import (
     get_db,
     ping_db,
 )
-from app.core.llm import get_chat_model, strip_think
+from app.core.llm import (
+    CHAT_MODEL_FACTORY_KEY,
+    ChatModelFactory,
+    get_chat_model,
+    resolve_chat_model,
+    strip_think,
+)
 from app.core.logging import configure_logging, get_logger
 from app.core.prompts import (
     COMPACTOR_SYSTEM_PROMPT,
@@ -32,6 +38,8 @@ __all__ = [
     "NPC_SYSTEM_PROMPT_TEMPLATE",
     "SUMMARIZER_SYSTEM_PROMPT",
     "Settings",
+    "CHAT_MODEL_FACTORY_KEY",
+    "ChatModelFactory",
     "check_db_health",
     "clear_request_context",
     "configure_logging",
@@ -43,6 +51,7 @@ __all__ = [
     "get_request_id",
     "new_request_id",
     "ping_db",
+    "resolve_chat_model",
     "set_request_id",
     "settings",
     "strip_think",

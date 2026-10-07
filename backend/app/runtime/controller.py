@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.llm import ChatModelFactory
 from app.runtime.snapshot import MindState, SessionSnapshot
 from app.schemas import (
     CommittedTurn,
@@ -31,14 +32,25 @@ class RuntimeWorldController:
     - ``commit`` 只校验快照内 ``state_version``（无 FOR UPDATE）
     - ``commit_turn`` 同构更新 world / timeline / minds / version，不写 conversations 表
     - ``after_commit_digest`` no-op（训练可复现）
+    - timeline Compactor 摘要走同一 ``chat_model_factory``（避免误打 webui 默认端点）
     """
 
-    def __init__(self, snapshot: SessionSnapshot) -> None:
+    def __init__(
+        self,
+        snapshot: SessionSnapshot,
+        *,
+        chat_model_factory: ChatModelFactory | None = None,
+    ) -> None:
         self.snapshot = snapshot
         self.conversation_id: int = _PSEUDO_CONVERSATION_ID
         self.db = None
+        self._chat_model_factory = chat_model_factory
         self._expected_state_version: int | None = None
         self._last_loaded_timeline: list[TimelineEntry] | None = None
+
+    def set_chat_model_factory(self, factory: ChatModelFactory | None) -> None:
+        """与 session.step 覆盖同源，供 Compactor 摘要使用同一端点。"""
+        self._chat_model_factory = factory
 
     @property
     def world_state(self) -> WorldState:
@@ -126,7 +138,9 @@ class RuntimeWorldController:
     async def load_turn_context(self) -> TurnContext:
         full_timeline = list(self.snapshot.timeline)
         compacted = await timeline_service.Compactor().compact(
-            full_timeline, name_lookup=self.world_state.name_lookup()
+            full_timeline,
+            name_lookup=self.world_state.name_lookup(),
+            chat_model_factory=self._chat_model_factory,
         )
         self._last_loaded_timeline = full_timeline
         digest = self.snapshot.digest or ""

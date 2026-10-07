@@ -48,8 +48,8 @@ class _StubChat:
 def _patch_director_dispatch(monkeypatch: pytest.MonkeyPatch, dispatch: dict[str, Any]) -> None:
     monkeypatch.setattr(
         director_node,
-        "get_chat_model",
-        lambda **_: _StubChat("submit_dispatch", dispatch),
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat("submit_dispatch", dispatch),
     )
 
 
@@ -78,7 +78,7 @@ class _SequencedChat:
 
 
 def _patch_director_sequence(monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]) -> list[list[Any]]:
-    """把 director 的 get_chat_model 换成按序返回 responses 的桩。
+    """把 director 的 resolve_chat_model 换成按序返回 responses 的桩。
 
     返回 calls 列表：每次 ainvoke 记一条（其内容是该次调用时的 messages 快照）。
     director_step 每次必调 ainvoke 恰一次，故 len(calls) == director_step 调用次数。
@@ -86,8 +86,8 @@ def _patch_director_sequence(monkeypatch: pytest.MonkeyPatch, responses: list[AI
     calls: list[list[Any]] = []
     monkeypatch.setattr(
         director_node,
-        "get_chat_model",
-        lambda **_: _SequencedChat(responses, calls),
+        "resolve_chat_model",
+        lambda *_a, **_k: _SequencedChat(responses, calls),
     )
     return calls
 
@@ -96,21 +96,21 @@ def _patch_npc_response(monkeypatch: pytest.MonkeyPatch, response: dict[str, Any
     full = {"act_patch": [], "memory_writes": [], "inventory_ops": [], **response}
     monkeypatch.setattr(
         npc_node,
-        "get_chat_model",
-        lambda **_: _StubChat("submit_response", full),
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat("submit_response", full),
     )
 
 
 def _patch_npc_sequence(monkeypatch: pytest.MonkeyPatch, responses: list[AIMessage]) -> list[list[Any]]:
-    """把 npc 的 get_chat_model 换成按序返回 responses 的桩（复用 _SequencedChat）。
+    """把 npc 的 resolve_chat_model 换成按序返回 responses 的桩（复用 _SequencedChat）。
 
     返回 calls 列表：每次 npc LLM ainvoke 记一条（其内容是该次调用时的 messages 快照）。
     """
     calls: list[list[Any]] = []
     monkeypatch.setattr(
         npc_node,
-        "get_chat_model",
-        lambda **_: _SequencedChat(responses, calls),
+        "resolve_chat_model",
+        lambda *_a, **_k: _SequencedChat(responses, calls),
     )
     return calls
 
@@ -204,13 +204,13 @@ async def test_game_move_via_unified_graph(async_db_session: AsyncSession, monke
 
 @pytest.mark.asyncio
 async def test_chat_turn_skips_director(async_db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
-    """chat 路径不应进 director——通过把 director.get_chat_model patch 成 raise 验证。"""
+    """chat 路径不应进 director——通过把 director.resolve_chat_model patch 成 raise 验证。"""
     user = await _make_user(async_db_session, "c1@example.com")
 
-    def _explode(**_: object) -> None:
+    def _explode(*_a: object, **_k: object) -> None:
         raise AssertionError("chat 模式不应触达 director")
 
-    monkeypatch.setattr(director_node, "get_chat_model", _explode)
+    monkeypatch.setattr(director_node, "resolve_chat_model", _explode)
     _patch_npc_response(monkeypatch, {"speak": "佟掌柜在算账。"})
 
     controller = await _make_controller(async_db_session, user, title="chat 路径")

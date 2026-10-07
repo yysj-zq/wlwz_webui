@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.contract_check import load_lock
+from app.core.llm import CHAT_MODEL_FACTORY_KEY, ChatModelFactory
 from app.graph.state import TurnGraphState
 from app.runtime.controller import RuntimeWorldController
 from app.runtime.snapshot import SessionSnapshot, build_default_snapshot, fork_snapshot
@@ -60,9 +61,14 @@ class HeadlessSession:
         self,
         controller: RuntimeWorldController,
         recorder: TrajectoryRecorder,
+        *,
+        chat_model_factory: ChatModelFactory | None = None,
+        sink_path: str | None = None,
     ) -> None:
         self._controller = controller
         self._recorder = recorder
+        self._chat_model_factory = chat_model_factory
+        self._sink_path = sink_path
 
     @classmethod
     def _from_snapshot(
@@ -70,25 +76,46 @@ class HeadlessSession:
         snapshot: SessionSnapshot,
         *,
         sink_path: str | None = None,
+        chat_model_factory: ChatModelFactory | None = None,
     ) -> HeadlessSession:
-        controller = RuntimeWorldController(snapshot)
+        controller = RuntimeWorldController(snapshot, chat_model_factory=chat_model_factory)
         recorder = TrajectoryRecorder(
             seed_id=snapshot.meta.seed_id,
             run_id=snapshot.meta.run_id,
             contract_fingerprint=snapshot.meta.contract_fingerprint,
             sink_path=sink_path,
         )
-        return cls(controller, recorder)
+        return cls(controller, recorder, chat_model_factory=chat_model_factory, sink_path=sink_path)
 
     @property
     def snapshot(self) -> SessionSnapshot:
         return self._controller.snapshot
 
     @property
+    def controller(self) -> RuntimeWorldController:
+        """公开控制器，供 P3a 门禁等直接 ``query_*.invoke(..., config=…)``。"""
+        return self._controller
+
+    @property
     def trajectory(self) -> TrajectoryRecorder:
         return self._recorder
 
-    async def step(self, action: GameActionRequest | dict[str, Any] | Any) -> TurnStepResult:
+    @property
+    def chat_model_factory(self) -> ChatModelFactory | None:
+        return self._chat_model_factory
+
+    async def step(
+        self,
+        action: GameActionRequest | dict[str, Any] | Any,
+        *,
+        chat_model_factory: ChatModelFactory | None = None,
+    ) -> TurnStepResult:
+        """推进一回合。
+
+        ``chat_model_factory``：本回合覆盖；缺省用开局注入的 factory；再缺省则图内
+        ``resolve_chat_model`` 回落 webui ``get_chat_model``（仅适合误用排查，P3b/G3/G5
+        必须显式注入教师或被测模型）。
+        """
         # 延迟导入，避免 ``runtime.__init__ / trajectory ← turn_graph ← commit`` 环。
         from app.graph.turn_graph import TURN_GRAPH
 
@@ -99,18 +126,25 @@ class HeadlessSession:
                 f"lock={current_fp!r}"
             )
 
+        factory = chat_model_factory if chat_model_factory is not None else self._chat_model_factory
+        self._controller.set_chat_model_factory(factory)
+
         state_version = self._controller.world_state.state_version
         game_request = _coerce_game_action(action, state_version=state_version)
 
         await self._controller.commit(expected_state_version=state_version)
 
+        configurable: dict[str, Any] = {
+            "mode": TurnMode.GAME,
+            "game_request": game_request,
+            "controller": self._controller,
+            "trajectory_recorder": self._recorder,
+        }
+        if factory is not None:
+            configurable[CHAT_MODEL_FACTORY_KEY] = factory
+
         config: RunnableConfig = {
-            "configurable": {
-                "mode": TurnMode.GAME,
-                "game_request": game_request,
-                "controller": self._controller,
-                "trajectory_recorder": self._recorder,
-            },
+            "configurable": configurable,
             "recursion_limit": 30,
         }
         raw = await TURN_GRAPH.ainvoke({}, config=config)
@@ -134,17 +168,29 @@ class HeadlessSession:
         )
 
     def fork(self, n: int = 2) -> list[HeadlessSession]:
-        """基于当前 snapshot 深拷贝分叉；各新 run_id，互不共享 recorder 状态。"""
+        """基于当前 snapshot 深拷贝分叉；继承 chat_model_factory；各新 run_id / recorder。"""
         children = fork_snapshot(self.snapshot, n=n)
-        return [HeadlessSession._from_snapshot(child) for child in children]
+        return [
+            HeadlessSession._from_snapshot(
+                child,
+                sink_path=self._sink_path,
+                chat_model_factory=self._chat_model_factory,
+            )
+            for child in children
+        ]
 
 
 async def open_from_snapshot(
     snapshot: SessionSnapshot,
     *,
     sink_path: str | None = None,
+    chat_model_factory: ChatModelFactory | None = None,
 ) -> HeadlessSession:
-    return HeadlessSession._from_snapshot(snapshot, sink_path=sink_path)
+    return HeadlessSession._from_snapshot(
+        snapshot,
+        sink_path=sink_path,
+        chat_model_factory=chat_model_factory,
+    )
 
 
 async def open_default_world(
@@ -153,6 +199,11 @@ async def open_default_world(
     seed_id: str = "default",
     played_actor_id: str | None = None,
     sink_path: str | None = None,
+    chat_model_factory: ChatModelFactory | None = None,
 ) -> HeadlessSession:
     snapshot = await build_default_snapshot(db, seed_id=seed_id, played_actor_id=played_actor_id)
-    return await open_from_snapshot(snapshot, sink_path=sink_path)
+    return await open_from_snapshot(
+        snapshot,
+        sink_path=sink_path,
+        chat_model_factory=chat_model_factory,
+    )

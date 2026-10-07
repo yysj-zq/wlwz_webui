@@ -1,6 +1,6 @@
 """认证、会话列表、chat 路径端到端测试。
 
-chat 现在走 TurnGraph：发请求时 mock director + npc 的 get_chat_model。
+chat 现在走 TurnGraph：发请求时 mock director + npc 的 resolve_chat_model。
 """
 
 from typing import Any, cast
@@ -57,14 +57,14 @@ async def test_auth_register_login_me(client: httpx.AsyncClient) -> None:
 
 async def test_chat_runs_through_unified_turn_graph(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     # chat 不走 director；patch 成 explode 验证
-    def _explode(**_: object) -> object:
+    def _explode(*_a: object, **_k: object) -> object:
         raise AssertionError("chat 模式不应触达 director")
 
-    monkeypatch.setattr(director_node, "get_chat_model", _explode)
+    monkeypatch.setattr(director_node, "resolve_chat_model", _explode)
     monkeypatch.setattr(
         npc_node,
-        "get_chat_model",
-        lambda **_: _StubChat(
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat(
             "submit_response", {"speak": "我滴个神啊。", "act_patch": [], "memory_writes": [], "inventory_ops": []}
         ),
     )

@@ -5,7 +5,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import COMPACTOR_SYSTEM_PROMPT, get_chat_model, strip_think
+from app.core import COMPACTOR_SYSTEM_PROMPT, ChatModelFactory, get_chat_model, strip_think
 from app.models import Timeline
 from app.repositories import timeline_repository
 from app.schemas import TimelineEntry, TimelineKind
@@ -107,13 +107,17 @@ class Compactor:
         self.recent_limit = recent_limit
 
     async def compact(
-        self, entries: list[TimelineEntry], *, name_lookup: dict[str, str] | None = None
+        self,
+        entries: list[TimelineEntry],
+        *,
+        name_lookup: dict[str, str] | None = None,
+        chat_model_factory: ChatModelFactory | None = None,
     ) -> list[TimelineEntry]:
         if len(entries) <= self.recent_limit:
             return entries
         head = entries[: -self.recent_limit]
         tail = entries[-self.recent_limit :]
-        summary = await self._summarize(head, name_lookup=name_lookup)
+        summary = await self._summarize(head, name_lookup=name_lookup, chat_model_factory=chat_model_factory)
         if not summary:
             return tail
         virtual = TimelineEntry(
@@ -125,10 +129,19 @@ class Compactor:
         )
         return [virtual, *tail]
 
-    async def _summarize(self, head: list[TimelineEntry], *, name_lookup: dict[str, str] | None = None) -> str:
+    async def _summarize(
+        self,
+        head: list[TimelineEntry],
+        *,
+        name_lookup: dict[str, str] | None = None,
+        chat_model_factory: ChatModelFactory | None = None,
+    ) -> str:
         rendered = render_timeline_for_messages(head, npc_name_lookup=name_lookup)
         body = "\n".join(f"- {m['content']}" for m in rendered)
-        llm = get_chat_model(temperature=0.2, streaming=False)
+        if chat_model_factory is not None:
+            llm = chat_model_factory(temperature=0.2, streaming=False)
+        else:
+            llm = get_chat_model(temperature=0.2, streaming=False)
         result = await llm.ainvoke([SystemMessage(content=COMPACTOR_SYSTEM_PROMPT), HumanMessage(content=body)])
         content = result.content
         if isinstance(content, list):

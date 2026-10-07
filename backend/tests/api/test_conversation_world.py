@@ -73,16 +73,16 @@ async def test_player_action_writes_npc_speak_to_timeline(
 ) -> None:
     monkeypatch.setattr(
         director_node,
-        "get_chat_model",
-        lambda **_: _StubChat(
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat(
             "submit_dispatch",
             {"world_writes": [], "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被直接称呼"}]},
         ),
     )
     monkeypatch.setattr(
         npc_node,
-        "get_chat_model",
-        lambda **_: _StubChat(
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat(
             "submit_response", {"speak": "客官您吩咐。", "act_patch": [], "memory_writes": [], "inventory_ops": []}
         ),
     )

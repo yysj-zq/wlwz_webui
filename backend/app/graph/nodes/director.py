@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
-from app.core import get_chat_model, get_logger
+from app.core import get_logger, resolve_chat_model
 from app.graph.prompt_render import render_director_messages
 from app.graph.state import TurnGraphState
 from app.graph.tools import DIRECTOR_TOOLS
@@ -45,7 +45,8 @@ async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict[s
     # submit_dispatch，"auto" 在多家供应商下均能稳定产出 tool_call；而 "any" 非规范值，
     # 严格实现直接 422 报错、放宽容错则静默忽略并退回纯文本，两种失败都不会触发上面的重试。
     # 强制力仍由上面的无-tool_call 反馈重试兜底。
-    llm = get_chat_model(temperature=0.7, streaming=False).bind_tools(DIRECTOR_TOOLS, tool_choice="auto")
+    # 模型来源：configurable["chat_model_factory"]（无头教师/评测/RL）；缺省 get_chat_model（HTTP）。
+    llm = resolve_chat_model(config, temperature=0.7, streaming=False).bind_tools(DIRECTOR_TOOLS, tool_choice="auto")
     ai_msg = await llm.ainvoke(messages)
     if not isinstance(ai_msg, AIMessage):
         logger.warning("LLM 返回了非 AIMessage 类型: %s", type(ai_msg))

@@ -44,8 +44,8 @@ class _StubChat:
 def _patch_director_dispatch(monkeypatch: pytest.MonkeyPatch, dispatch: dict[str, Any]) -> None:
     monkeypatch.setattr(
         director_node,
-        "get_chat_model",
-        lambda **_: _StubChat("submit_dispatch", dispatch),
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat("submit_dispatch", dispatch),
     )
 
 
@@ -53,9 +53,27 @@ def _patch_npc_response(monkeypatch: pytest.MonkeyPatch, response: dict[str, Any
     full = {"act_patch": [], "memory_writes": [], "inventory_ops": [], **response}
     monkeypatch.setattr(
         npc_node,
-        "get_chat_model",
-        lambda **_: _StubChat("submit_response", full),
+        "resolve_chat_model",
+        lambda *_a, **_k: _StubChat("submit_response", full),
     )
+
+
+def _teacher_factory_for(
+    *,
+    director_dispatch: dict[str, Any],
+    npc_response: dict[str, Any],
+) -> Any:
+    """模拟 G2 注入教师：按 temperature 区分 director(0.7) / npc(0.8)。"""
+
+    npc_full = {"act_patch": [], "memory_writes": [], "inventory_ops": [], **npc_response}
+
+    def factory(*, temperature: float = 0.7, streaming: bool = False) -> _StubChat:
+        _ = streaming
+        if temperature >= 0.75:
+            return _StubChat("submit_response", npc_full)
+        return _StubChat("submit_dispatch", director_dispatch)
+
+    return factory
 
 
 @pytest.mark.asyncio
@@ -170,3 +188,31 @@ async def test_step_rejects_fingerprint_mismatch(
 
     # 确认未因指纹失败而误改版本
     assert session.snapshot.world.state_version == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_model_factory_injection_without_monkeypatch(async_db_session: AsyncSession) -> None:
+    """G2/G3/G5：经 open_*/step 注入 factory，不依赖 monkeypatch get_chat_model。"""
+    factory = _teacher_factory_for(
+        director_dispatch={
+            "world_writes": [],
+            "perceivers": [{"actor_id": "baizhantang", "perception_reason": "教师采集"}],
+        },
+        npc_response={"speak": "教师台词", "memory_writes": [{"content": "teacher-mem"}]},
+    )
+    session = await open_default_world(
+        async_db_session,
+        seed_id="teacher-inject",
+        chat_model_factory=factory,
+    )
+    assert session.controller is session._controller
+    assert session.chat_model_factory is factory
+
+    result = await session.step({"actor_id": "player", "target_id": "baizhantang", "speak": "喂"})
+    assert any(e.actor_id == "baizhantang" and e.speak == "教师台词" for e in result.timeline_delta)
+    assert session.snapshot.minds["baizhantang"].memories[-1]["content"] == "teacher-mem"
+
+    child = session.fork(1)[0]
+    assert child.chat_model_factory is factory
+    result2 = await child.step({"actor_id": "player", "target_id": "baizhantang", "speak": "再喂"})
+    assert any(e.speak == "教师台词" for e in result2.timeline_delta)

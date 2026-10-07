@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.llm import CHAT_MODEL_FACTORY_KEY, ChatModelFactory
 from app.runtime.controller import RuntimeWorldController
 from app.runtime.snapshot import (
     MindState,
@@ -29,6 +30,8 @@ from app.runtime.trajectory import (
 )
 
 __all__ = [
+    "CHAT_MODEL_FACTORY_KEY",
+    "ChatModelFactory",
     "ContractFingerprintMismatch",
     "DIRECTOR_ACTOR_ID",
     "SYSTEM_ACTOR_ID",
