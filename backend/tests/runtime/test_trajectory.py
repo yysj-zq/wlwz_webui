@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.graph.nodes.director as director_node
@@ -74,6 +74,28 @@ def _make_recorder() -> TrajectoryRecorder:
     )
 
 
+def test_record_llm_input_roundtrip(tmp_path: Path) -> None:
+    rec = _make_recorder()
+    rec.record_llm_input(
+        actor_type="director",
+        actor_id="director",
+        messages=[
+            SystemMessage(content="你是导演"),
+            HumanMessage(content="玩家：老白"),
+        ],
+    )
+    event = rec.list(event_type="llm_input")[0]
+    assert event.messages == [
+        {"role": "system", "content": "你是导演"},
+        {"role": "user", "content": "玩家：老白"},
+    ]
+    path = tmp_path / "traj.jsonl"
+    rec.flush(path)
+    loaded = load_events_jsonl(path)
+    assert loaded[0].event_type == "llm_input"
+    assert loaded[0].messages == event.messages
+
+
 def test_record_four_event_types_and_list_filters() -> None:
     rec = _make_recorder()
     rec.record_llm_output(
@@ -88,6 +110,7 @@ def test_record_four_event_types_and_list_filters() -> None:
         tool_name="submit_dispatch",
         tool_call_id="c1",
         observation="已提交导演决策。",
+        status="success",
     )
     rec.record_reject(actor_type="npc", actor_id="baizhantang", reason="必须调用 submit_response")
     rec.record_turn_committed(
@@ -129,6 +152,7 @@ def test_flush_jsonl_and_read_back(tmp_path: Path) -> None:
         tool_name="query_entity",
         tool_call_id="t1",
         observation="{}",
+        status="error",
     )
     assert rec.flush() == path
     assert rec.flush() == path  # 已落盘的不再重复写
@@ -139,6 +163,7 @@ def test_flush_jsonl_and_read_back(tmp_path: Path) -> None:
     assert loaded[0].event_type == "llm_output"
     assert loaded[1].event_type == "tool_observation"
     assert loaded[1].actor_id == "baizhantang"
+    assert loaded[1].status == "error"
 
     q = TrajectoryQuery(path)
     assert len(q.list(run_id="run-1")) == 2

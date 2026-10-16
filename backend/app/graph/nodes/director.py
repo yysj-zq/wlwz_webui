@@ -29,6 +29,12 @@ async def director_step(state: TurnGraphState, config: RunnableConfig) -> dict[s
         name_lookup = controller.world_state.name_lookup()
         new_msgs = render_director_messages(context, name_lookup)
         messages = new_msgs
+        if recorder is not None:
+            recorder.record_llm_input(
+                actor_type="director",
+                actor_id=DIRECTOR_ACTOR_ID,
+                messages=messages,
+            )
     elif isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:
         # 上一轮 director 没调工具（违规）——补一条反馈让本次重试有效
         feedback = HumanMessage(content="你必须调用 submit_dispatch 工具提交决策以结束回合。")

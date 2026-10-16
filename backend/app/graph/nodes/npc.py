@@ -51,6 +51,12 @@ async def npc_step(state: NpcSubgraphState, config: RunnableConfig) -> dict[str,
         # 首次进入：渲染 system prompt + timeline context 作为初始 messages
         new_msgs = render_npc_messages(context, entity, mind_view, perceiver.perception_reason, name_lookup)
         messages = new_msgs  # 供下方 LLM 调用使用完整列表
+        if recorder is not None:
+            recorder.record_llm_input(
+                actor_type="npc",
+                actor_id=perceiver.actor_id,
+                messages=messages,
+            )
     elif isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:
         # 上一轮没调工具（违规）——补一条反馈让本次重试有效（与 director 同构）
         feedback = HumanMessage(content="你必须调用 submit_response 工具提交你的响应以结束回合。")

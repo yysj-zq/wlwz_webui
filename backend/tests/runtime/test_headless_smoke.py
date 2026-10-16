@@ -112,6 +112,17 @@ async def test_open_default_world_step_trajectory(
     assert "turn_committed" in types or "llm_output" in types
     assert any(e.event_type == "turn_committed" for e in result.trajectory)
 
+    director_inputs = session.trajectory.list(turn_id=result.turn_id, actor_id="director", event_type="llm_input")
+    npc_inputs = session.trajectory.list(turn_id=result.turn_id, actor_id="baizhantang", event_type="llm_input")
+    assert len(director_inputs) == 1
+    assert len(npc_inputs) == 1
+    assert director_inputs[0].messages
+    assert director_inputs[0].messages[0]["role"] == "system"
+    assert npc_inputs[0].messages
+    assert npc_inputs[0].messages[0]["role"] == "system"
+    director_seq = [e.seq for e in session.trajectory.list(turn_id=result.turn_id, actor_id="director")]
+    assert director_seq[0] == director_inputs[0].seq
+
     by_run = session.trajectory.list(run_id=session.snapshot.meta.run_id)
     assert len(by_run) >= len(events)
 
@@ -216,3 +227,94 @@ async def test_chat_model_factory_injection_without_monkeypatch(async_db_session
     assert child.chat_model_factory is factory
     result2 = await child.step({"actor_id": "player", "target_id": "baizhantang", "speak": "再喂"})
     assert any(e.speak == "教师台词" for e in result2.timeline_delta)
+
+
+class _QueueChat:
+    def __init__(self, responses: list[AIMessage]) -> None:
+        self._responses = responses
+
+    def bind_tools(self, _tools: object, **_kwargs: object) -> _QueueChat:
+        return self
+
+    async def ainvoke(self, _messages: list[Any]) -> AIMessage:
+        return self._responses.pop(0)
+
+
+@pytest.mark.asyncio
+async def test_llm_input_once_across_reject_retry(async_db_session: AsyncSession) -> None:
+    """打回重试再调 LLM 时，同一 actor 仍只有一条 llm_input。"""
+    dispatch = {
+        "world_writes": [],
+        "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被点名"}],
+    }
+    director = _QueueChat(
+        [
+            AIMessage(content="先不交"),
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "submit_dispatch", "args": dispatch, "id": "d1"}],
+            ),
+        ]
+    )
+    npc = _StubChat(
+        "submit_response",
+        {"speak": "在。", "act_patch": [], "memory_writes": [], "inventory_ops": []},
+    )
+
+    def factory(*, temperature: float = 0.7, streaming: bool = False) -> _QueueChat | _StubChat:
+        _ = streaming
+        if temperature >= 0.75:
+            return npc
+        return director
+
+    session = await open_default_world(async_db_session, seed_id="llm-input-once", chat_model_factory=factory)
+    result = await session.step({"actor_id": "player", "speak": "老白"})
+
+    director_events = session.trajectory.list(turn_id=result.turn_id, actor_id="director")
+    assert [e.event_type for e in director_events] == [
+        "llm_input",
+        "llm_output",
+        "reject",
+        "llm_output",
+        "tool_observation",
+    ]
+    assert director_events[0].messages
+    assert director_events[0].messages[0]["role"] == "system"
+    assert director_events[-1].status == "success"
+
+
+@pytest.mark.asyncio
+async def test_tool_observation_records_error_status(async_db_session: AsyncSession) -> None:
+    """未知工具名由 ToolNode 回 status=error；随后合法 submit 为 success。"""
+    dispatch = {
+        "world_writes": [],
+        "perceivers": [{"actor_id": "baizhantang", "perception_reason": "被点名"}],
+    }
+    director = _QueueChat(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "not_a_tool", "args": {}, "id": "bad"}],
+            ),
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "submit_dispatch", "args": dispatch, "id": "ok"}],
+            ),
+        ]
+    )
+    npc = _StubChat(
+        "submit_response",
+        {"speak": "在。", "act_patch": [], "memory_writes": [], "inventory_ops": []},
+    )
+
+    def factory(*, temperature: float = 0.7, streaming: bool = False) -> _QueueChat | _StubChat:
+        _ = streaming
+        if temperature >= 0.75:
+            return npc
+        return director
+
+    session = await open_default_world(async_db_session, seed_id="tool-status", chat_model_factory=factory)
+    result = await session.step({"actor_id": "player", "speak": "老白"})
+    observations = session.trajectory.list(turn_id=result.turn_id, actor_id="director", event_type="tool_observation")
+    assert [e.tool_name for e in observations] == ["not_a_tool", "submit_dispatch"]
+    assert [e.status for e in observations] == ["error", "success"]

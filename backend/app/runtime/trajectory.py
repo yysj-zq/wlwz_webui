@@ -1,7 +1,7 @@
 """轨迹旁路：事件 schema + Recorder + JSONL sink + Query。
 
-图内采集钩子（llm / tool / reject / turn_committed）经 ``configurable["trajectory_recorder"]``
-注入；缺省（HTTP 热路径）跳过。
+图内采集钩子（llm_input / llm / tool / reject / turn_committed）经
+``configurable["trajectory_recorder"]`` 注入；缺省（HTTP 热路径）跳过。
 """
 
 from __future__ import annotations
@@ -12,14 +12,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import BaseMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
 ActorType = Literal["director", "npc", "system"]
-EventType = Literal["llm_output", "tool_observation", "reject", "turn_committed"]
+EventType = Literal["llm_input", "llm_output", "tool_observation", "reject", "turn_committed"]
+ToolStatus = Literal["success", "error"]
 
 DIRECTOR_ACTOR_ID = "director"
 SYSTEM_ACTOR_ID = "system"
@@ -38,14 +39,18 @@ class TrajectoryEvent(BaseModel):
     actor_id: str
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    # llm_input：首次渲染后、第一次 ainvoke 前的 messages（不含工具 schema）
+    messages: list[dict[str, str]] | None = None
+
     # llm_output
     content: str | None = None
     tool_calls: list[dict[str, Any]] | None = None
 
-    # tool_observation
+    # tool_observation。status 取 ToolMessage.status，与 observation 正文分开。
     tool_name: str | None = None
     tool_call_id: str | None = None
     observation: Any | None = None
+    status: ToolStatus | None = None
 
     # reject
     reason: str | None = None
@@ -70,6 +75,19 @@ def _serialize_tool_calls(tool_calls: Sequence[Any] | None) -> list[dict[str, An
                     "id": getattr(tc, "id", None),
                 }
             )
+    return out
+
+
+_ROLE_BY_LC_TYPE = {"system": "system", "human": "user", "ai": "assistant", "tool": "tool"}
+
+
+def serialize_chat_messages(messages: Sequence[BaseMessage]) -> list[dict[str, str]]:
+    """把模型实际读到的 messages 收成 ``{role, content}``。"""
+    out: list[dict[str, str]] = []
+    for message in messages:
+        lc_type = getattr(message, "type", "")
+        role = _ROLE_BY_LC_TYPE.get(lc_type, str(lc_type))
+        out.append({"role": role, "content": _content_as_str(message.content) or ""})
     return out
 
 
@@ -171,6 +189,27 @@ class TrajectoryRecorder:
             "actor_id": actor_id,
         }
 
+    def record_llm_input(
+        self,
+        *,
+        actor_type: ActorType,
+        actor_id: str,
+        messages: Sequence[BaseMessage],
+        turn_id: str | None = None,
+    ) -> TrajectoryEvent:
+        """每个 actor 每回合一条：首次渲染后的初始 messages。"""
+        event = TrajectoryEvent(
+            event_type="llm_input",
+            messages=serialize_chat_messages(messages),
+            **self._base(
+                turn_id=self._resolve_turn_id(turn_id),
+                actor_type=actor_type,
+                actor_id=actor_id,
+            ),
+        )
+        self._events.append(event)
+        return event
+
     def record_llm_output(
         self,
         *,
@@ -199,6 +238,7 @@ class TrajectoryRecorder:
         actor_type: ActorType,
         actor_id: str,
         tool_name: str,
+        status: ToolStatus,
         tool_call_id: str | None = None,
         observation: Any = None,
         turn_id: str | None = None,
@@ -208,6 +248,7 @@ class TrajectoryRecorder:
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             observation=observation,
+            status=status,
             **self._base(
                 turn_id=self._resolve_turn_id(turn_id),
                 actor_type=actor_type,
@@ -399,9 +440,10 @@ def make_tool_observation_awrap(
         recorder.record_tool_observation(
             actor_type=actor_type,
             actor_id=actor_id,
-            tool_name=str(tool_call.get("name") or ""),
+            tool_name=str(tool_msg.name or tool_call.get("name") or ""),
             tool_call_id=str(tool_msg.tool_call_id or tool_call.get("id") or ""),
-            observation=str(tool_msg.content),
+            observation=tool_msg.content,
+            status=tool_msg.status,
         )
         return result
 
