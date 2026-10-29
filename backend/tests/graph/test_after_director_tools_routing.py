@@ -1,15 +1,15 @@
 """_after_director_tools 路由单元测试：三态直测（不碰 DB、不编译图）。
 
 - dispatch 未写入（None）→ "director_step"（query 回灌 / 非法打回，继续循环）
-- dispatch 有 perceivers → list[Send]，每个 perceiver 一个 npc_worker
-- dispatch 无 perceivers → "commit"（直接落库；返回节点名以保留完整 state）
+- dispatch 已写入 → prepare_npcs，完成状态屏障后才 fan-out
+- prepare_npcs 后无 perceivers → "commit"（保留完整父图 state）
 """
 
 from __future__ import annotations
 
 from langgraph.types import Send
 
-from app.graph.turn_graph import _after_director_tools
+from app.graph.turn_graph import _after_director_tools, _route_after_load
 from app.schemas.world import DirectorDispatch, Perceiver, TurnContext
 
 
@@ -31,14 +31,17 @@ def test_after_director_tools_with_perceivers_fans_out() -> None:
     )
     result = _after_director_tools({"dispatch": dispatch, "context": _ctx(), "director_messages": []})
 
-    assert isinstance(result, list)
-    assert [s.node for s in result] == ["npc_worker", "npc_worker"]
-    assert all(isinstance(s, Send) for s in result)
-    assert [s.arg["npc_perceiver"].actor_id for s in result] == ["baizhantang", "guofurong"]
+    assert result == "prepare_npcs"
+    routes = _route_after_load({"dispatch": dispatch, "context": _ctx()})
+    assert isinstance(routes, list)
+    assert [s.node for s in routes] == ["npc_worker", "npc_worker"]
+    assert all(isinstance(s, Send) for s in routes)
+    assert [s.arg["npc_perceiver"].actor_id for s in routes] == ["baizhantang", "guofurong"]
 
 
 def test_after_director_tools_no_perceivers_goes_to_commit() -> None:
     dispatch = DirectorDispatch(world_writes=[], perceivers=[])
     result = _after_director_tools({"dispatch": dispatch, "context": _ctx(), "director_messages": []})
     # 返回节点名而非 Send({})，以保留完整父图 state 供 commit 读 dispatch / player_entry
-    assert result == "commit"
+    assert result == "prepare_npcs"
+    assert _route_after_load({"dispatch": dispatch, "context": _ctx()}) == "commit"

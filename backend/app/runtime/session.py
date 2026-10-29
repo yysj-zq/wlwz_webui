@@ -147,10 +147,24 @@ class HeadlessSession:
             "configurable": configurable,
             "recursion_limit": 30,
         }
-        raw = await TURN_GRAPH.ainvoke({}, config=config)
-        state: TurnGraphState = raw  # type: ignore[assignment]
-        committed = state["committed_turn"]
-        turn_id = state["player_entry"].turn_id
+        # 导演/玩家在图内更新的只是候选状态；失败或取消不能污染下一回合/分叉。
+        snapshot = self.snapshot
+        checkpoint = snapshot.model_copy(deep=True)
+        loaded_timeline = self._controller._last_loaded_timeline
+        try:
+            raw = await TURN_GRAPH.ainvoke({}, config=config)
+            state: TurnGraphState = raw  # type: ignore[assignment]
+            committed = state["committed_turn"]
+            turn_id = state["player_entry"].turn_id
+        except BaseException:
+            # 原位恢复，保留调用方持有的 SessionSnapshot 引用；失败轨迹留作诊断。
+            snapshot.world = checkpoint.world
+            snapshot.minds = checkpoint.minds
+            snapshot.timeline = checkpoint.timeline
+            snapshot.digest = checkpoint.digest
+            snapshot.meta = checkpoint.meta
+            self._controller._last_loaded_timeline = loaded_timeline
+            raise
 
         self._recorder.record_turn_committed(
             turn_id=turn_id,

@@ -92,3 +92,19 @@ def test_verify_or_raise_fails_when_prompts_tampered(tmp_path: Path, monkeypatch
 
     with pytest.raises(cc.ContractCheckError, match="component 'prompts' digest mismatch"):
         cc.verify_or_raise()
+
+
+@pytest.mark.parametrize("component", ["turn_execution", "npc_preparation"])
+def test_verify_or_raise_fails_when_turn_phase_tampered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    component: str,
+) -> None:
+    lock_path = tmp_path / "contract.lock.json"
+    _write_fake_lock(lock_path, _matching_lock_components())
+    monkeypatch.setattr(cc, "_LOCK_PATH_OVERRIDE", lock_path)
+    tampered = tmp_path / "phase.py"
+    tampered.write_text("# changed turn phase\n", encoding="utf-8")
+    monkeypatch.setattr(cc, f"{component}_path", lambda: tampered)
+    with pytest.raises(cc.ContractCheckError, match=f"component '{component}' digest mismatch"):
+        cc.verify_or_raise()

@@ -324,6 +324,10 @@ class WorldController:
         self._last_loaded_timeline = full_timeline
         return TurnContext(digest=digest, timeline=compacted)
 
+    def apply_director_writes(self, patches: list[WorldEntityPatch]) -> None:
+        """NPC fan-out 前应用导演写入；只更新内存，版本与持久化留给 commit_turn。"""
+        self.apply_player_action(patches)
+
     def apply_player_action(self, patches: list[WorldEntityPatch]) -> None:
         """把玩家提交的 act_patch 就地 apply 到内存 world_state，使其在
         director/NPC 观察前即成为既定事实。不 commit、不 bump version——
@@ -398,6 +402,8 @@ class WorldController:
         for _, response in npc_responses:
             self._validate_patches(response.act_patch)
 
+        # NPC 阶段前已应用导演写入；此处重放绝对赋值/字典合并补丁是幂等的，
+        # 也兼容直接 commit_turn 调用。NPC 补丁始终最后应用。
         next_world = apply_world_patches(self.world_state, director_writes)
         for _, response in npc_responses:
             next_world = apply_world_patches(next_world, response.act_patch)

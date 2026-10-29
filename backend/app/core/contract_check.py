@@ -24,6 +24,8 @@ from app.graph.tools.registry import DIRECTOR_TOOLS, NPC_TOOLS
 LOCAL_COMPONENT_IDS: tuple[str, ...] = (
     "prompts",
     "prompt_render",
+    "turn_execution",
+    "npc_preparation",
     "timeline_render",
     "tools_director",
     "tools_npc",
@@ -73,6 +75,14 @@ def canon_path() -> Path:
 
 def prompt_render_path() -> Path:
     return backend_root() / "app" / "graph" / "prompt_render.py"
+
+
+def turn_execution_path() -> Path:
+    return backend_root() / "app" / "graph" / "turn_graph.py"
+
+
+def npc_preparation_path() -> Path:
+    return backend_root() / "app" / "graph" / "nodes" / "prepare_npcs.py"
 
 
 def timeline_service_path() -> Path:
@@ -137,6 +147,8 @@ def compute_local_component_digests() -> dict[str, str]:
     return {
         "prompts": component_digest(prompt_constants_payload()),
         "prompt_render": component_digest(source_file_payload(prompt_render_path())),
+        "turn_execution": component_digest(source_file_payload(turn_execution_path())),
+        "npc_preparation": component_digest(source_file_payload(npc_preparation_path())),
         "timeline_render": component_digest(source_file_payload(timeline_service_path())),
         "tools_director": component_digest(tool_schemas_payload(list(DIRECTOR_TOOLS))),
         "tools_npc": component_digest(tool_schemas_payload(list(NPC_TOOLS))),
